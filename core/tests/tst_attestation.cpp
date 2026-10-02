@@ -3,6 +3,9 @@
 #include "app/appchecker.h"
 #include "sources/githubattestation.h"
 #include "sources/sourceregistry.h"
+#include "verify/sigstore.h"
+
+#include <QFile>
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -14,8 +17,31 @@ using namespace Harpoon;
 namespace {
 const QString kDigest = QStringLiteral("aa11bb22cc33dd44ee55ff6600778899aa11bb22cc33dd44ee55ff6600778899");
 const QString kApi = QStringLiteral("https://api.github.com/repos/me/tool");
+const QString kRepo = QStringLiteral("https://github.com/me/tool");
 
-// An attestations response with one in-toto statement naming `digests`.
+QByteArray fixture(const char *name)
+{
+    QFile f(QStringLiteral(HARPOON_FIXTURE_DIR "/sigstore/") + QLatin1String(name));
+    if (!f.open(QIODevice::ReadOnly))
+        qFatal("missing fixture %s", name);
+    return f.readAll();
+}
+
+QByteArray response(const QJsonObject &bundle)
+{
+    return QJsonDocument(QJsonObject{{QStringLiteral("attestations"),
+                                      QJsonArray{QJsonObject{{QStringLiteral("bundle"), bundle}}}}})
+        .toJson();
+}
+
+AttestationResult parseFor(const QByteArray &json, const QString &digest = kDigest)
+{
+    return parseAttestations(json, QStringLiteral("sha256"), digest, kRepo, SigstoreTrust::builtIn());
+}
+
+// An attestations response as GitHub's own Sigstore instance (private
+// repositories) signs them: one in-toto statement naming `digests`. The
+// signature is not checked locally for these, so a fake one is enough.
 QByteArray attestations(const QStringList &digests)
 {
     QJsonArray subjects;
@@ -26,9 +52,13 @@ QByteArray attestations(const QStringList &digests)
                                 {QStringLiteral("subject"), subjects},
                                 {QStringLiteral("predicateType"), QStringLiteral("https://slsa.dev/provenance/v1")}};
     const QByteArray payload = QJsonDocument(statement).toJson(QJsonDocument::Compact).toBase64();
-    const QJsonObject bundle{{QStringLiteral("dsseEnvelope"),
-                              QJsonObject{{QStringLiteral("payload"), QString::fromLatin1(payload)},
-                                          {QStringLiteral("payloadType"), QStringLiteral("application/vnd.in-toto+json")}}}};
+    const QJsonObject bundle{
+        {QStringLiteral("dsseEnvelope"),
+         QJsonObject{{QStringLiteral("payload"), QString::fromLatin1(payload)},
+                     {QStringLiteral("payloadType"), QStringLiteral("application/vnd.in-toto+json")}}},
+        {QStringLiteral("verificationMaterial"),
+         QJsonObject{{QStringLiteral("timestampVerificationData"),
+                      QJsonObject{{QStringLiteral("rfc3161Timestamps"), QJsonArray{QJsonObject()}}}}}}};
     return QJsonDocument(QJsonObject{{QStringLiteral("attestations"),
                                       QJsonArray{QJsonObject{{QStringLiteral("bundle"), bundle}}}}})
         .toJson();
@@ -37,7 +67,7 @@ QByteArray attestations(const QStringList &digests)
 AttestationResult lookup(FakeTransport &t)
 {
     AttestationResult out;
-    checkGitHubAttestation(t, kApi, QString(), kDigest, [&](const AttestationResult &r) { out = r; });
+    checkGitHubAttestation(t, kApi, kRepo, QString(), kDigest, [&](const AttestationResult &r) { out = r; });
     return out;
 }
 
@@ -64,13 +94,53 @@ class TestAttestation : public QObject
 private slots:
     void parse()
     {
-        QCOMPARE(parseAttestations(attestations({kDigest}), kDigest).status, AttestationStatus::Verified);
-        QCOMPARE(parseAttestations(attestations({kDigest.toUpper()}), kDigest).status, AttestationStatus::Verified);
+        QCOMPARE(parseFor(attestations({kDigest})).status, AttestationStatus::VerifiedByGitHub);
+        QCOMPARE(parseFor(attestations({kDigest.toUpper()})).status, AttestationStatus::VerifiedByGitHub);
         // An attestation for another file does not count.
-        QCOMPARE(parseAttestations(attestations({QString(64, QLatin1Char('0'))}), kDigest).status,
-                 AttestationStatus::Missing);
-        QCOMPARE(parseAttestations("{\"attestations\": []}", kDigest).status, AttestationStatus::Missing);
-        QCOMPARE(parseAttestations("not json", kDigest).status, AttestationStatus::Error);
+        QCOMPARE(parseFor(attestations({QString(64, QLatin1Char('0'))})).status, AttestationStatus::Missing);
+        QCOMPARE(parseFor("{\"attestations\": []}").status, AttestationStatus::Missing);
+        QCOMPARE(parseFor("not json").status, AttestationStatus::Error);
+        // A bundle without any verification material is not trusted.
+        QCOMPARE(parseFor(response(QJsonObject{{QStringLiteral("dsseEnvelope"), QJsonObject()}})).status,
+                 AttestationStatus::Error);
+    }
+
+    void parseVerifiesSignaturesLocally()
+    {
+        // A real public-good bundle (npm provenance for sigstore-js; its
+        // subject has a sha512 digest).
+        const QJsonObject bundle = QJsonDocument::fromJson(fixture("sigstore-js-2.1.0-bundle.json")).object();
+        const QString sha512 = QStringLiteral("90f223f992e4c88dd068cd2a5fc57f9d2b30798343dd6e38f29c240e04ba090e"
+                                              "f831f84490847c4e82b9232c78e8a258463b1e55c0f7469f730265008fa6633f");
+        const QString repo = QStringLiteral("https://github.com/sigstore/sigstore-js");
+        AttestationResult r = parseAttestations(response(bundle), QStringLiteral("sha512"), sha512, repo,
+                                                SigstoreTrust::builtIn());
+        QCOMPARE(r.status, AttestationStatus::Verified);
+        QVERIFY(r.message.contains(QLatin1String("release.yml")));
+
+        // Signed by another repository's workflow.
+        r = parseAttestations(response(bundle), QStringLiteral("sha512"), sha512, kRepo, SigstoreTrust::builtIn());
+        QCOMPARE(r.status, AttestationStatus::Error);
+        QVERIFY(r.message.contains(QLatin1String("sigstore-js")));
+
+        // A forged statement under the real signature.
+        QJsonObject forged = bundle;
+        QJsonObject envelope = forged.value(QStringLiteral("dsseEnvelope")).toObject();
+        QJsonObject statement = QJsonDocument::fromJson(QByteArray::fromBase64(
+                                                            envelope.value(QStringLiteral("payload")).toString().toLatin1()))
+                                    .object();
+        QJsonArray subjects{QJsonObject{{QStringLiteral("name"), QStringLiteral("tool.rpm")},
+                                        {QStringLiteral("digest"), QJsonObject{{QStringLiteral("sha256"), kDigest}}}}};
+        statement[QStringLiteral("subject")] = subjects;
+        envelope[QStringLiteral("payload")] =
+            QString::fromLatin1(QJsonDocument(statement).toJson(QJsonDocument::Compact).toBase64());
+        forged[QStringLiteral("dsseEnvelope")] = envelope;
+        r = parseAttestations(response(forged), QStringLiteral("sha256"), kDigest, repo, SigstoreTrust::builtIn());
+        QCOMPARE(r.status, AttestationStatus::Error);
+
+        // Not an attestation for this file.
+        r = parseAttestations(response(bundle), QStringLiteral("sha256"), kDigest, repo, SigstoreTrust::builtIn());
+        QCOMPARE(r.status, AttestationStatus::Missing);
     }
 
     void lookupOutcomes()
@@ -78,7 +148,7 @@ private slots:
         const QString url = kApi + QStringLiteral("/attestations/sha256:") + kDigest;
         FakeTransport ok;
         ok.respondJson(url, attestations({kDigest}));
-        QCOMPARE(lookup(ok).status, AttestationStatus::Verified);
+        QCOMPARE(lookup(ok).status, AttestationStatus::VerifiedByGitHub);
         QCOMPARE(ok.requests.first().url, url);
 
         FakeTransport missing; // unknown URL -> 404
@@ -112,7 +182,7 @@ private slots:
         AppInstaller::Verification v = runVerifier(audit, {okDigest});
         QVERIFY(v.error.ok());
         QVERIFY(v.warnings.isEmpty());
-        QCOMPARE(v.status, QStringLiteral("attestation:verified"));
+        QCOMPARE(v.status, QStringLiteral("attestation:github"));
         QCOMPARE(t.requests.last().header("Authorization"), QByteArray("Bearer tok"));
 
         v = runVerifier(audit, {okDigest, badDigest});

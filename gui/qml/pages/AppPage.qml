@@ -168,7 +168,8 @@ Page {
             DetailItem {
                 visible: details.receiptVerification !== undefined && details.receiptVerification.length > 0
                 label: qsTr("Build provenance")
-                value: details.receiptVerification === "attestation:verified" ? qsTr("Verified by GitHub attestation")
+                value: details.receiptVerification === "attestation:verified" ? qsTr("Signature verified")
+                       : details.receiptVerification === "attestation:github" ? qsTr("Reported by GitHub")
                        : details.receiptVerification === "attestation:missing" ? qsTr("No attestation")
                        : qsTr("Could not check")
             }

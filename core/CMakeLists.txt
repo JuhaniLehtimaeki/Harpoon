@@ -1,5 +1,14 @@
 # zlib inflates rpm-md primary.xml.gz (RpmMdRepoSource).
 find_package(ZLIB REQUIRED)
+# libcrypto verifies Sigstore signatures on GitHub attestations.
+find_package(OpenSSL REQUIRED)
+
+# Sigstore's public-good trusted root, compiled in. Update it from
+# https://github.com/sigstore/root-signing (targets/trusted_root.json).
+set(HARPOON_SIGSTORE_ROOT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/data/sigstore-trusted-root.json)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${HARPOON_SIGSTORE_ROOT_FILE})
+file(READ ${HARPOON_SIGSTORE_ROOT_FILE} HARPOON_SIGSTORE_TRUSTED_ROOT)
+configure_file(src/verify/sigstoretrustedroot.cpp.in ${CMAKE_CURRENT_BINARY_DIR}/sigstoretrustedroot.cpp @ONLY)
 
 add_library(harpoon-core STATIC
     src/model/error.h
@@ -84,9 +93,12 @@ add_library(harpoon-core STATIC
     src/app/addlink.cpp
     src/notify/notifier.h
     src/notify/notifier.cpp
+    src/verify/sigstore.h
+    src/verify/sigstore.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/sigstoretrustedroot.cpp
 )
 target_include_directories(harpoon-core PUBLIC src)
 target_link_libraries(harpoon-core PUBLIC Qt5::Core Qt5::Network Qt5::DBus)
-target_link_libraries(harpoon-core PRIVATE ZLIB::ZLIB)
+target_link_libraries(harpoon-core PRIVATE ZLIB::ZLIB OpenSSL::Crypto)
 target_compile_definitions(harpoon-core PUBLIC
     HARPOON_VERSION="${PROJECT_VERSION}")
