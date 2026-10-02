@@ -38,6 +38,10 @@ public:
 
     // Waiting for the user is open-ended, but not forever.
     void setTimeoutMs(int ms) { m_timeoutMs = ms; }
+    // The handler's signals carry no request id. After a timeout, the next
+    // job waits up to this long for the late reply, which is then dropped,
+    // so it cannot be credited to the wrong job.
+    void setDrainMs(int ms) { m_drainMs = ms; }
 
 private slots:
     void onInstallFinished(bool success, const QString &error);
@@ -53,10 +57,15 @@ private:
     };
     void runNext();
     void complete(Op op, const Error &error);
+    void stopDraining();
 
     QDBusConnection m_bus;
     QString m_service;
     int m_timeoutMs = 30 * 60 * 1000;
+    int m_drainMs = 2 * 60 * 1000;
+    bool m_draining = false;
+    Op m_drainOp = Op::Install;
+    quint64 m_drainGeneration = 0;
     std::deque<Job> m_queue;
     bool m_busy = false;
     Op m_currentOp = Op::Install;

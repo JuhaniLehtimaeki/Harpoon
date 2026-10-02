@@ -48,6 +48,8 @@ void InstallHandlerBackend::removePackage(const QString &name, Done done)
 
 void InstallHandlerBackend::runNext()
 {
+    if (m_draining || m_current)
+        return;
     if (m_queue.empty()) {
         m_busy = false;
         return;
@@ -60,8 +62,17 @@ void InstallHandlerBackend::runNext()
     const quint64 generation = ++m_generation;
 
     QTimer::singleShot(m_timeoutMs, this, [this, generation]() {
-        if (generation == m_generation && m_current)
-            complete(m_currentOp, Error::make(Error::Install, QStringLiteral("The installation handler did not answer")));
+        if (generation != m_generation || !m_current)
+            return;
+        // The dialog may still be open; its answer must not reach the next job.
+        m_draining = true;
+        m_drainOp = m_currentOp;
+        const quint64 drain = ++m_drainGeneration;
+        QTimer::singleShot(m_drainMs, this, [this, drain]() {
+            if (m_draining && drain == m_drainGeneration)
+                stopDraining();
+        });
+        complete(m_currentOp, Error::make(Error::Install, QStringLiteral("The installation handler did not answer")));
     });
 
     if (!m_bus.isConnected()) {
@@ -96,8 +107,18 @@ void InstallHandlerBackend::complete(Op op, const Error &error)
     QTimer::singleShot(0, this, &InstallHandlerBackend::runNext);
 }
 
+void InstallHandlerBackend::stopDraining()
+{
+    m_draining = false;
+    QTimer::singleShot(0, this, &InstallHandlerBackend::runNext);
+}
+
 void InstallHandlerBackend::onInstallFinished(bool success, const QString &error)
 {
+    if (m_draining && m_drainOp == Op::Install) {
+        stopDraining();
+        return;
+    }
     complete(Op::Install, success ? Error()
                                   : Error::make(Error::Install, error.isEmpty() ? QStringLiteral("Installation failed or was declined")
                                                                                 : error));
@@ -105,6 +126,10 @@ void InstallHandlerBackend::onInstallFinished(bool success, const QString &error
 
 void InstallHandlerBackend::onRemovalFinished(bool success, const QString &error)
 {
+    if (m_draining && m_drainOp == Op::Remove) {
+        stopDraining();
+        return;
+    }
     complete(Op::Remove, success ? Error()
                                  : Error::make(Error::Install, error.isEmpty() ? QStringLiteral("Removal failed or was declined")
                                                                                : error));

@@ -1,4 +1,6 @@
 #include "pkg/installhandlerbackend.h"
+
+#include <QElapsedTimer>
 #include "pkg/packagekitbackend.h"
 
 #include <QDBusConnection>
@@ -147,6 +149,7 @@ public:
     QList<QStringList> installs;
     QList<QStringList> removals;
     bool succeed = true;
+    int delayMs = 10;
 
 public slots:
     void installFiles(const QStringList &urls)
@@ -164,7 +167,7 @@ private:
     void reply(const QString &signal)
     {
         const bool ok = succeed;
-        QTimer::singleShot(10, this, [this, signal, ok]() {
+        QTimer::singleShot(delayMs, this, [this, signal, ok]() {
             QDBusMessage m = QDBusMessage::createSignal(QStringLiteral("/org/sailfishos/installationhandler"),
                                                         QStringLiteral("org.sailfishos.installationhandler"), signal);
             m << ok << (ok ? QString() : QStringLiteral("User declined"));
@@ -385,6 +388,60 @@ private slots:
         QVERIFY(!waitFor([&](PackageBackend::Done d) {
                      backend.installFiles({QStringLiteral("/tmp/a.rpm")}, InstallOptions(), d);
                  }).ok());
+    }
+
+    void lateReplyIsNotCreditedToTheNextJob()
+    {
+        InstallHandlerBackend backend(client());
+        backend.setTimeoutMs(100);
+        m_handler->delayMs = 400; // answers after the timeout
+        m_handler->succeed = true;
+        const int before = m_handler->installs.size();
+
+        Error first;
+        Error second;
+        bool firstDone = false;
+        bool secondDone = false;
+        backend.installFiles({QStringLiteral("/tmp/a.rpm")}, InstallOptions(), [&](const Error &e) {
+            first = e;
+            firstDone = true;
+            // The user declines the next one; the late "success" of the
+            // first dialog must not be reported for it.
+            m_handler->succeed = false;
+            m_handler->delayMs = 600; // answers after the stray reply
+            backend.setTimeoutMs(3000);
+            backend.installFiles({QStringLiteral("/tmp/b.rpm")}, InstallOptions(), [&](const Error &e2) {
+                second = e2;
+                secondDone = true;
+            });
+        });
+        QVERIFY(QTest::qWaitFor([&]() { return secondDone; }, 5000));
+        QVERIFY(firstDone);
+        QCOMPARE(first.message, QStringLiteral("The installation handler did not answer"));
+        QCOMPARE(second.message, QStringLiteral("User declined"));
+        QCOMPARE(m_handler->installs.size(), before + 2);
+        m_handler->delayMs = 10;
+        m_handler->succeed = true;
+    }
+
+    void drainEndsWhenNoReplyComes()
+    {
+        InstallHandlerBackend backend(client());
+        backend.setTimeoutMs(100);
+        backend.setDrainMs(100);
+        m_handler->delayMs = 1500; // far beyond timeout and drain
+        QVERIFY(!waitFor([&](PackageBackend::Done d) {
+                     backend.installFiles({QStringLiteral("/tmp/a.rpm")}, InstallOptions(), d);
+                 }).ok());
+        // The next job runs once the drain period ends, before the late reply.
+        m_handler->delayMs = 10;
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(waitFor([&](PackageBackend::Done d) {
+                    backend.removePackage(QStringLiteral("harbour-demo"), d);
+                }).ok());
+        QVERIFY(timer.elapsed() < 1000);
+        QTest::qWait(1600); // let the stray signal pass
     }
 };
 
