@@ -136,22 +136,22 @@ Page {
                 wrapMode: Text.Wrap
                 font.pixelSize: Theme.fontSizeExtraSmall
                 color: Theme.secondaryHighlightColor
-                text: qsTr("Optional. A token raises GitHub's limit of 60 checks per hour and allows private repositories. Tokens are stored unencrypted in Harpoon's private settings file.")
+                text: qsTr("Optional. A token raises GitHub's limit of 60 checks per hour and allows private repositories. Self-hosted servers get their own field once you track an app on them. Tokens are stored unencrypted in Harpoon's private settings file.")
             }
 
             Repeater {
-                model: harpoon.sources
+                model: harpoon.tokenTargets
 
                 PasswordField {
                     width: column.width
                     label: qsTr("%1 token").arg(modelData.name)
                     placeholderText: label
-                    text: harpoon.settings.token(modelData.id)
+                    text: harpoon.settings.token(modelData.key)
                     EnterKey.iconSource: "image://theme/icon-m-enter-close"
                     EnterKey.onClicked: focus = false
                     onActiveFocusChanged: {
-                        if (!activeFocus && text !== harpoon.settings.token(modelData.id)) {
-                            harpoon.settings.setToken(modelData.id, text)
+                        if (!activeFocus && text !== harpoon.settings.token(modelData.key)) {
+                            harpoon.settings.setToken(modelData.key, text)
                         }
                     }
                 }

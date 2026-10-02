@@ -68,6 +68,11 @@ HarpoonController::HarpoonController(ControllerEnvironment env, QObject *parent)
             m_checker->setSourceConfigs(tokenConfigs());
     });
 
+    // Self-hosted servers come and go with the apps that use them.
+    connect(&m_model, &QAbstractItemModel::rowsInserted, this, &HarpoonController::tokenTargetsChanged);
+    connect(&m_model, &QAbstractItemModel::rowsRemoved, this, &HarpoonController::tokenTargetsChanged);
+    connect(&m_model, &QAbstractItemModel::modelReset, this, &HarpoonController::tokenTargetsChanged);
+
     // Re-apply the schedule only when its inputs change.
     auto schedule = std::make_shared<QPair<bool, int>>(m_settings->backgroundChecks(), m_settings->checkIntervalHours());
     connect(m_settings, &HarpoonSettings::changed, this, [this, schedule]() {
@@ -87,6 +92,32 @@ QVariantList HarpoonController::sources() const
     for (const QString &id : m_registry.ids()) {
         const auto source = m_registry.create(id);
         out << QVariantMap{{QStringLiteral("id"), id}, {QStringLiteral("name"), source->displayName()}};
+    }
+    return out;
+}
+
+QVariantList HarpoonController::tokenTargets() const
+{
+    QVariantList out;
+    QStringList seen;
+    for (const QString &id : m_registry.ids()) {
+        const auto source = m_registry.create(id);
+        if (!source->usesToken())
+            continue;
+        seen << id;
+        out << QVariantMap{{QStringLiteral("key"), id}, {QStringLiteral("name"), source->displayName()}};
+    }
+    for (const AppListModel::Entry &e : m_model.entries()) {
+        const auto match = m_registry.match(e.app.url, e.app.sourceId);
+        if (!match.ok() || !match.value.source->usesToken())
+            continue;
+        const QString key = match.value.source->tokenKey();
+        if (seen.contains(key))
+            continue;
+        seen << key;
+        out << QVariantMap{{QStringLiteral("key"), key},
+                           {QStringLiteral("name"), QStringLiteral("%1 (%2)").arg(match.value.source->displayName(),
+                                                                                  match.value.source->customHost())}};
     }
     return out;
 }

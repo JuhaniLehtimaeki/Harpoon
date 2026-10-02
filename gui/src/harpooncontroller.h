@@ -49,6 +49,9 @@ class HarpoonController : public QObject
     Q_PROPERTY(QString deviceArch READ deviceArch CONSTANT)
     Q_PROPERTY(QString osVersion READ osVersion CONSTANT)
     Q_PROPERTY(QVariantList sources READ sources CONSTANT)
+    // [{key, name}] for the token fields in settings: each source that uses
+    // tokens, plus each self-hosted server among the tracked apps.
+    Q_PROPERTY(QVariantList tokenTargets READ tokenTargets NOTIFY tokenTargetsChanged)
     Q_PROPERTY(QDateTime lastCheckAll READ lastCheckAll NOTIFY checkingChanged)
 
 public:
@@ -61,6 +64,7 @@ public:
     QString deviceArch() const { return m_device.arch; }
     QString osVersion() const { return m_device.osVersion; }
     QVariantList sources() const;
+    QVariantList tokenTargets() const;
     QDateTime lastCheckAll() const { return m_lastCheckAll; }
 
     // Reloads records from disk and re-reads installed versions.
@@ -114,6 +118,7 @@ signals:
     void appIdChanged(const QString &oldId, const QString &newId);
     // Changing the background schedule failed.
     void backgroundError(const QString &message);
+    void tokenTargetsChanged();
 
 private:
     AppListModel::Entry makeEntry(const App &app) const;

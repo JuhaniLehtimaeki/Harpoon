@@ -508,6 +508,31 @@ private slots:
         QVERIFY(m_controller->apps()->indexOf(forkId) >= 0);
     }
 
+    void tokenTargetsFollowSelfHostedApps()
+    {
+        auto keys = [this]() {
+            QStringList out;
+            for (const QVariant &t : m_controller->tokenTargets())
+                out << t.toMap().value(QStringLiteral("key")).toString();
+            return out;
+        };
+        QCOMPARE(keys(), (QStringList{QStringLiteral("Forgejo"), QStringLiteral("GitHub"), QStringLiteral("GitLab")}));
+
+        AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
+        App selfHosted = App::fromUrl(QStringLiteral("https://git.example.org/me/tool"), QStringLiteral("Forgejo"));
+        QVERIFY(store.save(selfHosted).ok());
+        QSignalSpy changed(m_controller.get(), &HarpoonController::tokenTargetsChanged);
+        m_controller->reload();
+        QVERIFY(changed.count() >= 1);
+        QVERIFY(keys().contains(QStringLiteral("Forgejo@git.example.org")));
+        QVERIFY(m_controller->tokenTargets().last().toMap().value(QStringLiteral("name")).toString()
+                    .endsWith(QLatin1String("(git.example.org)")));
+
+        // The field goes away with the last app on that server.
+        m_controller->removeApp(selfHosted.id);
+        QCOMPARE(keys().size(), 3);
+    }
+
     void sourcesListed()
     {
         const QVariantList sources = m_controller->sources();

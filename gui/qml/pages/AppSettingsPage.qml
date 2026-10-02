@@ -54,7 +54,17 @@ Page {
                 text: details.name || ""
                 EnterKey.iconSource: "image://theme/icon-m-enter-close"
                 EnterKey.onClicked: focus = false
-                onActiveFocusChanged: if (!activeFocus && text !== details.name) harpoon.setAppName(appId, text)
+                onActiveFocusChanged: {
+                    if (activeFocus) {
+                        return
+                    }
+                    // An empty name would leave nothing to show in the list.
+                    if (text.trim().length === 0) {
+                        text = details.name || ""
+                    } else if (text !== details.name) {
+                        harpoon.setAppName(appId, text.trim())
+                    }
+                }
             }
 
             SectionHeader {

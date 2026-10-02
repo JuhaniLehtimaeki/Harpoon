@@ -104,10 +104,11 @@ Page {
 
             PageHeader { title: qsTr("Scan QR code") }
 
+            // Camera images go edge to edge, like other graphics.
             Item {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
+                width: parent.width
                 height: width
+                clip: true
 
                 VideoOutput {
                     id: viewfinder
@@ -121,6 +122,8 @@ Page {
 
                 InfoLabel {
                     anchors.verticalCenter: parent.verticalCenter
+                    x: Theme.horizontalPageMargin
+                    width: parent.width - 2 * Theme.horizontalPageMargin
                     visible: !viewfinder.visible
                     text: camera.errorString.length > 0 ? camera.errorString : qsTr("Camera is not available")
                 }

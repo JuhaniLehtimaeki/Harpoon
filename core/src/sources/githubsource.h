@@ -19,6 +19,7 @@ class GitHubSource : public Source
 public:
     QString id() const override { return QStringLiteral("GitHub"); }
     QString displayName() const override { return QStringLiteral("GitHub"); }
+    bool usesToken() const override { return true; }
     QStringList defaultHosts() const override { return {QStringLiteral("github.com")}; }
 
     Result<QString> standardizeUrl(const QString &url) const override;

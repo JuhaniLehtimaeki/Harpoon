@@ -97,8 +97,11 @@ Page {
                 trackOnly: details.trackOnly === true
             }
 
-            InfoLabel {
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
                 visible: details.lastError !== undefined && details.lastError.length > 0
+                wrapMode: Text.Wrap
                 text: details.lastError || ""
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.errorColor

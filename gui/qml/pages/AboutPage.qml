@@ -35,7 +35,7 @@ Page {
                 width: parent.width - 2 * Theme.horizontalPageMargin
                 wrapMode: Text.Wrap
                 color: Theme.highlightColor
-                text: qsTr("Harpoon installs and updates SailfishOS apps straight from where their developers publish them: GitHub, Codeberg and other Forgejo or Gitea servers.")
+                text: qsTr("Harpoon installs and updates SailfishOS apps straight from where their developers publish them: GitHub, Codeberg, Forgejo and Gitea servers, GitLab, SourceHut, SourceForge, Jenkins, web pages and RPM repositories.")
             }
 
             Label {
@@ -60,7 +60,7 @@ Page {
                 wrapMode: Text.Wrap
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.secondaryHighlightColor
-                text: qsTr("Licensed under the GNU General Public License, version 3 or later.")
+                text: qsTr("Licensed under the GNU General Public License, version 3 or later. QR codes are read and drawn with zxing-cpp (Apache License 2.0).")
             }
         }
 

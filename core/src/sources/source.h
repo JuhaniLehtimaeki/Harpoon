@@ -41,6 +41,9 @@ public:
     // Hostless sources with this flag are only used when chosen explicitly
     // (override id), never by URL matching (ObtainX neverAutoSelect).
     virtual bool neverAutoSelect() const { return false; }
+    // Whether an API token (config "token") is used, e.g. for rate limits
+    // and private repositories.
+    virtual bool usesToken() const { return false; }
     // Hostless sources (empty defaultHosts) are tried in registry order after
     // every host-based source; this decides whether one takes a URL by its
     // shape (ObtainX sourceSpecificStandardizeURL(forSelection: true)).

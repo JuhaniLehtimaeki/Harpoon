@@ -109,11 +109,31 @@ Page {
 
             onClicked: pageStack.push(Qt.resolvedUrl("AppPage.qml"), { appId: model.appId })
 
-            Column {
+            // The installed app's own launcher icon, else a generic package.
+            Image {
+                id: icon
+
+                property bool _missing: !model.installedVersion
+
                 anchors {
                     left: parent.left
-                    right: busyIndicator.visible ? busyIndicator.left : parent.right
                     leftMargin: Theme.horizontalPageMargin
+                    verticalCenter: parent.verticalCenter
+                }
+                width: Theme.iconSizeMedium
+                height: Theme.iconSizeMedium
+                sourceSize { width: width; height: height }
+                source: _missing
+                        ? "image://theme/icon-m-file-rpm?" + (item.highlighted ? Theme.highlightColor : Theme.primaryColor)
+                        : "/usr/share/icons/hicolor/86x86/apps/" + model.appId + ".png"
+                onStatusChanged: if (status === Image.Error) _missing = true
+            }
+
+            Column {
+                anchors {
+                    left: icon.right
+                    right: busyIndicator.visible ? busyIndicator.left : parent.right
+                    leftMargin: Theme.paddingLarge
                     rightMargin: busyIndicator.visible ? Theme.paddingMedium : Theme.horizontalPageMargin
                     verticalCenter: parent.verticalCenter
                 }

@@ -20,6 +20,7 @@
 #include <QQmlEngine>
 #include <QQmlExpression>
 #include <QQuickItem>
+#include <QQuickImageProvider>
 #include <QQuickItemGrabResult>
 #include <QQuickView>
 #include <QTemporaryDir>
@@ -53,6 +54,21 @@ public:
 QML_DECLARE_TYPEINFO(EnterKey, QML_HAS_ATTACHED_PROPERTIES)
 
 namespace {
+
+// image://theme/... icons come from Silica on a device.
+class ThemeImageProvider : public QQuickImageProvider
+{
+public:
+    ThemeImageProvider() : QQuickImageProvider(QQuickImageProvider::Image) {}
+    QImage requestImage(const QString &, QSize *size, const QSize &) override
+    {
+        QImage image(64, 64, QImage::Format_ARGB32);
+        image.fill(Qt::gray);
+        if (size)
+            *size = image.size();
+        return image;
+    }
+};
 
 QStringList g_messages;
 
@@ -260,6 +276,7 @@ private slots:
         m_view->rootContext()->setContextProperty(QStringLiteral("harpoonDBus"), &m_dbus);
         m_view->rootContext()->setContextProperty(QStringLiteral("qrDecoder"), &m_qrDecoder);
         m_view->engine()->addImageProvider(QStringLiteral("harpoonqr"), new QrImageProvider);
+        m_view->engine()->addImageProvider(QStringLiteral("theme"), new ThemeImageProvider);
         m_view->setSource(QUrl::fromLocalFile(kQmlDir + QStringLiteral("/harpoon.qml")));
         QVERIFY2(m_view->status() == QQuickView::Ready, qPrintable(g_messages.join(QLatin1Char('\n'))));
         // Shown and active, so the scan page's camera and grabToImage() run.
@@ -522,6 +539,14 @@ private slots:
 
     void settingsAndAbout()
     {
+        // Token fields only for sources that use tokens (all seeded apps are
+        // on their sources' default hosts).
+        QStringList keys;
+        for (const QVariant &t : m_controller->tokenTargets())
+            keys << t.toMap().value(QStringLiteral("key")).toString();
+        keys.sort();
+        QCOMPARE(keys, (QStringList{QStringLiteral("Forgejo"), QStringLiteral("GitHub"), QStringLiteral("GitLab")}));
+
         push(QStringLiteral("SettingsPage.qml"));
         expectClean("SettingsPage");
         m_settings->setInstallBackend(QStringLiteral("handler"));

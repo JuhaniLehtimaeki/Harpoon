@@ -36,6 +36,7 @@ class GitLabSource : public Source
 public:
     QString id() const override { return QStringLiteral("GitLab"); }
     QString displayName() const override { return QStringLiteral("GitLab"); }
+    bool usesToken() const override { return true; }
     QStringList defaultHosts() const override { return {QStringLiteral("gitlab.com")}; }
 
     Result<QString> standardizeUrl(const QString &url) const override;
