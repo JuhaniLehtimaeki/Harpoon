@@ -28,6 +28,8 @@ harpoon-cli check                                   # check all apps for updates
 devel-su -p harpoon-cli install <app>               # install; needs the privileged group
 devel-su -p harpoon-cli upgrade                     # install every available update
 harpoon-cli background on --hours 6                 # periodic checks with notifications
+harpoon-cli auto-update on                          # let those checks install updates too
+harpoon-cli link https://git.example.org/me/app --source Forgejo   # a harpoon:// link for a QR code
 harpoon-cli export ~/Documents/harpoon.json         # backup (import with: harpoon-cli import FILE)
 ```
 Supported sources: GitHub, Codeberg/Forgejo/Gitea, GitLab, SourceHut, SourceForge, Jenkins,
@@ -41,7 +43,7 @@ The core needs Qt 5 (Core, Network, DBus, Test) and CMake. With Qt Quick install
 code must use only Qt 5.6 APIs, even though desktop builds use newer Qt.
 
 ```sh
-sudo apt install qtbase5-dev qtdeclarative5-dev qml-module-qtquick2 cmake g++ rpm dbus   # Debian/Ubuntu
+sudo apt install qtbase5-dev qtdeclarative5-dev qml-module-qtquick2 cmake g++ rpm dbus zlib1g-dev libssl-dev   # Debian/Ubuntu
 cmake -S . -B build
 cmake --build build -j
 ctest --test-dir build --output-on-failure
@@ -49,13 +51,14 @@ ctest --test-dir build --output-on-failure
 
 ## Building for SailfishOS
 ```sh
-sfdk build      # uses rpm/harpoon.spec; builds the app (harpoon) and harpoon-cli
+sfdk build      # uses rpm/harpoon.spec; builds the app (harpoon), harpoon-cli and harpoon-autoupdate
 ```
 Releases and publishing on SailfishOS:Chum: [docs/packaging.md](docs/packaging.md).
 
 ## Licence
 GPL-3.0-or-later, see [LICENSE](LICENSE). Parts of the core are ported from
-[ObtainX](https://github.com/bikram-agarwal/ObtainX) (GPL-3.0).
+[ObtainX](https://github.com/bikram-agarwal/ObtainX) (GPL-3.0). QR codes use the bundled
+[zxing-cpp](https://github.com/zxing-cpp/zxing-cpp) (Apache-2.0, `3rdparty/zxing-cpp`).
 
 ## Trying a real repository
 ```sh

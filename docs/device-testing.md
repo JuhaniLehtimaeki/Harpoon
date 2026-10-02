@@ -101,6 +101,24 @@ app runs without a sandbox.
    should open with the add dialog filled in. Also try scanning that link with the system
    camera app's code reader.
 
+8. **Sharing.** Open an app → pull down → **Share as QR code**, and scan the code with
+   another phone running Harpoon.
+9. **Automatic updates.** In Settings, turn on **Install updates automatically**. Install an
+   older release of an app through Harpoon (pick one with an update), then run the background
+   job by hand:
+
+   ```sh
+   systemctl --user start harpoon-check.service
+   journalctl --user -u harpoon-check.service
+   ```
+
+   The app should be updated without a prompt, with a "… was updated" notification. If the
+   log shows `invoker` failing or PackageKit refusing ("not authorized"), report it: then
+   `invoker` from a systemd user service does not grant the privileged group.
+10. **Build provenance.** For an app on GitHub that publishes attestations (for example one
+    built with `actions/attest-build-provenance`), set **Check build provenance** to **Warn if
+    missing** and install. The app page should show **Signature verified**.
+
 **Report:** anything that looks wrong or un-Sailfish-like, any QML errors from
 `devel-su journalctl -fa | grep -i harpoon`, and whether installing from the app works without
 `devel-su -p`. That last one tests the privileges.d entry. For QR codes, report whether the

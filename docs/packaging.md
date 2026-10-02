@@ -48,9 +48,11 @@ list either (see `docs/research/03-sailfishos-installation.md`).
 | File | Purpose |
 |---|---|
 | `/usr/bin/harpoon` | the app |
-| `/usr/bin/harpoon-cli` | command line tool, also used by the background check |
+| `/usr/bin/harpoon-cli` | command line tool |
+| `/usr/bin/harpoon-autoupdate` | the background job: checks, notifies, and installs updates when enabled |
 | `/usr/share/harpoon/{qml,translations}` | UI |
 | `/usr/share/applications/harpoon.desktop` | launcher; `[X-Sailjail] Sandboxing=Disabled` |
-| `/usr/share/mapplauncherd/privileges.d/harpoon` | starts the app in the `privileged` group |
+| `/usr/share/mapplauncherd/privileges.d/harpoon` | starts the app and `harpoon-autoupdate` in the `privileged` group |
 | `/usr/share/dbus-1/services/io.github.juhanilehtimaeki.harpoon.service` | opens the app from a notification |
 | `/usr/lib/systemd/user/harpoon-check.{service,timer}` | background checks; the app enables or disables the timer |
+| `/usr/share/licenses/harpoon-<version>/` | GPL-3.0 and the zxing-cpp Apache-2.0 licence |

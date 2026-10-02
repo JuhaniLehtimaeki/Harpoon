@@ -19,7 +19,7 @@ Status: **Phases 1–5 implemented; awaiting device validation** (`docs/device-t
   SourceForge, Jenkins, a generic HTML page, or a direct `.rpm` link.
 - Pick the correct RPM asset for the device: arch, plus an optional SFOS-version tag.
 - Show installed vs. latest version and the changelog. Install, update and uninstall.
-- Check for updates in the background and post notifications.
+- Check for updates in the background and post notifications; optionally install them.
 - Export and import Harpoon's own app list and settings.
 
 ## Non-goals (v1)
@@ -338,7 +338,7 @@ direct `.rpm` links and rpm-md repositories.
 
 **Background checks:**
 - The systemd user units `harpoon-check.{service,timer}` run
-  `harpoon-cli check --notify --quiet`.
+  `harpoon-cli check --notify --quiet` (since the review: `harpoon-autoupdate`, see below).
 - `BackgroundScheduler` enables/starts or stops/disables the timer over the user's systemd
   D-Bus API and writes the interval as a drop-in. The app keeps the timer in sync with its
   settings (on start and on change); `harpoon-cli background on|off` does the same from a
@@ -373,8 +373,7 @@ file, tokens included.
     `{api}/attestations/sha256:{digest}`. An in-toto statement must name that exact digest.
   - `audit` turns a problem into a warning; `enforce` refuses to install.
   - The result is stored in the install receipt and shown on the app page.
-  - The Sigstore signature is not verified locally: Harpoon trusts GitHub's API over TLS, as
-    ObtainX does.
+  - The Sigstore bundle is verified on the device (see "After the review" below).
 - **Chum packaging:**
   - Chum metadata in the spec.
   - A `%prep` that works both in place (`sfdk`) and from a `tar_git` tarball (OBS).
@@ -423,6 +422,34 @@ An independent review found these problems; all are fixed and covered by tests.
 - **QML:** id changes reach every page on the stack, the "changed" flag on the settings page is
   exact, and choice settings re-sync.
 
-Known limitation: the installation handler's `installFinished` signal carries no request id,
-so a reply to a timed-out dialog can be credited to the next job. The rpm check after every
-install still reports the true result.
+## After the review (Oct 2026)
+- **Installation handler replies.** Its signals carry no request id. After a timeout the
+  backend now waits up to two minutes for the timed-out dialog's answer and drops it before
+  starting the next job, so a late reply can no longer be credited to the wrong job.
+- **Local Sigstore verification** (`core/src/verify/sigstore`, OpenSSL libcrypto):
+  - For public repositories (public-good Sigstore), Harpoon checks the Rekor signed entry
+    timestamp, and the inclusion proof with its signed checkpoint when present. It checks
+    that the log entry records this envelope (payload hash, signature, certificate), the
+    Fulcio chain at the time of signing, the DSSE signature, and that the certificate's
+    source-repository extension is the app's own repository with GitHub Actions as issuer.
+    The statement must be SLSA provenance naming the file's sha256.
+  - Sigstore's trusted root is compiled in from `core/data/sigstore-trusted-root.json`.
+    Update it from `sigstore/root-signing` when Sigstore rotates keys.
+  - Private repositories are signed by GitHub's own Sigstore with RFC 3161 timestamps, which
+    are not verified here. Those count as `attestation:github` ("Reported by GitHub").
+  - Not checked: certificate transparency SCTs, and Rekor v2 entries (no signed entry
+    timestamp). A bundle that cannot be verified is an error, never a silent pass.
+  - Tests use real bundles from the GitHub CLI's test data.
+- **Automatic updates** (opt-in, `HarpoonSettings::autoUpdate`):
+  - The timer's service runs `harpoon-autoupdate` through `invoker`, so privileges.d gives
+    it the privileged group. If `invoker` fails, it falls back to `harpoon-cli check`.
+  - `harpoon-autoupdate` is `harpoon-cli check --notify --quiet --auto-update` with no
+    arguments and no `HARPOON_*` overrides.
+  - Only plain updates of apps Harpoon installed qualify (`autoUpdateEligible`): not
+    track-only, not excluded per app, not first installs, not package renames. Downgrades
+    and reinstalls are refused by the installer.
+  - One notification lists what was updated and what failed.
+- **Sharing an app as a QR code:** `ShareQrPage` draws `HarpoonController::shareLink()` with
+  the zxing-cpp writer through the `harpoonqr` image provider. The link is the plain URL
+  when the host identifies the source, else a `harpoon://add` link.
+- **Design review:** see `docs/design-review.md`. The launcher icon was redrawn.

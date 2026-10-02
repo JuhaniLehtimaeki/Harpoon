@@ -2,5 +2,7 @@
 - First release: track apps on GitHub, Codeberg/Forgejo/Gitea, GitLab,
   SourceHut, SourceForge, Jenkins, web pages, direct links and rpm-md
   repositories; install and update them through PackageKit or the system
-  installer; background checks with notifications; backups; add apps
-  by scanning a QR code or opening a harpoon://add link.
+  installer; background checks with notifications and optional automatic
+  updates; backups; add apps by scanning a QR code or opening a
+  harpoon://add link, and share them as QR codes; GitHub build provenance
+  checked with local Sigstore verification.
