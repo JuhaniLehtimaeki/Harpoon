@@ -1,0 +1,14 @@
+{
+  "project": "harbour-foo",
+  "latest": {
+    "version": "2.1.0",
+    "files": [
+      {"arch": "aarch64", "download": "https://dl.example.org/foo/harbour-foo-2.1.0-1.aarch64.rpm"},
+      {"arch": "armv7hl", "download": "https://dl.example.org/foo/harbour-foo-2.1.0-1.armv7hl.rpm"}
+    ]
+  },
+  "previous": [
+    {"version": "2.0.0", "files": [{"arch": "aarch64", "download": "https://dl.example.org/foo/harbour-foo-2.0.0-1.aarch64.rpm"}]}
+  ],
+  "homepage": "https://example.org/foo"
+}

@@ -54,6 +54,26 @@ private slots:
                                          << "Forgejo" << "http://192.168.1.5:3000/me/app";
         QTest::newRow("github enterprise") << "https://ghe.corp.example/team/tool" << "GitHub"
                                            << "GitHub" << "https://ghe.corp.example/team/tool";
+        QTest::newRow("gitlab subgroup") << "https://gitlab.com/grp/sub/proj/-/releases" << ""
+                                         << "GitLab" << "https://gitlab.com/grp/sub/proj";
+        QTest::newRow("self-hosted gitlab") << "https://git.example.org/team/app/-/tags" << "GitLab"
+                                            << "GitLab" << "https://git.example.org/team/app";
+        QTest::newRow("sourcehut") << "https://git.sr.ht/~me/app/refs" << ""
+                                   << "SourceHut" << "https://git.sr.ht/~me/app";
+        QTest::newRow("sourceforge") << "https://sourceforge.net/p/myapp/" << ""
+                                     << "SourceForge" << "https://sourceforge.net/projects/myapp/files";
+        QTest::newRow("jenkins override") << "https://ci.example.org/job/app/lastBuild/" << "Jenkins"
+                                          << "Jenkins" << "https://ci.example.org/job/app";
+        QTest::newRow("rpm-md override") << "https://repo.example.org/sfos/repodata/repomd.xml?package=foo"
+                                         << "RpmMdRepo" << "RpmMdRepo" << "https://repo.example.org/sfos?package=foo";
+        QTest::newRow("direct rpm link") << "https://example.com/dl/app-1.0-1.noarch.rpm" << ""
+                                         << "DirectLink" << "https://example.com/dl/app-1.0-1.noarch.rpm";
+        QTest::newRow("direct rpm link with query") << "https://example.com/get/app.rpm?mirror=1" << ""
+                                                    << "DirectLink" << "https://example.com/get/app.rpm?mirror=1";
+        QTest::newRow("html fallback") << "example.com/downloads/" << ""
+                                       << "HTML" << "https://example.com/downloads/";
+        QTest::newRow("html override on a forge") << "https://github.com/a/b/releases" << "HTML"
+                                                  << "HTML" << "https://github.com/a/b/releases";
     }
 
     void registryMatching()
@@ -72,10 +92,16 @@ private slots:
     void registryErrors()
     {
         SourceRegistry registry;
-        QCOMPARE(int(registry.match("https://example.com/a/b").error.kind), int(Error::UnsupportedUrl));
+        // HTML is the catch-all, so an unknown host is no longer unsupported.
+        QCOMPARE(registry.match("https://example.com/a/b").value.source->id(), QStringLiteral("HTML"));
+        QCOMPARE(int(registry.match("ftp://example.com/a.rpm").error.kind), int(Error::UnsupportedUrl));
         QCOMPARE(int(registry.match("https://github.com/only-owner").error.kind), int(Error::InvalidUrl));
         QCOMPARE(int(registry.match("https://github.com/a/b", "Nope").error.kind), int(Error::UnsupportedUrl));
-        QCOMPARE(registry.ids(), (QStringList{"Forgejo", "GitHub"}));
+        QCOMPARE(int(registry.match("https://example.com/build", "Jenkins").error.kind), int(Error::InvalidUrl));
+        // Jenkins-looking URLs are not auto-selected.
+        QCOMPARE(registry.match("https://ci.example.org/job/app").value.source->id(), QStringLiteral("HTML"));
+        QCOMPARE(registry.ids(), (QStringList{"Forgejo", "GitHub", "GitLab", "Jenkins", "RpmMdRepo", "SourceForge",
+                                              "SourceHut", "DirectLink", "HTML"}));
     }
 
     void apiUrls()

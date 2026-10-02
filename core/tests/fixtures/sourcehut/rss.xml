@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>~me/harbour-foo refs</title>
+    <link>https://git.sr.ht/~me/harbour-foo</link>
+    <description>Git refs for ~me/harbour-foo</description>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 02 Apr 2026 10:00:00 +0000</lastBuildDate>
+    <item>
+      <title>v1.2.0</title>
+      <link>https://git.sr.ht/~me/harbour-foo/refs/v1.2.0</link>
+      <description><![CDATA[<pre>Release 1.2.0 &amp; fixes</pre>]]></description>
+      <author>me@example.org (Me)</author>
+      <guid>https://git.sr.ht/~me/harbour-foo/refs/v1.2.0</guid>
+      <pubDate>Thu, 02 Apr 2026 10:00:00 +0200</pubDate>
+    </item>
+    <item>
+      <title>v1.1.0</title>
+      <link>https://git.sr.ht/~me/harbour-foo/refs/v1.1.0</link>
+      <description>Release 1.1.0</description>
+      <guid>https://git.sr.ht/~me/harbour-foo/refs/v1.1.0</guid>
+      <pubDate>Sun, 01 Feb 2026 08:30:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>unrelated</title>
+      <guid>https://git.sr.ht/~me/other-repo/refs/v9.9</guid>
+      <pubDate>Sat, 31 Jan 2026 08:30:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>v1.0.0</title>
+      <guid>https://git.sr.ht/~me/harbour-foo/refs/v1.0.0</guid>
+      <pubDate>Mon, 05 Jan 2026 12:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>

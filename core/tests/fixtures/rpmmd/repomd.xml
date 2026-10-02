@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<repomd xmlns="http://linux.duke.edu/metadata/repo" xmlns:rpm="http://linux.duke.edu/metadata/rpm">
+  <revision>1775124000</revision>
+  <data type="primary_db">
+    <checksum type="sha256">1111111111111111111111111111111111111111111111111111111111111111</checksum>
+    <location href="repodata/1111-primary.sqlite.bz2"/>
+    <timestamp>1775124000</timestamp>
+  </data>
+  <data type="primary">
+    <checksum type="sha256">B7E69D1759F672C58C6742CD8DF220BAFF85B76BD50356927B53206E8664A547</checksum>
+    <open-checksum type="sha256">c1a88ecc10bbb91942ac4e9cdbbdae48977aeba9dcdb0024ac59a34c426e72a5</open-checksum>
+    <location href="repodata/b7e69d1759f672c58c6742cd8df220baff85b76bd50356927b53206e8664a547-primary.xml.gz"/>
+    <timestamp>1775124000</timestamp>
+    <size>1500</size>
+    <open-size>5000</open-size>
+  </data>
+  <data type="filelists">
+    <checksum type="sha256">2222222222222222222222222222222222222222222222222222222222222222</checksum>
+    <location href="repodata/2222-filelists.xml.gz"/>
+  </data>
+</repomd>

@@ -9,15 +9,23 @@ QStringList Source::hosts() const
     return m_customHost.isEmpty() ? defaultHosts() : QStringList{m_customHost};
 }
 
-Result<QString> Source::standardizeWithRegex(const QString &url, const QString &pathPattern) const
+QString Source::hostPrefixPattern() const
 {
     QStringList escaped;
     for (const QString &host : hosts())
         escaped << QRegularExpression::escape(host);
     const QString subdomains = allowSubDomains() ? QStringLiteral("([^./]+\\.)*") : QStringLiteral("(www\\.)?");
-    const QRegularExpression pattern(QStringLiteral("^https?://%1(%2)%3")
-                                         .arg(subdomains, escaped.join(QLatin1Char('|')), pathPattern),
-                                     QRegularExpression::CaseInsensitiveOption);
+    return QStringLiteral("^https?://%1(%2)").arg(subdomains, escaped.join(QLatin1Char('|')));
+}
+
+QString Source::configToken() const
+{
+    return m_config.value(QStringLiteral("token")).toString().trimmed();
+}
+
+Result<QString> Source::standardizeWithRegex(const QString &url, const QString &pathPattern) const
+{
+    const QRegularExpression pattern(hostPrefixPattern() + pathPattern, QRegularExpression::CaseInsensitiveOption);
     const auto match = pattern.match(url);
     if (!match.hasMatch())
         return Result<QString>::failure(
