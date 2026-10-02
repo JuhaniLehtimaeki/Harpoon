@@ -40,6 +40,8 @@ public:
 
     int hits(const QString &path) const { return m_hits.value(path); }
     QList<QByteArray> rangeHeaders; // every Range header received, in order
+    // Lowercased header name -> value, from the last request to each path.
+    QHash<QString, QHash<QByteArray, QByteArray>> lastRequestHeaders;
 
 private slots:
     void onConnection()
@@ -63,11 +65,17 @@ private:
         const QList<QByteArray> requestLine = lines.first().trimmed().split(' ');
         const QString path = QString::fromLatin1(requestLine.value(1));
         QByteArray range;
+        QHash<QByteArray, QByteArray> received;
         for (const QByteArray &line : lines.mid(1)) {
             const int colon = line.indexOf(':');
-            if (colon > 0 && line.left(colon).trimmed().toLower() == "range")
+            if (colon <= 0)
+                continue;
+            const QByteArray name = line.left(colon).trimmed().toLower();
+            received.insert(name, line.mid(colon + 1).trimmed());
+            if (name == "range")
                 range = line.mid(colon + 1).trimmed();
         }
+        lastRequestHeaders.insert(path, received);
         if (!range.isEmpty())
             rangeHeaders << range;
         m_hits[path] += 1;

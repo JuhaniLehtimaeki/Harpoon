@@ -35,11 +35,14 @@ class AppInstaller : public QObject
 public:
     using Progress = std::function<void(const QString &stage, qint64 done, qint64 total)>;
     using Done = std::function<void(const Result<InstallResult> &)>;
+    // Adjusts each asset download (credentials, headers); see Source::prepareDownload.
+    using DownloadPreparer = std::function<void(const Asset &, DownloadRequest &)>;
 
     AppInstaller(Downloader &downloader, RpmInspector &inspector, PackageBackend &backend,
                  const QString &downloadDir, const DeviceInfo &device, QObject *parent = nullptr);
 
     void install(const App &app, const InstallOptions &options, Progress progress, Done done);
+    void setDownloadPreparer(DownloadPreparer preparer) { m_prepareDownload = std::move(preparer); }
     void uninstall(const App &app, std::function<void(const Error &)> done);
 
     // Picks the package that represents the app among a release's RPMs:
@@ -56,6 +59,7 @@ private:
     PackageBackend &m_backend;
     QString m_downloadDir;
     DeviceInfo m_device;
+    DownloadPreparer m_prepareDownload;
 };
 
 } // namespace Harpoon

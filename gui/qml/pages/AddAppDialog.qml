@@ -10,8 +10,11 @@ Dialog {
     readonly property var _inspected: urlField.text.trim().length > 0
                                       ? harpoon.inspectUrl(urlField.text.trim(), _sourceId) : ({})
 
+    readonly property bool _needsPackageName: _inspected.sourceId === "RpmMdRepo"
+                                              && urlField.text.indexOf("package=") < 0
+
     allowedOrientations: Orientation.All
-    canAccept: _inspected.ok === true
+    canAccept: _inspected.ok === true && (!_needsPackageName || packageField.text.trim().length > 0)
 
     onAccepted: {
         var settings = {}
@@ -23,6 +26,9 @@ Dialog {
         }
         if (filterField.text.length > 0) {
             settings.assetFilterRegEx = filterField.text
+        }
+        if (_needsPackageName) {
+            settings.packageName = packageField.text.trim()
         }
         harpoon.addApp(urlField.text.trim(), _sourceId, settings)
     }
@@ -71,7 +77,7 @@ Dialog {
 
                 width: parent.width
                 label: qsTr("Source type")
-                description: qsTr("Choose a type only for self-hosted servers, such as your own Forgejo or Gitea")
+                description: qsTr("Choose a type for self-hosted servers (your own Forgejo or Gitea), Jenkins jobs and RPM repositories")
                 menu: ContextMenu {
                     MenuItem { text: qsTr("Detect from URL") }
                     Repeater {
@@ -79,6 +85,18 @@ Dialog {
                         MenuItem { text: modelData.name }
                     }
                 }
+            }
+
+            TextField {
+                id: packageField
+
+                width: parent.width
+                visible: dialog._needsPackageName
+                label: qsTr("Package name in the repository")
+                placeholderText: label
+                inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
+                EnterKey.iconSource: "image://theme/icon-m-enter-close"
+                EnterKey.onClicked: focus = false
             }
 
             SectionHeader { text: qsTr("Options") }

@@ -15,7 +15,9 @@ struct SourceMatch
 };
 
 // Ordered list of known sources. Matching walks the list and picks the first
-// source whose hosts match the URL's host (ObtainX SourceProvider). An
+// source whose hosts match the URL's host; if none does, the first hostless
+// source (not neverAutoSelect) that accepts the URL's shape, which ends with
+// the HTML catch-all (ObtainX SourceProvider). An
 // override id forces a specific source onto any host, which is how self-hosted
 // Forgejo/Gitea/GitHub Enterprise instances are supported.
 class SourceRegistry

@@ -27,6 +27,20 @@ inline const char *assetFilterRegEx = "assetFilterRegEx";
 inline const char *invertAssetFilter = "invertAssetFilter";
 inline const char *autoAssetFilterByArch = "autoAssetFilterByArch";
 inline const char *preferSfosVersionTag = "preferSfosVersionTag";
+// HTML / direct link (ObtainX html.dart). The link options also apply to each
+// intermediateLink hop, whose value is a list of maps with these keys.
+inline const char *intermediateLink = "intermediateLink";             // [{customLinkFilterRegex, ...}], max 10
+inline const char *customLinkFilterRegex = "customLinkFilterRegex";   // default: installable .rpm links
+inline const char *filterByLinkText = "filterByLinkText";             // match the link text, not the URL
+inline const char *matchLinksOutsideATags = "matchLinksOutsideATags"; // also find bare URLs in text/JSON
+inline const char *skipSort = "skipSort";                             // keep page order
+inline const char *reverseSort = "reverseSort";                       // take the first link instead of the last
+inline const char *sortByLastLinkSegment = "sortByLastLinkSegment";   // sort by file name, not full URL
+inline const char *versionExtractWholePage = "versionExtractWholePage";
+inline const char *requestHeader = "requestHeader";                   // "Name: value" lines
+inline const char *defaultPseudoVersioningMethod = "defaultPseudoVersioningMethod"; // ETag|linkHash
+// rpm-md repository
+inline const char *packageName = "packageName";                       // RPM %{NAME} to track
 } // namespace Keys
 
 class AppSettings

@@ -1,7 +1,14 @@
 #include "sources/sourceregistry.h"
 
+#include "sources/directlinksource.h"
 #include "sources/forgejosource.h"
 #include "sources/githubsource.h"
+#include "sources/gitlabsource.h"
+#include "sources/htmlsource.h"
+#include "sources/jenkinssource.h"
+#include "sources/rpmmdreposource.h"
+#include "sources/sourceforgesource.h"
+#include "sources/sourcehutsource.h"
 
 #include <QRegularExpression>
 #include <QUrl>
@@ -10,10 +17,20 @@ namespace Harpoon {
 
 SourceRegistry::SourceRegistry()
 {
-    // Host-based sources in alphabetical order of display name. Hostless
-    // catch-alls (direct link, HTML) will go last once they exist.
-    registerSource([] { return std::make_shared<ForgejoSource>(); });
+    // Alphabetical by display name, as ObtainX lists them (this is also the
+    // order a source picker shows). Jenkins and RpmMdRepo have no hosts and
+    // are never auto-selected, so their position does not affect matching.
+    registerSource([] { return std::make_shared<ForgejoSource>(); });     // "Codeberg / Forgejo / Gitea"
     registerSource([] { return std::make_shared<GitHubSource>(); });
+    registerSource([] { return std::make_shared<GitLabSource>(); });
+    registerSource([] { return std::make_shared<JenkinsSource>(); });
+    registerSource([] { return std::make_shared<RpmMdRepoSource>(); });   // "RPM repository (rpm-md)"
+    registerSource([] { return std::make_shared<SourceForgeSource>(); });
+    registerSource([] { return std::make_shared<SourceHutSource>(); });
+    // Hostless catch-alls, matched by URL shape after every host-based
+    // source: the direct .rpm link first, HTML always last.
+    registerSource([] { return std::make_shared<DirectLinkSource>(); });
+    registerSource([] { return std::make_shared<HtmlSource>(); });
 }
 
 void SourceRegistry::registerSource(Factory factory)
@@ -72,6 +89,12 @@ Result<SourceMatch> SourceRegistry::match(const QString &rawUrl, const QString &
             const QRegularExpression hostPattern(
                 QStringLiteral("^%1(%2)$").arg(prefix, escaped.join(QLatin1Char('|'))));
             if (hostPattern.match(host).hasMatch())
+                source = m_factories[i]();
+        }
+        // No host matched: try the hostless sources by URL shape.
+        for (size_t i = 0; i < m_templates.size() && !source; ++i) {
+            const auto &t = m_templates[i];
+            if (t->defaultHosts().isEmpty() && !t->neverAutoSelect() && t->matchesUrlShape(url))
                 source = m_factories[i]();
         }
         if (!source)

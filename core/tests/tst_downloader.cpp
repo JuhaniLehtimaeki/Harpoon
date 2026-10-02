@@ -169,6 +169,58 @@ private slots:
         QCOMPARE(readAll(target), body);
     }
 
+    void redirectsKeepCredentialsOnlyWithinOrigin()
+    {
+        MiniHttpServer api;
+        MiniHttpServer storage;
+        const QByteArray body = payload(4000);
+        storage.routeBody(QStringLiteral("/blob/a.rpm"), body);
+        MiniHttpServer::Route toStorage;
+        toStorage.status = 302;
+        toStorage.headers << qMakePair(QByteArray("Location"), storage.url(QStringLiteral("/blob/a.rpm")).toUtf8());
+        api.route(QStringLiteral("/assets/1"), toStorage);
+        MiniHttpServer::Route sameOrigin;
+        sameOrigin.status = 301;
+        sameOrigin.headers << qMakePair(QByteArray("Location"), QByteArray("/assets/1"));
+        api.route(QStringLiteral("/old/1"), sameOrigin);
+
+        QTemporaryDir dir;
+        Downloader d;
+        DownloadRequest req;
+        req.url = api.url(QStringLiteral("/old/1"));
+        req.targetPath = dir.filePath(QStringLiteral("a.rpm"));
+        req.expectedSha256 = sha(body);
+        req.headers << qMakePair(QByteArray("Authorization"), QByteArray("Bearer secret"))
+                    << qMakePair(QByteArray("Accept"), QByteArray("application/octet-stream"));
+        const auto r = run(d, req);
+        QVERIFY2(r.ok(), qPrintable(r.error.message));
+        QCOMPARE(readAll(r.value), body);
+        // Same origin: the token goes along...
+        QCOMPARE(api.lastRequestHeaders.value(QStringLiteral("/assets/1")).value("authorization"), QByteArray("Bearer secret"));
+        // ...another origin: it does not, other headers do.
+        const auto storageHeaders = storage.lastRequestHeaders.value(QStringLiteral("/blob/a.rpm"));
+        QVERIFY(!storageHeaders.contains("authorization"));
+        QCOMPARE(storageHeaders.value("accept"), QByteArray("application/octet-stream"));
+    }
+
+    void redirectLoopStops()
+    {
+        MiniHttpServer server;
+        MiniHttpServer::Route loop;
+        loop.status = 302;
+        loop.headers << qMakePair(QByteArray("Location"), QByteArray("/loop"));
+        server.route(QStringLiteral("/loop"), loop);
+        QTemporaryDir dir;
+        Downloader d;
+        DownloadRequest req;
+        req.url = server.url(QStringLiteral("/loop"));
+        req.targetPath = dir.filePath(QStringLiteral("x.rpm"));
+        const auto r = run(d, req);
+        QCOMPARE(int(r.error.kind), int(Error::Download));
+        QVERIFY(r.error.message.contains(QLatin1String("redirects")));
+        QCOMPARE(server.hits(QStringLiteral("/loop")), 11);
+    }
+
     void httpError()
     {
         MiniHttpServer server;

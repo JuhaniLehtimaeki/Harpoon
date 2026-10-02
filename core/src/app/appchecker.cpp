@@ -57,6 +57,19 @@ void AppChecker::check(const App &app, AppDone done)
     pump();
 }
 
+std::function<void(const Asset &, DownloadRequest &)> AppChecker::downloadPreparer(const App &app) const
+{
+    const auto match = m_registry.match(app.url, app.sourceId);
+    if (!match.ok())
+        return nullptr;
+    std::shared_ptr<Source> source = match.value.source;
+    source->setConfig(m_sourceConfig.value(source->id()));
+    const AppSettings settings = app.settings;
+    return [source, settings](const Asset &asset, DownloadRequest &request) {
+        source->prepareDownload(asset, settings, request);
+    };
+}
+
 void AppChecker::checkAll(const QList<App> &apps, AppDone perApp, std::function<void()> allDone)
 {
     if (apps.isEmpty()) {

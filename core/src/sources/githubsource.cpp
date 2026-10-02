@@ -120,6 +120,18 @@ QString GitHubSource::apiBaseUrl(const QString &standardUrl) const
     return QStringLiteral("%1://%2/api/v3/repos%3").arg(url.scheme(), url.authority(), url.path());
 }
 
+void GitHubSource::prepareDownload(const Asset &asset, const AppSettings &, DownloadRequest &request) const
+{
+    const QString token = config().value(QStringLiteral("token")).toString().trimmed();
+    if (token.isEmpty())
+        return;
+    if (!asset.apiUrl.isEmpty()) {
+        request.url = asset.apiUrl;
+        request.headers.append(qMakePair(QByteArray("Accept"), QByteArray("application/octet-stream")));
+    }
+    request.headers.append(qMakePair(QByteArray("Authorization"), authorizationHeader(token)));
+}
+
 QByteArray GitHubSource::authorizationHeader(const QString &token) const
 {
     return "Bearer " + token.toUtf8();

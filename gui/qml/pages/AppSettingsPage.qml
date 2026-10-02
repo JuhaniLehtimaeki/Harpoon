@@ -8,6 +8,8 @@ Page {
     property string appId
     property var details: harpoon.appDetails(appId)
     readonly property var _values: details.settings || ({})
+    readonly property bool _isWebPage: details.effectiveSourceId === "HTML" || details.effectiveSourceId === "DirectLink"
+    readonly property bool _isRepo: details.effectiveSourceId === "RpmMdRepo"
     property bool _changed
 
     allowedOrientations: Orientation.All
@@ -50,6 +52,67 @@ Page {
                 EnterKey.iconSource: "image://theme/icon-m-enter-close"
                 EnterKey.onClicked: focus = false
                 onActiveFocusChanged: if (!activeFocus && text !== details.name) harpoon.setAppName(appId, text)
+            }
+
+            SectionHeader {
+                visible: page._isWebPage || page._isRepo
+                text: page._isRepo ? qsTr("Repository") : qsTr("Web page")
+            }
+
+            SettingText {
+                visible: page._isRepo
+                appId: page.appId; key: "packageName"; values: page._values
+                label: qsTr("Package name")
+            }
+
+            Column {
+                width: parent.width
+                visible: page._isWebPage
+
+                SettingText {
+                    appId: page.appId; key: "customLinkFilterRegex"; values: page._values
+                    label: qsTr("Link filter (regular expression)")
+                }
+                SettingSwitch {
+                    appId: page.appId; key: "filterByLinkText"; values: page._values
+                    text: qsTr("Match the link text instead of the address")
+                }
+                SettingSwitch {
+                    appId: page.appId; key: "matchLinksOutsideATags"; values: page._values
+                    text: qsTr("Also find addresses outside links")
+                }
+                SettingSwitch {
+                    appId: page.appId; key: "skipSort"; values: page._values
+                    text: qsTr("Keep the page's order of links")
+                }
+                SettingSwitch {
+                    appId: page.appId; key: "reverseSort"; values: page._values
+                    text: qsTr("Take the first link instead of the last")
+                }
+                SettingSwitch {
+                    appId: page.appId; key: "sortByLastLinkSegment"; values: page._values
+                    text: qsTr("Sort by file name only")
+                }
+                SettingSwitch {
+                    appId: page.appId; key: "versionExtractWholePage"; values: page._values
+                    text: qsTr("Extract the version from the whole page")
+                }
+                SettingChoice {
+                    appId: page.appId; key: "defaultPseudoVersioningMethod"; values: page._values
+                    label: qsTr("Without a version, detect changes by")
+                    options: [
+                        { value: "ETag", text: qsTr("Server ETag") },
+                        { value: "linkHash", text: qsTr("Link address") }
+                    ]
+                }
+                Label {
+                    x: Theme.horizontalPageMargin
+                    width: parent.width - 2 * Theme.horizontalPageMargin
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Theme.fontSizeExtraSmall
+                    color: Theme.secondaryHighlightColor
+                    text: qsTr("Multi-page link chains and request headers can be set with harpoon-cli.")
+                }
             }
 
             SectionHeader { text: qsTr("Releases") }

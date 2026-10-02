@@ -3,6 +3,7 @@
 #include "model/appsettings.h"
 #include "model/error.h"
 #include "model/release.h"
+#include "net/downloader.h"
 #include "net/httptransport.h"
 
 #include <QStringList>
@@ -37,6 +38,17 @@ public:
     virtual QString displayName() const = 0;
     virtual QStringList defaultHosts() const = 0;
     virtual bool allowSubDomains() const { return false; }
+    // Hostless sources with this flag are only used when chosen explicitly
+    // (override id), never by URL matching (ObtainX neverAutoSelect).
+    virtual bool neverAutoSelect() const { return false; }
+    // Hostless sources (empty defaultHosts) are tried in registry order after
+    // every host-based source; this decides whether one takes a URL by its
+    // shape (ObtainX sourceSpecificStandardizeURL(forSelection: true)).
+    virtual bool matchesUrlShape(const QString &url) const
+    {
+        Q_UNUSED(url);
+        return false;
+    }
 
     // Hosts this instance answers for: the defaults, or the single custom host
     // when the user forced this source onto another server (self-hosted forge).
@@ -54,10 +66,19 @@ public:
     virtual void fetchReleases(const QString &standardUrl, const AppSettings &settings,
                                HttpTransport &transport, Callback done) = 0;
 
+    // Adds what downloading one of this source's assets needs: credentials,
+    // headers, an authorized URL. The default changes nothing.
+    virtual void prepareDownload(const Asset &asset, const AppSettings &settings, DownloadRequest &request) const;
+
 protected:
     // Matches ^https?://(www\.)?(<hosts>)<pathPattern> case-insensitively and
     // returns the matched prefix.
     Result<QString> standardizeWithRegex(const QString &url, const QString &pathPattern) const;
+    // "^https?://(www\.)?(<hosts>)" (or the subdomain variant), for sources
+    // that need several regexes over the same hosts.
+    QString hostPrefixPattern() const;
+    // The token from config("token"), trimmed; empty when none.
+    QString configToken() const;
 
 private:
     QString m_customHost;

@@ -1,0 +1,51 @@
+[
+  {
+    "name": "Foo 2.0 (beta)",
+    "tag_name": "v2.0.0",
+    "description": "Upcoming release.",
+    "created_at": "2026-05-01T08:00:00.000Z",
+    "released_at": "2026-12-01T00:00:00.000Z",
+    "upcoming_release": true,
+    "commit": {"id": "c0ffee", "created_at": "2026-04-30T20:00:00.000+02:00", "message": "Prepare 2.0"},
+    "assets": {
+      "count": 1,
+      "sources": [{"format": "zip", "url": "https://gitlab.com/sailfish/apps/harbour-foo/-/archive/v2.0.0/harbour-foo-v2.0.0.zip"}],
+      "links": [
+        {"id": 31, "name": "harbour-foo-2.0.0-1.aarch64.rpm", "url": "https://gitlab.com/sailfish/apps/harbour-foo/-/package_files/31/download", "direct_asset_url": "https://gitlab.com/sailfish/apps/harbour-foo/-/releases/v2.0.0/downloads/harbour-foo-2.0.0-1.aarch64.rpm", "link_type": "package"}
+      ]
+    },
+    "_links": {"self": "https://gitlab.com/sailfish/apps/harbour-foo/-/releases/v2.0.0"}
+  },
+  {
+    "name": "Foo 1.2",
+    "tag_name": "v1.2.0",
+    "description": "  ## Changes\n- Faster sync\n\nDownloads: [harbour-foo-1.2.0-1.armv7hl.rpm](/uploads/0a1b2c3d/harbour-foo-1.2.0-1.armv7hl.rpm)\n![screenshot](/uploads/9f8e7d6c/screen.png)\n",
+    "created_at": "2026-04-01T09:00:00.000Z",
+    "released_at": "2026-04-02T10:15:30.123Z",
+    "upcoming_release": false,
+    "commit": {"id": "abc123", "created_at": "2026-04-01T08:55:00.000Z", "message": "Release 1.2"},
+    "assets": {
+      "count": 4,
+      "sources": [{"format": "tar.gz", "url": "https://gitlab.com/sailfish/apps/harbour-foo/-/archive/v1.2.0/harbour-foo-v1.2.0.tar.gz"}],
+      "links": [
+        {"id": 21, "name": "harbour-foo-1.2.0-1.aarch64.rpm", "url": "https://gitlab.com/sailfish/apps/harbour-foo/-/package_files/21/download", "direct_asset_url": "https://gitlab.com/sailfish/apps/harbour-foo/-/releases/v1.2.0/downloads/harbour-foo-1.2.0-1.aarch64.rpm", "link_type": "package"},
+        {"id": 22, "name": "Data package (CI build)", "url": "https://gitlab.com/sailfish/apps/harbour-foo/-/jobs/987/artifacts/file/harbour-foo-data-1.2.0-1.noarch.rpm", "link_type": "other"},
+        {"id": 23, "name": "harbour-foo-1.2.0-1.i486.rpm", "url": "https://gitlab.com/sailfish/apps/harbour-foo/-/package_files/23/download", "link_type": "package"}
+      ]
+    },
+    "_links": {"self": "https://gitlab.com/sailfish/apps/harbour-foo/-/releases/v1.2.0"}
+  },
+  {
+    "name": "Foo 1.1",
+    "tag_name": "v1.1.0",
+    "description": null,
+    "created_at": "2026-02-10T12:00:00Z",
+    "upcoming_release": false,
+    "assets": {
+      "count": 1,
+      "links": [
+        {"id": 11, "name": "harbour-foo-1.1.0-1.aarch64.rpm", "url": "https://gitlab.com/sailfish/apps/harbour-foo/-/package_files/11/download"}
+      ]
+    }
+  }
+]

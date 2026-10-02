@@ -27,6 +27,9 @@ struct DownloadRequest
 //  - An existing .part is resumed with a Range request; a server that answers
 //    200 instead of 206 restarts the file from scratch.
 //  - The result is verified (size, sha256) before it is renamed into place.
+//  - Redirects (up to 10) are followed here rather than by Qt, so that
+//    credentials (Authorization, PRIVATE-TOKEN) are dropped when a redirect
+//    leaves the original origin, e.g. GitHub's API -> its storage host.
 class Downloader : public QObject
 {
     Q_OBJECT
@@ -45,7 +48,7 @@ public:
     static QString sha256OfFile(const QString &path);
 
 private:
-    void start(const DownloadRequest &request, Progress progress, Done done, bool allowRestart);
+    void start(const DownloadRequest &request, Progress progress, Done done, bool allowRestart, int redirects = 0);
 
     QNetworkAccessManager *m_nam;
     QByteArray m_userAgent;

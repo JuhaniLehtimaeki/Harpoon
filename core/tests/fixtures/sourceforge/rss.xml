@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:files="https://sourceforge.net/api/files.rdf#" xmlns:media="http://search.yahoo.com/mrss/" xmlns:doap="http://usefulinc.com/ns/doap#" xmlns:sf="https://sourceforge.net/api/sfelements.rdf#" version="2.0">
+  <channel xmlns:files="https://sourceforge.net/api/files.rdf#" xmlns:media="http://search.yahoo.com/mrss/" xmlns:doap="http://usefulinc.com/ns/doap#" xmlns:sf="https://sourceforge.net/api/sfelements.rdf#">
+    <title>Harbour Foo</title>
+    <link>https://sourceforge.net</link>
+    <description>Files from Harbour Foo (harbourfoo) project</description>
+    <item>
+      <title><![CDATA[/v1.2.0/harbour-foo-1.2.0-1.aarch64.rpm]]></title>
+      <link>https://sourceforge.net/projects/harbourfoo/files/v1.2.0/harbour-foo-1.2.0-1.aarch64.rpm/download</link>
+      <guid>https://sourceforge.net/projects/harbourfoo/files/v1.2.0/harbour-foo-1.2.0-1.aarch64.rpm/download</guid>
+      <pubDate>Thu, 02 Apr 2026 10:00:05 UT</pubDate>
+      <files:sf-file-id xmlns:files="https://sourceforge.net/api/files.rdf#">90001</files:sf-file-id>
+      <files:extra-info xmlns:files="https://sourceforge.net/api/files.rdf#">data</files:extra-info>
+      <media:content xmlns:media="http://search.yahoo.com/mrss/" type="application/x-rpm; charset=binary" url="https://sourceforge.net/projects/harbourfoo/files/v1.2.0/harbour-foo-1.2.0-1.aarch64.rpm/download" filesize="183920"><media:title></media:title><media:hash algo="md5">0123456789abcdef0123456789abcdef</media:hash></media:content>
+    </item>
+    <item>
+      <title><![CDATA[/v1.2.0/harbour-foo-1.2.0-1.armv7hl.rpm]]></title>
+      <link>https://sourceforge.net/projects/harbourfoo/files/v1.2.0/harbour-foo-1.2.0-1.armv7hl.rpm/download</link>
+      <guid>https://sourceforge.net/projects/harbourfoo/files/v1.2.0/harbour-foo-1.2.0-1.armv7hl.rpm/download</guid>
+      <pubDate>Thu, 02 Apr 2026 10:00:00 UT</pubDate>
+      <media:content xmlns:media="http://search.yahoo.com/mrss/" type="application/x-rpm; charset=binary" url="https://sourceforge.net/projects/harbourfoo/files/v1.2.0/harbour-foo-1.2.0-1.armv7hl.rpm/download" filesize="179004"/>
+    </item>
+    <item>
+      <title><![CDATA[/v1.2.0/README.md]]></title>
+      <link>https://sourceforge.net/projects/harbourfoo/files/v1.2.0/README.md/download</link>
+      <guid>https://sourceforge.net/projects/harbourfoo/files/v1.2.0/README.md/download</guid>
+      <pubDate>Thu, 02 Apr 2026 09:59:00 UT</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[/nightly/harbour-foo-nightly.aarch64.rpm]]></title>
+      <link>https://sourceforge.net/projects/harbourfoo/files/nightly/harbour-foo-nightly.aarch64.rpm/download</link>
+      <guid>https://sourceforge.net/projects/harbourfoo/files/nightly/harbour-foo-nightly.aarch64.rpm/download</guid>
+      <pubDate>Wed, 01 Apr 2026 03:00:00 UT</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[/v1.1.0/harbour-foo-1.1.0-1.aarch64.rpm]]></title>
+      <link>https://sourceforge.net/projects/harbourfoo/files/v1.1.0/harbour-foo-1.1.0-1.aarch64.rpm/download</link>
+      <guid>https://sourceforge.net/projects/harbourfoo/files/v1.1.0/harbour-foo-1.1.0-1.aarch64.rpm/download</guid>
+      <pubDate>Sun, 01 Feb 2026 08:00:00 UT</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[/v1.1.0/harbour-foo-1.1.0-1.src.rpm]]></title>
+      <link>https://sourceforge.net/projects/harbourfoo/files/v1.1.0/harbour-foo-1.1.0-1.src.rpm/download</link>
+      <guid>https://sourceforge.net/projects/harbourfoo/files/v1.1.0/harbour-foo-1.1.0-1.src.rpm/download</guid>
+      <pubDate>Sun, 01 Feb 2026 08:00:00 UT</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[/old%20builds/1.0/harbour-foo-1.0-1.noarch.rpm]]></title>
+      <link>https://sourceforge.net/projects/harbourfoo/files/old%20builds/1.0/harbour-foo-1.0-1.noarch.rpm/download</link>
+      <guid>https://sourceforge.net/projects/harbourfoo/files/old%20builds/1.0/harbour-foo-1.0-1.noarch.rpm/download</guid>
+      <pubDate>Fri, 05 Dec 2025 12:00:00 UT</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[/harbour-foo-0.9-1.noarch.rpm]]></title>
+      <link>https://sourceforge.net/projects/harbourfoo/files/harbour-foo-0.9-1.noarch.rpm/download</link>
+      <guid>https://sourceforge.net/projects/harbourfoo/files/harbour-foo-0.9-1.noarch.rpm/download</guid>
+      <pubDate>Mon, 01 Sep 2025 12:00:00 UT</pubDate>
+    </item>
+  </channel>
+</rss>

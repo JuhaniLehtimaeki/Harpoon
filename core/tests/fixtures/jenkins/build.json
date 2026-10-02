@@ -1,0 +1,29 @@
+{
+  "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+  "actions": [{"_class": "hudson.model.CauseAction"}],
+  "artifacts": [
+    {"displayPath": "harbour-foo-1.2.0-57.aarch64.rpm", "fileName": "harbour-foo-1.2.0-57.aarch64.rpm", "relativePath": "RPMS/harbour-foo-1.2.0-57.aarch64.rpm"},
+    {"displayPath": "harbour-foo-1.2.0-57.armv7hl.rpm", "fileName": "harbour-foo-1.2.0-57.armv7hl.rpm", "relativePath": "RPMS/harbour-foo-1.2.0-57.armv7hl.rpm"},
+    {"displayPath": "build log.txt", "fileName": "build log.txt", "relativePath": "logs/build log.txt"},
+    {"displayPath": null, "relativePath": "RPMS/harbour-foo-data-1.2.0-57.noarch.rpm"}
+  ],
+  "building": false,
+  "displayName": "#57",
+  "duration": 412345,
+  "fullDisplayName": "harbour-foo #57",
+  "id": "57",
+  "number": 57,
+  "result": "SUCCESS",
+  "timestamp": 1775124000000,
+  "url": "https://ci.example.org/jenkins/job/sailfish/job/harbour-foo/57/",
+  "changeSets": [
+    {
+      "_class": "hudson.plugins.git.GitChangeSetList",
+      "items": [
+        {"commitId": "abc", "msg": "Fix crash on start", "author": {"fullName": "Me"}},
+        {"commitId": "def", "msg": "Update translations", "author": {"fullName": "You"}}
+      ],
+      "kind": "git"
+    }
+  ]
+}

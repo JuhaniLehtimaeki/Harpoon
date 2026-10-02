@@ -53,7 +53,7 @@ harpoon/
     sources/      Source (interface), SourceRegistry,
                   GitHubSource, ForgejoSource(Codeberg/Gitea), GitLabSource,
                   SourceHutSource, SourceForgeSource, JenkinsSource,
-                  HtmlSource, DirectLinkSource, (later) RpmMdRepoSource
+                  HtmlSource, DirectLinkSource, RpmMdRepoSource (see docs/sources.md)
     pipeline/     ReleaseSelector  (sort, prerelease/draft, title/notes regex, fallback)
                   AssetFilter      (.rpm predicate, user regex, arch, sfos-tag preference)
                   VersionExtractor (regex + match group, pseudo-versions)
@@ -321,3 +321,44 @@ validated yet.
   documented API; `sfdk build` plus a device run will tell.
 - Qt 5.15 prefers the `function onFoo()` form in `Connections`. The code keeps `onFoo:`
   because Qt 5.6 only understands that form.
+
+## Phase 4 status
+Implemented and tested on desktop.
+
+**More sources** (`docs/sources.md`): GitLab, SourceHut, SourceForge, Jenkins, HTML,
+direct `.rpm` links and rpm-md repositories.
+- An unknown host now falls through to the HTML scraper instead of being rejected.
+- Every source can adjust its downloads through `Source::prepareDownload`:
+  - GitHub with a token downloads through the asset API, which works for private repos.
+  - Forgejo sends its token header.
+  - GitLab adds `private_token`.
+  - HTML sends its `requestHeader` setting.
+- The downloader follows redirects itself. It drops `Authorization`, `PRIVATE-TOKEN` and
+  `Cookie` when a redirect leaves the origin, and refuses a redirect from https to http.
+
+**Background checks:**
+- The systemd user units `harpoon-check.{service,timer}` run
+  `harpoon-cli check --notify --quiet`.
+- `BackgroundScheduler` enables/starts or stops/disables the timer over the user's systemd
+  D-Bus API and writes the interval as a drop-in. The app keeps the timer in sync with its
+  settings (on start and on change); `harpoon-cli background on|off` does the same from a
+  terminal.
+- If the app and the background check save the same record at the same moment, the last
+  write wins. Writes are atomic, so a record can't be corrupted, but a just-made change can be
+  lost.
+
+**Notifications:**
+- `Notifier` calls `org.freedesktop.Notifications` with SailfishOS hints: preview banner,
+  item count, category, and a `default` remote action that calls `showUpdates` on Harpoon's
+  D-Bus service.
+- `notifiedVersion` makes each release notify only once.
+
+**Backups:**
+- Harpoon's own format. Tokens are included only on request, and the file is then mode 0600.
+- Importing skips apps that are already tracked and drops device-specific state (install
+  receipt, notification state, errors).
+- Available in the CLI (`export` / `import`) and on the settings page (export to Documents;
+  import through the system file picker).
+
+**Settings:** moved into core, so the CLI and the background check share the app's settings
+file, tokens included.

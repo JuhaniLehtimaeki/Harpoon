@@ -2,6 +2,8 @@
 #include "pipeline/releasepipeline.h"
 #include "sources/forgejosource.h"
 #include "sources/githubsource.h"
+#include "sources/gitlabsource.h"
+#include "sources/htmlsource.h"
 #include "sources/sourceregistry.h"
 
 #include <QtTest>
@@ -54,6 +56,26 @@ private slots:
                                          << "Forgejo" << "http://192.168.1.5:3000/me/app";
         QTest::newRow("github enterprise") << "https://ghe.corp.example/team/tool" << "GitHub"
                                            << "GitHub" << "https://ghe.corp.example/team/tool";
+        QTest::newRow("gitlab subgroup") << "https://gitlab.com/grp/sub/proj/-/releases" << ""
+                                         << "GitLab" << "https://gitlab.com/grp/sub/proj";
+        QTest::newRow("self-hosted gitlab") << "https://git.example.org/team/app/-/tags" << "GitLab"
+                                            << "GitLab" << "https://git.example.org/team/app";
+        QTest::newRow("sourcehut") << "https://git.sr.ht/~me/app/refs" << ""
+                                   << "SourceHut" << "https://git.sr.ht/~me/app";
+        QTest::newRow("sourceforge") << "https://sourceforge.net/p/myapp/" << ""
+                                     << "SourceForge" << "https://sourceforge.net/projects/myapp/files";
+        QTest::newRow("jenkins override") << "https://ci.example.org/job/app/lastBuild/" << "Jenkins"
+                                          << "Jenkins" << "https://ci.example.org/job/app";
+        QTest::newRow("rpm-md override") << "https://repo.example.org/sfos/repodata/repomd.xml?package=foo"
+                                         << "RpmMdRepo" << "RpmMdRepo" << "https://repo.example.org/sfos?package=foo";
+        QTest::newRow("direct rpm link") << "https://example.com/dl/app-1.0-1.noarch.rpm" << ""
+                                         << "DirectLink" << "https://example.com/dl/app-1.0-1.noarch.rpm";
+        QTest::newRow("direct rpm link with query") << "https://example.com/get/app.rpm?mirror=1" << ""
+                                                    << "DirectLink" << "https://example.com/get/app.rpm?mirror=1";
+        QTest::newRow("html fallback") << "example.com/downloads/" << ""
+                                       << "HTML" << "https://example.com/downloads/";
+        QTest::newRow("html override on a forge") << "https://github.com/a/b/releases" << "HTML"
+                                                  << "HTML" << "https://github.com/a/b/releases";
     }
 
     void registryMatching()
@@ -72,10 +94,16 @@ private slots:
     void registryErrors()
     {
         SourceRegistry registry;
-        QCOMPARE(int(registry.match("https://example.com/a/b").error.kind), int(Error::UnsupportedUrl));
+        // HTML is the catch-all, so an unknown host is no longer unsupported.
+        QCOMPARE(registry.match("https://example.com/a/b").value.source->id(), QStringLiteral("HTML"));
+        QCOMPARE(int(registry.match("ftp://example.com/a.rpm").error.kind), int(Error::UnsupportedUrl));
         QCOMPARE(int(registry.match("https://github.com/only-owner").error.kind), int(Error::InvalidUrl));
         QCOMPARE(int(registry.match("https://github.com/a/b", "Nope").error.kind), int(Error::UnsupportedUrl));
-        QCOMPARE(registry.ids(), (QStringList{"Forgejo", "GitHub"}));
+        QCOMPARE(int(registry.match("https://example.com/build", "Jenkins").error.kind), int(Error::InvalidUrl));
+        // Jenkins-looking URLs are not auto-selected.
+        QCOMPARE(registry.match("https://ci.example.org/job/app").value.source->id(), QStringLiteral("HTML"));
+        QCOMPARE(registry.ids(), (QStringList{"Forgejo", "GitHub", "GitLab", "Jenkins", "RpmMdRepo", "SourceForge",
+                                              "SourceHut", "DirectLink", "HTML"}));
     }
 
     void apiUrls()
@@ -210,6 +238,56 @@ private slots:
         QVERIFY(a.apiUrl.isEmpty());
         QCOMPARE(a.url, QStringLiteral("https://codeberg.org/fishdev/harbour-tides/releases/download/v3.0.1/harbour-tides-3.0.1-1.armv7hl.rpm"));
         QCOMPARE(a.updatedAt, QDateTime::fromString("2026-05-10T07:03:00Z", Qt::ISODate)); // created_at fallback
+    }
+
+    void prepareDownloads()
+    {
+        Asset asset;
+        asset.name = QStringLiteral("a-1-1.aarch64.rpm");
+        asset.url = QStringLiteral("https://github.com/o/r/releases/download/v1/a-1-1.aarch64.rpm");
+        asset.apiUrl = QStringLiteral("https://api.github.com/repos/o/r/releases/assets/7");
+
+        GitHubSource gh;
+        DownloadRequest plain;
+        plain.url = asset.url;
+        gh.prepareDownload(asset, AppSettings(), plain);
+        QCOMPARE(plain.url, asset.url); // no token: public URL, no headers
+        QVERIFY(plain.headers.isEmpty());
+
+        gh.setConfig({{QStringLiteral("token"), QStringLiteral("t0k")}});
+        DownloadRequest authed;
+        authed.url = asset.url;
+        gh.prepareDownload(asset, AppSettings(), authed);
+        QCOMPARE(authed.url, asset.apiUrl);
+        QVERIFY(authed.headers.contains(qMakePair(QByteArray("Authorization"), QByteArray("Bearer t0k"))));
+        QVERIFY(authed.headers.contains(qMakePair(QByteArray("Accept"), QByteArray("application/octet-stream"))));
+
+        ForgejoSource fj;
+        fj.setConfig({{QStringLiteral("token"), QStringLiteral("abc")}});
+        Asset fjAsset;
+        fjAsset.url = QStringLiteral("https://codeberg.org/o/r/releases/download/v1/a.rpm");
+        DownloadRequest fjReq;
+        fjReq.url = fjAsset.url;
+        fj.prepareDownload(fjAsset, AppSettings(), fjReq);
+        QCOMPARE(fjReq.url, fjAsset.url);
+        QVERIFY(fjReq.headers.contains(qMakePair(QByteArray("Authorization"), QByteArray("token abc"))));
+
+        GitLabSource gl;
+        gl.setConfig({{QStringLiteral("token"), QStringLiteral("glpat")}});
+        Asset glAsset;
+        glAsset.url = QStringLiteral("https://gitlab.com/g/p/-/package_files/1/download");
+        DownloadRequest glReq;
+        glReq.url = glAsset.url;
+        gl.prepareDownload(glAsset, AppSettings(), glReq);
+        QVERIFY(glReq.url.contains(QLatin1String("private_token=glpat")));
+
+        HtmlSource html;
+        AppSettings s;
+        s.set(Keys::requestHeader, QStringLiteral("Cookie: consent=yes\nX-Thing: 1"));
+        DownloadRequest htmlReq;
+        html.prepareDownload(Asset(), s, htmlReq);
+        QVERIFY(htmlReq.headers.contains(qMakePair(QByteArray("Cookie"), QByteArray("consent=yes"))));
+        QVERIFY(htmlReq.headers.contains(qMakePair(QByteArray("X-Thing"), QByteArray("1"))));
     }
 
     void forgejo403IsNotRateLimit()

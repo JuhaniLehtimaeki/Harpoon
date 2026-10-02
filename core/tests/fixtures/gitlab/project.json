@@ -1,0 +1,8 @@
+{
+  "id": 4242,
+  "name": "harbour-foo",
+  "path": "harbour-foo",
+  "path_with_namespace": "sailfish/apps/harbour-foo",
+  "web_url": "https://gitlab.com/sailfish/apps/harbour-foo",
+  "default_branch": "main"
+}

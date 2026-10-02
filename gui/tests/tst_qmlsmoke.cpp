@@ -216,6 +216,17 @@ private slots:
         m_db.installed.insert(QStringLiteral("harbour-delta"), rpm(QStringLiteral("harbour-delta"), QStringLiteral("3.0-1")));
         QVERIFY(store.save(delta).ok());
 
+        App web = seededApp(QStringLiteral("webapp"), QStringLiteral("5.0"));
+        web.url = QStringLiteral("https://downloads.example.org/webapp/");
+        web.settings.set(Keys::customLinkFilterRegex, QStringLiteral("webapp-.*\\.rpm"));
+        QVERIFY(store.save(web).ok());
+
+        App repo = seededApp(QStringLiteral("repoapp"), QStringLiteral("1.2-3"));
+        repo.url = QStringLiteral("https://repo.example.org/obs/sailfishos_5.0_aarch64");
+        repo.sourceId = QStringLiteral("RpmMdRepo");
+        repo.settings.set(Keys::packageName, QStringLiteral("repoapp"));
+        QVERIFY(store.save(repo).ok());
+
         m_settings.reset(new HarpoonSettings(m_dir.filePath(QStringLiteral("config/harpoon.conf"))));
         m_scheduler.reset(new BackgroundScheduler(QDBusConnection(QStringLiteral("none")),
                                                   m_dir.filePath(QStringLiteral("xdg-config"))));
@@ -231,7 +242,7 @@ private slots:
         env.backupDir = m_dir.filePath(QStringLiteral("documents"));
         m_controller.reset(new HarpoonController(env));
         m_controller->reload();
-        QCOMPARE(m_controller->apps()->count(), 4);
+        QCOMPARE(m_controller->apps()->count(), 6);
         QCOMPARE(m_controller->apps()->updatesCount(), 2);
 
         qInstallMessageHandler(collect);
@@ -261,7 +272,7 @@ private slots:
     void appPages_data()
     {
         QTest::addColumn<QString>("appId");
-        for (const char *id : {"harbour-alpha", "beta", "harbour-delta"})
+        for (const char *id : {"harbour-alpha", "beta", "harbour-delta", "webapp", "repoapp"})
             QTest::newRow(id) << QString::fromLatin1(id);
         for (const AppListModel::Entry &e : m_controller->apps()->entries())
             if (e.app.name == QLatin1String("gamma"))
@@ -276,8 +287,10 @@ private slots:
         expectClean("AppPage");
         QCOMPARE(currentPage()->property("details").toMap().value(QStringLiteral("appId")).toString(), appId);
 
-        push(QStringLiteral("AppSettingsPage.qml"), QStringLiteral("{ appId: '%1' }").arg(appId));
+        QObject *settingsPage = push(QStringLiteral("AppSettingsPage.qml"), QStringLiteral("{ appId: '%1' }").arg(appId));
         expectClean("AppSettingsPage");
+        QCOMPARE(settingsPage->property("_isWebPage").toBool(), appId == QLatin1String("webapp"));
+        QCOMPARE(settingsPage->property("_isRepo").toBool(), appId == QLatin1String("repoapp"));
         popToList();
         expectClean("popping back");
     }
@@ -323,6 +336,31 @@ private slots:
         field->setProperty("text", QStringLiteral("https://github.com/someone/harbour-alpha"));
         expectClean("typing a duplicate URL");
         QVERIFY(!dialog->property("canAccept").toBool());
+
+        // An RPM repository needs a package name before it can be added.
+        QObject *sourceBox = nullptr;
+        QObject *packageField = nullptr;
+        for (QObject *o : dialog->findChildren<QObject *>()) {
+            if (o->property("label").toString() == QLatin1String("Source type"))
+                sourceBox = o;
+            if (o->property("label").toString() == QLatin1String("Package name in the repository"))
+                packageField = o;
+        }
+        QVERIFY(sourceBox && packageField);
+        const QStringList ids = [this]() {
+            QStringList out;
+            for (const QVariant &v : m_controller->sources())
+                out << v.toMap().value(QStringLiteral("id")).toString();
+            return out;
+        }();
+        sourceBox->setProperty("currentIndex", ids.indexOf(QStringLiteral("RpmMdRepo")) + 1);
+        field->setProperty("text", QStringLiteral("https://repo.example.org/other/"));
+        expectClean("choosing an RPM repository");
+        QVERIFY(dialog->property("_needsPackageName").toBool());
+        QVERIFY(!dialog->property("canAccept").toBool());
+        packageField->setProperty("text", QStringLiteral("harbour-thing"));
+        expectClean("typing a package name");
+        QVERIFY(dialog->property("canAccept").toBool());
         popToList();
     }
 
@@ -397,7 +435,7 @@ private slots:
     {
         m_controller->removeApp(QStringLiteral("beta"));
         expectClean("removing an app");
-        QCOMPARE(m_controller->apps()->count(), 3);
+        QCOMPARE(m_controller->apps()->count(), 5);
     }
 };
 

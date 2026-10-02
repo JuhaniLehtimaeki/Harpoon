@@ -1,3 +1,6 @@
+# zlib inflates rpm-md primary.xml.gz (RpmMdRepoSource).
+find_package(ZLIB REQUIRED)
+
 add_library(harpoon-core STATIC
     src/model/error.h
     src/model/release.h
@@ -22,6 +25,22 @@ add_library(harpoon-core STATIC
     src/sources/githubsource.cpp
     src/sources/forgejosource.h
     src/sources/forgejosource.cpp
+    src/sources/sourceutil.h
+    src/sources/sourceutil.cpp
+    src/sources/gitlabsource.h
+    src/sources/gitlabsource.cpp
+    src/sources/sourcehutsource.h
+    src/sources/sourcehutsource.cpp
+    src/sources/sourceforgesource.h
+    src/sources/sourceforgesource.cpp
+    src/sources/jenkinssource.h
+    src/sources/jenkinssource.cpp
+    src/sources/htmlsource.h
+    src/sources/htmlsource.cpp
+    src/sources/directlinksource.h
+    src/sources/directlinksource.cpp
+    src/sources/rpmmdreposource.h
+    src/sources/rpmmdreposource.cpp
     src/sources/sourceregistry.h
     src/sources/sourceregistry.cpp
     src/pipeline/deviceinfo.h
@@ -64,5 +83,6 @@ add_library(harpoon-core STATIC
 )
 target_include_directories(harpoon-core PUBLIC src)
 target_link_libraries(harpoon-core PUBLIC Qt5::Core Qt5::Network Qt5::DBus)
+target_link_libraries(harpoon-core PRIVATE ZLIB::ZLIB)
 target_compile_definitions(harpoon-core PUBLIC
     HARPOON_VERSION="${PROJECT_VERSION}")

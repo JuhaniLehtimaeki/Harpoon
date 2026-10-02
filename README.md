@@ -1,7 +1,7 @@
 # Harpoon
 
 An Obtainium-style updater for SailfishOS. Harpoon tracks apps that publish RPM release
-assets on GitHub, Codeberg/Forgejo/Gitea and other forges, and installs updates straight
+assets on GitHub, Codeberg/Forgejo/Gitea, GitLab and other sources, and installs updates straight
 from the source.
 
 - Design: [docs/architecture.md](docs/architecture.md)
@@ -26,7 +26,11 @@ harpoon-cli list                                    # installed vs latest
 harpoon-cli check                                   # check all apps for updates
 devel-su -p harpoon-cli install <app>               # install; needs the privileged group
 devel-su -p harpoon-cli upgrade                     # install every available update
+harpoon-cli background on --hours 6                 # periodic checks with notifications
+harpoon-cli export ~/Documents/harpoon.json         # backup (import with: harpoon-cli import FILE)
 ```
+Supported sources: GitHub, Codeberg/Forgejo/Gitea, GitLab, SourceHut, SourceForge, Jenkins,
+plain web pages, direct `.rpm` links and rpm-md repositories. See [docs/sources.md](docs/sources.md).
 Run `harpoon-cli --help` for all commands.
 
 ## Building the core on desktop Linux

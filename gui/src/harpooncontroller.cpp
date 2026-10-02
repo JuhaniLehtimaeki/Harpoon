@@ -245,6 +245,7 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
     m_model.setBusy(id, true, tr("Preparing"));
 
     auto *installer = new AppInstaller(m_downloader, *m_inspector, backend(), m_cacheDir, m_device, this);
+    installer->setDownloadPreparer(checker().downloadPreparer(app));
     InstallOptions options;
     options.allowReinstall = reinstall;
     options.allowDowngrade = downgrade;
@@ -347,9 +348,12 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
     for (const Asset &asset : a.latestAssets)
         assets << assetToVariant(asset);
     QString sourceName = a.sourceId;
+    QString effectiveSourceId = a.sourceId;
     const auto match = m_registry.match(a.url, a.sourceId);
-    if (match.ok())
+    if (match.ok()) {
         sourceName = match.value.source->displayName();
+        effectiveSourceId = match.value.source->id();
+    }
     return {
         {QStringLiteral("appId"), a.id},
         {QStringLiteral("temporaryId"), a.temporaryId},
@@ -358,6 +362,7 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
         {QStringLiteral("url"), a.url},
         {QStringLiteral("sourceId"), a.sourceId},
         {QStringLiteral("sourceName"), sourceName},
+        {QStringLiteral("effectiveSourceId"), effectiveSourceId},
         {QStringLiteral("state"), int(AppListModel::toState(e->status.state))},
         {QStringLiteral("installedVersion"), e->status.installedVersion},
         {QStringLiteral("installedVendor"), e->installed.vendor},

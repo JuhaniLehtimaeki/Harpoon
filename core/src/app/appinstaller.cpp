@@ -105,6 +105,8 @@ void AppInstaller::downloadNext(std::shared_ptr<InstallJob> job)
     request.targetPath = m_downloadDir + QLatin1Char('/') + key + QLatin1Char('-') + safeName;
     request.expectedSize = asset.size;
     request.expectedSha256 = asset.sha256;
+    if (m_prepareDownload)
+        m_prepareDownload(asset, request);
 
     const QString stage = QStringLiteral("Downloading %1").arg(asset.name);
     m_downloader.download(

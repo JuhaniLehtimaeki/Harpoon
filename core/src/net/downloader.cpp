@@ -72,17 +72,16 @@ void Downloader::download(const DownloadRequest &request, Progress progress, Don
     start(request, progress, done, true);
 }
 
-void Downloader::start(const DownloadRequest &request, Progress progress, Done done, bool allowRestart)
+void Downloader::start(const DownloadRequest &request, Progress progress, Done done, bool allowRestart, int redirects)
 {
     const QString partPath = request.targetPath + QStringLiteral(".part");
     auto file = std::make_shared<QFile>(partPath);
     const qint64 resumeFrom = file->exists() ? file->size() : 0;
 
     QNetworkRequest req{QUrl(request.url)};
+    // Redirects are handled in finished() below.
 #if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
-    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
-#else
-    req.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true); // Qt 5.6 (SailfishOS)
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
 #endif
     req.setRawHeader("User-Agent", m_userAgent);
     for (const auto &h : request.headers)
@@ -164,9 +163,41 @@ void Downloader::start(const DownloadRequest &request, Progress progress, Done d
     });
 
     connect(reply, &QNetworkReply::finished, this,
-            [this, reply, file, state, openTarget, request, progress, done, allowRestart, partPath, resumeFrom]() {
+            [this, reply, file, state, openTarget, request, progress, done, allowRestart, partPath, resumeFrom,
+             redirects]() {
                 reply->deleteLater();
                 const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
+                if (status >= 300 && status < 400 && reply->hasRawHeader("Location")) {
+                    if (file->isOpen())
+                        file->close();
+                    if (redirects >= 10) {
+                        done(Result<QString>::failure(downloadError(QStringLiteral("Too many redirects"))));
+                        return;
+                    }
+                    const QUrl from = reply->url();
+                    const QUrl to = from.resolved(QUrl::fromEncoded(reply->rawHeader("Location")));
+                    if (to.scheme() == QLatin1String("http") && from.scheme() == QLatin1String("https")) {
+                        done(Result<QString>::failure(
+                            downloadError(QStringLiteral("Refusing redirect from https to http"))));
+                        return;
+                    }
+                    DownloadRequest next = request;
+                    next.url = to.toString();
+                    const bool sameOrigin = to.scheme() == from.scheme() && to.host() == from.host()
+                                            && to.port(-1) == from.port(-1);
+                    if (!sameOrigin) {
+                        QList<QPair<QByteArray, QByteArray>> kept;
+                        for (const auto &h : request.headers) {
+                            const QByteArray name = h.first.toLower();
+                            if (name != "authorization" && name != "private-token" && name != "cookie")
+                                kept << h;
+                        }
+                        next.headers = kept;
+                    }
+                    start(next, progress, done, allowRestart, redirects + 1);
+                    return;
+                }
 
                 // Range not satisfiable: the .part is stale or already complete.
                 if (status == 416 && resumeFrom > 0) {

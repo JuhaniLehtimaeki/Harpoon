@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://linux.duke.edu/metadata/common" xmlns:rpm="http://linux.duke.edu/metadata/rpm" packages="7">
+<package type="rpm">
+  <name>harbour-foo</name>
+  <arch>aarch64</arch>
+  <version epoch="0" ver="1.2.0" rel="1"/>
+  <checksum type="sha256" pkgid="YES">AAAA000000000000000000000000000000000000000000000000000000000001</checksum>
+  <summary>Foo for Sailfish OS</summary>
+  <description>Foo.</description>
+  <packager></packager>
+  <url>https://example.org/foo</url>
+  <time file="1700000000" build="1699990000"/>
+  <size package="183920" installed="512000" archive="513000"/>
+  <location href="aarch64/harbour-foo-1.2.0-1.aarch64.rpm"/>
+  <format>
+    <rpm:license>GPLv3</rpm:license>
+    <rpm:provides>
+      <rpm:entry name="harbour-foo" flags="EQ" epoch="0" ver="1.2.0" rel="1"/>
+    </rpm:provides>
+    <file>/usr/bin/harbour-foo</file>
+  </format>
+</package>
+<package type="rpm">
+  <name>harbour-foo</name>
+  <arch>armv7hl</arch>
+  <version epoch="0" ver="1.2.0" rel="1"/>
+  <checksum type="sha256" pkgid="YES">aaaa000000000000000000000000000000000000000000000000000000000002</checksum>
+  <summary>Foo for Sailfish OS</summary>
+  <time file="1700000100" build="1699990000"/>
+  <size package="179004" installed="500000" archive="501000"/>
+  <location href="armv7hl/harbour-foo-1.2.0-1.armv7hl.rpm"/>
+  <format><rpm:license>GPLv3</rpm:license></format>
+</package>
+<package type="rpm">
+  <name>harbour-foo</name>
+  <arch>src</arch>
+  <version epoch="0" ver="1.2.0" rel="1"/>
+  <checksum type="sha256" pkgid="YES">aaaa000000000000000000000000000000000000000000000000000000000003</checksum>
+  <time file="1700000000" build="1699990000"/>
+  <size package="90000"/>
+  <location href="src/harbour-foo-1.2.0-1.src.rpm"/>
+</package>
+<package type="rpm">
+  <name>harbour-foo</name>
+  <arch>aarch64</arch>
+  <version epoch="0" ver="1.10.0" rel="1"/>
+  <checksum type="sha256" pkgid="YES">aaaa000000000000000000000000000000000000000000000000000000000004</checksum>
+  <!-- built from an old branch: its file time is older than 1.2.0's -->
+  <time file="1690000000" build="1690000000"/>
+  <size package="190000"/>
+  <location xml:base="https://cdn.example.org/mirror/sfos/" href="aarch64/harbour-foo-1.10.0-1.aarch64.rpm"/>
+  <format/>
+</package>
+<package type="rpm">
+  <name>harbour-foo-data</name>
+  <arch>noarch</arch>
+  <version epoch="0" ver="9.9" rel="1"/>
+  <checksum type="sha256" pkgid="YES">aaaa000000000000000000000000000000000000000000000000000000000005</checksum>
+  <time file="1720000000" build="1720000000"/>
+  <size package="1000"/>
+  <location href="noarch/harbour-foo-data-9.9-1.noarch.rpm"/>
+</package>
+<package type="rpm">
+  <name>harbour-foo</name>
+  <arch>noarch</arch>
+  <version epoch="1" ver="0.5" rel="2"/>
+  <checksum type="sha1" pkgid="YES">0000000000000000000000000000000000000006</checksum>
+  <time file="1710000000" build="1710000000"/>
+  <size package="150000"/>
+  <location href="noarch/harbour-foo-0.5-2.noarch.rpm"/>
+</package>
+<package type="rpm">
+  <name>harbour-bar</name>
+  <arch>aarch64</arch>
+  <version epoch="0" ver="3.0" rel="1"/>
+  <time file="1730000000" build="1730000000"/>
+  <location href="aarch64/harbour-bar-3.0-1.aarch64.rpm"/>
+</package>
+</metadata>

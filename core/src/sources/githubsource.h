@@ -27,6 +27,10 @@ public:
 
     virtual QString apiBaseUrl(const QString &standardUrl) const;
 
+    // With a token, downloads through the asset API (works for private
+    // repositories); the downloader drops the token on the storage redirect.
+    void prepareDownload(const Asset &asset, const AppSettings &settings, DownloadRequest &request) const override;
+
 protected:
     virtual QByteArray authorizationHeader(const QString &token) const;
     virtual Error errorForResponse(const HttpResponse &response) const;
