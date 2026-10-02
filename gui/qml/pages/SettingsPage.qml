@@ -91,10 +91,20 @@ Page {
             }
 
             TextSwitch {
+                enabled: harpoon.settings.backgroundChecks
                 text: qsTr("Notify about updates")
                 checked: harpoon.settings.notifyUpdates
                 automaticCheck: false
                 onClicked: harpoon.settings.notifyUpdates = !checked
+            }
+
+            TextSwitch {
+                enabled: harpoon.settings.backgroundChecks && harpoon.settings.installBackend === "packagekit"
+                text: qsTr("Install updates automatically")
+                description: qsTr("Updates apps that Harpoon installed during background checks. Apps can be excluded in their settings.")
+                checked: harpoon.settings.autoUpdate
+                automaticCheck: false
+                onClicked: harpoon.settings.autoUpdate = !checked
             }
 
             SectionHeader { text: qsTr("Installing") }

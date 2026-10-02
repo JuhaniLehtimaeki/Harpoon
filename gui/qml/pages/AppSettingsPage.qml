@@ -179,6 +179,12 @@ Page {
                 description: qsTr("Uses tags such as sfos5.0 in package names")
             }
             SettingSwitch {
+                visible: harpoon.settings.autoUpdate && details.trackOnly !== true
+                appId: page.appId; key: "excludeFromAutoUpdate"; values: page._values
+                text: qsTr("Exclude from automatic updates")
+                description: qsTr("Always ask before updating this app")
+            }
+            SettingSwitch {
                 appId: page.appId; key: "allowIdChange"; values: page._values
                 text: qsTr("Allow a different package name")
                 description: qsTr("Accept a release whose RPM is not named %1").arg(page.appId)

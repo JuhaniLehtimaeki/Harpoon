@@ -8,6 +8,7 @@
 #include "app/appchecker.h"
 #include "app/appinstaller.h"
 #include "app/appstore.h"
+#include "app/autoupdate.h"
 #include "app/backgroundscheduler.h"
 #include "app/backup.h"
 #include "app/harpoonsettings.h"
@@ -22,6 +23,7 @@
 #include <QCoreApplication>
 #include <QEventLoop>
 #include <QFile>
+#include <QProcess>
 #include <QStandardPaths>
 #include <QTextStream>
 
@@ -57,9 +59,10 @@ const char *kUsage =
     "                         code (e.g. qrencode -o harpoon-qr.png \"$(harpoon-cli link URL)\").\n"
     "  list                   Show tracked apps and their update state.\n"
     "  show <app>             Show details and the latest changelog.\n"
-    "  check [app]... [--notify] [--quiet]\n"
+    "  check [app]... [--notify] [--quiet] [--auto-update]\n"
     "                         Check for updates (all apps when none given). --notify posts a\n"
-    "                         notification for releases not announced before.\n"
+    "                         notification for releases not announced before. --auto-update\n"
+    "                         installs updates when automatic updates are on (set auto-update).\n"
     "  install <app> [--reinstall] [--downgrade] [--backend packagekit|handler]\n"
     "                         Install the latest release.\n"
     "  upgrade [--backend B]  Check all apps, then install every available update.\n"
@@ -73,6 +76,8 @@ const char *kUsage =
     "                         Add the apps from a backup (already tracked ones are skipped).\n"
     "  background on|off [--hours N]\n"
     "                         Enable or disable the periodic background check.\n"
+    "  auto-update on|off     Let background checks install updates of apps Harpoon installed\n"
+    "                         (PackageKit only). Exclude an app with: set <app> excludeFromAutoUpdate=true\n"
     "  token <source>[@host] [value]\n"
     "                         Store an API token (empty value removes it), e.g. token GitHub ghp_...\n"
     "                         or token Forgejo@git.example.org abc for a self-hosted server.\n"
@@ -183,6 +188,8 @@ public:
             rc = importBackup(args);
         else if (command == QLatin1String("background"))
             rc = background(args);
+        else if (command == QLatin1String("auto-update"))
+            rc = setAutoUpdate(args);
         else if (command == QLatin1String("token"))
             rc = token(args);
         else {
@@ -417,9 +424,64 @@ private:
                 },
                 [done]() { done(true); });
         });
+        if (args.has("--auto-update") && !autoUpdate())
+            ++failures;
         if (args.has("--notify") && m_settings.notifyUpdates())
             notifyUpdates();
         return failures == 0 ? 0 : 3;
+    }
+
+    // Installs the updates a background run may install by itself (see
+    // autoUpdateEligible) and posts one notification about them. Returns
+    // false when an install failed.
+    bool autoUpdate()
+    {
+        if (!m_settings.autoUpdate())
+            return true;
+        if (m_settings.installBackend() != QLatin1String("packagekit")) {
+            err() << "Automatic updates need the PackageKit install method\n";
+            return false;
+        }
+        PackageBackend *b = backend(QStringLiteral("packagekit"));
+        QStringList updated;
+        QStringList failed;
+        bool notAuthorized = false;
+        for (const App &app : m_store.loadAll()) {
+            QString why;
+            if (!autoUpdateEligible(app, updateStatusFor(app, installedOf(app)), &why))
+                continue;
+            if (notAuthorized) {
+                failed << app.name;
+                continue;
+            }
+            Error error;
+            if (installApp(app, InstallOptions(), *b, &error) == 0) {
+                updated << app.name;
+            } else {
+                failed << app.name;
+                // Without the privileged group nothing else will work either.
+                notAuthorized = error.kind == Error::NotAuthorized;
+            }
+        }
+        if (updated.isEmpty() && failed.isEmpty())
+            return true;
+        Notifier notifier;
+        const auto sent = notifier.notify(autoUpdateNotification(updated, failed));
+        if (!sent.ok())
+            err() << "Warning: " << sent.error.message << "\n";
+        return failed.isEmpty();
+    }
+
+    int setAutoUpdate(const Args &args)
+    {
+        if (args.positional.size() != 1 || (args.positional.first() != QLatin1String("on")
+                                            && args.positional.first() != QLatin1String("off")))
+            return fail(QStringLiteral("auto-update takes on or off"));
+        m_settings.setAutoUpdate(args.positional.first() == QLatin1String("on"));
+        out() << "Automatic updates " << (m_settings.autoUpdate() ? "on" : "off") << "\n";
+        if (m_settings.autoUpdate() && !m_settings.backgroundChecks())
+            out() << "Background checks are off; turn them on with: harpoon-cli background on\n";
+        return 0;
     }
 
     // Notifies about releases not announced before, across all apps.
@@ -535,7 +597,7 @@ private:
                + QStringLiteral("/downloads");
     }
 
-    int installApp(const App &app, const InstallOptions &options, PackageBackend &b)
+    int installApp(const App &app, const InstallOptions &options, PackageBackend &b, Error *error = nullptr)
     {
         AppInstaller installer(m_downloader, m_inspector, b, downloadDir(), m_device);
         installer.setDownloadPreparer(checker().downloadPreparer(app));
@@ -555,8 +617,11 @@ private:
                 },
                 done);
         });
-        if (!result.ok())
-            return fail(result.error.message);
+        if (!result.ok()) {
+            if (error)
+                *error = result.error;
+            return fail(app.name + QStringLiteral(": ") + result.error.message);
+        }
         for (const QString &w : result.value.warnings)
             err() << "Warning: " << w << "\n";
         const QString newId = result.value.app.id;
@@ -689,6 +754,24 @@ private:
 
 int main(int argc, char **argv)
 {
+#ifdef HARPOON_AUTOUPDATE_ONLY
+    // harpoon-autoupdate runs with the privileged group (privileges.d) so
+    // PackageKit installs without asking. It does exactly one thing, and
+    // takes neither arguments nor the HARPOON_* overrides of harpoon-cli.
+    for (const QString &entry : QProcess::systemEnvironment()) {
+        const QByteArray key = entry.section(QLatin1Char('='), 0, 0).toLocal8Bit();
+        if (key.startsWith("HARPOON_"))
+            qunsetenv(key.constData());
+    }
+    Q_UNUSED(argc)
+    int fixedArgc = 1;
+    QCoreApplication app(fixedArgc, argv);
+    QCoreApplication::setOrganizationName(organizationName());
+    QCoreApplication::setApplicationName(applicationName());
+    Cli cli;
+    return cli.run({QStringLiteral("check"), QStringLiteral("--notify"), QStringLiteral("--quiet"),
+                    QStringLiteral("--auto-update")});
+#else
     QCoreApplication app(argc, argv);
     // Shared with the GUI: both use the same data and cache folders.
     QCoreApplication::setOrganizationName(organizationName());
@@ -696,4 +779,5 @@ int main(int argc, char **argv)
 
     Cli cli;
     return cli.run(app.arguments().mid(1));
+#endif
 }

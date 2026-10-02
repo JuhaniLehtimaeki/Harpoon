@@ -16,6 +16,8 @@ Requires:   qt5-qtdeclarative-import-multimedia
 Requires:   rpm
 Requires:   PackageKit
 Requires:   systemd
+# invoker starts the background job with the privileged group.
+Requires:   mapplauncherd
 BuildRequires:  cmake
 BuildRequires:  pkgconfig(sailfishapp) >= 1.0.2
 BuildRequires:  pkgconfig(Qt5Core)
@@ -82,6 +84,7 @@ desktop-file-install --delete-original \
 %license LICENSE LICENSE.zxing-cpp
 %{_bindir}/harpoon
 %{_bindir}/harpoon-cli
+%{_bindir}/harpoon-autoupdate
 %{_datadir}/harpoon
 %{_datadir}/applications/harpoon.desktop
 %{_datadir}/icons/hicolor/*/apps/harpoon.png

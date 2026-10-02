@@ -12,6 +12,7 @@ const QString kBackend = QStringLiteral("install/backend");
 const QString kBackgroundChecks = QStringLiteral("updates/backgroundChecks");
 const QString kInterval = QStringLiteral("updates/intervalHours");
 const QString kNotify = QStringLiteral("updates/notify");
+const QString kAutoUpdate = QStringLiteral("updates/autoUpdate");
 const QString kTokenGroup = QStringLiteral("tokens");
 } // namespace
 
@@ -96,6 +97,19 @@ void HarpoonSettings::setNotifyUpdates(bool enabled)
     emit changed();
 }
 
+bool HarpoonSettings::autoUpdate() const
+{
+    return m_settings->value(kAutoUpdate, false).toBool();
+}
+
+void HarpoonSettings::setAutoUpdate(bool enabled)
+{
+    if (enabled == autoUpdate())
+        return;
+    m_settings->setValue(kAutoUpdate, enabled);
+    emit changed();
+}
+
 QString HarpoonSettings::token(const QString &sourceId) const
 {
     return m_settings->value(kTokenGroup + QLatin1Char('/') + sourceId).toString();
@@ -133,6 +147,7 @@ QVariantMap HarpoonSettings::exportable(bool includeTokens) const
         {QStringLiteral("backgroundChecks"), backgroundChecks()},
         {QStringLiteral("checkIntervalHours"), checkIntervalHours()},
         {QStringLiteral("notifyUpdates"), notifyUpdates()},
+        {QStringLiteral("autoUpdate"), autoUpdate()},
     };
     if (includeTokens)
         out.insert(QStringLiteral("tokens"), tokens());
@@ -149,6 +164,8 @@ void HarpoonSettings::restore(const QVariantMap &values)
         setCheckIntervalHours(values.value(QStringLiteral("checkIntervalHours")).toInt());
     if (values.contains(QStringLiteral("notifyUpdates")))
         setNotifyUpdates(values.value(QStringLiteral("notifyUpdates")).toBool());
+    if (values.contains(QStringLiteral("autoUpdate")))
+        setAutoUpdate(values.value(QStringLiteral("autoUpdate")).toBool());
     const QVariantMap tokens = values.value(QStringLiteral("tokens")).toMap();
     for (auto it = tokens.constBegin(); it != tokens.constEnd(); ++it)
         setToken(it.key(), it.value().toString());

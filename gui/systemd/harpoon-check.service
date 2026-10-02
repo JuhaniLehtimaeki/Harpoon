@@ -3,5 +3,8 @@ Description=Harpoon: check apps for new releases
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/harpoon-cli check --notify --quiet
+# Started through the app launcher so that harpoon-autoupdate gets the
+# privileged group from privileges.d (silent PackageKit installs). If the
+# launcher is not available, fall back to a plain check.
+ExecStart=/bin/sh -c '/usr/bin/invoker --type=generic /usr/bin/harpoon-autoupdate || exec /usr/bin/harpoon-cli check --notify --quiet'
 Nice=10

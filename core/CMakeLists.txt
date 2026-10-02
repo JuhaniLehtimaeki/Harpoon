@@ -91,6 +91,8 @@ add_library(harpoon-core STATIC
     src/app/backup.cpp
     src/app/addlink.h
     src/app/addlink.cpp
+    src/app/autoupdate.h
+    src/app/autoupdate.cpp
     src/notify/notifier.h
     src/notify/notifier.cpp
     src/verify/sigstore.h

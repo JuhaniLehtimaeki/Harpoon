@@ -18,6 +18,7 @@ class HarpoonSettings : public QObject
     Q_PROPERTY(bool backgroundChecks READ backgroundChecks WRITE setBackgroundChecks NOTIFY changed)
     Q_PROPERTY(int checkIntervalHours READ checkIntervalHours WRITE setCheckIntervalHours NOTIFY changed)
     Q_PROPERTY(bool notifyUpdates READ notifyUpdates WRITE setNotifyUpdates NOTIFY changed)
+    Q_PROPERTY(bool autoUpdate READ autoUpdate WRITE setAutoUpdate NOTIFY changed)
 
 public:
     // filePath empty: the default location.
@@ -31,6 +32,9 @@ public:
     void setCheckIntervalHours(int hours);
     bool notifyUpdates() const;             // default true
     void setNotifyUpdates(bool enabled);
+    // Install updates during background checks (PackageKit only). Default off.
+    bool autoUpdate() const;
+    void setAutoUpdate(bool enabled);
 
     // API tokens per source id ("GitHub", "Forgejo", ...). Plain text in the
     // app's private config folder; not a secure store.
