@@ -27,11 +27,16 @@ public slots:
     void showUpdates();
     // Bring the window to the front and open one app.
     void showApp(const QString &id);
+    // Open harpoon://add?... links (the x-scheme-handler for "harpoon:").
+    // Called by the system when such a link is opened, e.g. from the camera's
+    // QR reader or a web page.
+    void openUrl(const QStringList &urls);
 
 signals:
     void activateRequested();
     void showUpdatesRequested();
     void showAppRequested(const QString &id);
+    void addLinkRequested(const QString &link);
 };
 
 } // namespace Harpoon

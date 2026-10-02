@@ -1,5 +1,6 @@
 #include "harpooncontroller.h"
 
+#include "app/addlink.h"
 #include "app/appinstaller.h"
 #include "app/backup.h"
 #include "net/networktransport.h"
@@ -151,6 +152,21 @@ void HarpoonController::storeAndShow(const App &app, const QString &oldId)
     m_model.upsert(makeEntry(app), oldId);
     if (!oldId.isEmpty() && oldId != app.id)
         emit appIdChanged(oldId, app.id);
+}
+
+QVariantMap HarpoonController::parseAddLink(const QString &text) const
+{
+    const auto link = Harpoon::parseAddLink(text);
+    if (!link.ok())
+        return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), link.error.message}};
+    // A source the registry does not know would only fail later.
+    if (!link.value.sourceId.isEmpty() && !m_registry.ids().contains(link.value.sourceId))
+        return {{QStringLiteral("ok"), false},
+                {QStringLiteral("error"), tr("Unknown source type: %1").arg(link.value.sourceId)}};
+    return {{QStringLiteral("ok"), true},
+            {QStringLiteral("url"), link.value.url},
+            {QStringLiteral("sourceId"), link.value.sourceId},
+            {QStringLiteral("packageName"), link.value.packageName}};
 }
 
 QVariantMap HarpoonController::inspectUrl(const QString &url, const QString &sourceId) const

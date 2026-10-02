@@ -66,6 +66,10 @@ public:
     // Reloads records from disk and re-reads installed versions.
     Q_INVOKABLE void reload();
 
+    // Parses a scanned QR code or opened link (harpoon://add?... or a plain
+    // http(s) URL): {ok, url, sourceId, packageName, error}.
+    Q_INVOKABLE QVariantMap parseAddLink(const QString &text) const;
+
     // Checks the URL without saving: {ok, standardUrl, sourceId, sourceName, error}.
     Q_INVOKABLE QVariantMap inspectUrl(const QString &url, const QString &sourceId = QString()) const;
     // Tracks a new app after a first successful check (or always with force).

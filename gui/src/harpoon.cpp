@@ -6,6 +6,7 @@
 #include "harpoondbus.h"
 #include "app/harpoonsettings.h"
 #include "model/identity.h"
+#include "qrdecoder.h"
 
 #include <sailfishapp.h>
 
@@ -13,6 +14,7 @@
 #include <QQmlContext>
 #include <QQuickView>
 #include <QScopedPointer>
+#include <QTimer>
 #include <QtQml>
 
 using namespace Harpoon;
@@ -43,7 +45,18 @@ int main(int argc, char *argv[])
     QScopedPointer<QQuickView> view(SailfishApp::createView());
     view->rootContext()->setContextProperty(QStringLiteral("harpoon"), &controller);
     view->rootContext()->setContextProperty(QStringLiteral("harpoonDBus"), &dbus);
+    QrDecoder qrDecoder;
+    view->rootContext()->setContextProperty(QStringLiteral("qrDecoder"), &qrDecoder);
     view->setSource(SailfishApp::pathToMainQml());
     view->show();
+
+    // Started to open a link (harpoon:// passed on the command line).
+    QStringList links;
+    for (const QString &arg : app->arguments().mid(1))
+        if (arg.startsWith(QLatin1String("harpoon:")))
+            links << arg;
+    if (!links.isEmpty())
+        QTimer::singleShot(0, &dbus, [&dbus, links]() { dbus.openUrl(links); });
+
     return app->exec();
 }

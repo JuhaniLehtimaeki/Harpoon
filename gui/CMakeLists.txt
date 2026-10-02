@@ -11,6 +11,19 @@ add_library(harpoon-ui STATIC
 target_include_directories(harpoon-ui PUBLIC src)
 target_link_libraries(harpoon-ui PUBLIC harpoon-core)
 
+# QR code decoding (vendored zxing-cpp, readers only, linked statically).
+find_package(Qt5 5.6 REQUIRED COMPONENTS Gui)
+set(BUILD_WRITERS OFF CACHE BOOL "" FORCE)
+set(BUILD_READERS ON CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+add_subdirectory(${CMAKE_SOURCE_DIR}/3rdparty/zxing-cpp/core ${CMAKE_BINARY_DIR}/zxing EXCLUDE_FROM_ALL)
+target_compile_options(ZXing PRIVATE -w)
+set_target_properties(ZXing PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+add_library(harpoon-qr STATIC qr/qrdecoder.h qr/qrdecoder.cpp)
+target_include_directories(harpoon-qr PUBLIC qr)
+target_link_libraries(harpoon-qr PUBLIC Qt5::Gui PRIVATE ZXing::ZXing)
+
 # The Sailfish app itself needs libsailfishapp and Silica, which only the
 # SailfishOS SDK provides.
 find_package(PkgConfig)
@@ -21,7 +34,7 @@ endif()
 if(SAILFISHAPP_FOUND)
     find_package(Qt5 5.6 REQUIRED COMPONENTS Qml Quick)
     add_executable(harpoon src/harpoon.cpp)
-    target_link_libraries(harpoon PRIVATE harpoon-ui Qt5::Qml Qt5::Quick PkgConfig::SAILFISHAPP)
+    target_link_libraries(harpoon PRIVATE harpoon-ui harpoon-qr Qt5::Qml Qt5::Quick PkgConfig::SAILFISHAPP)
     install(TARGETS harpoon RUNTIME DESTINATION bin)
     install(DIRECTORY qml DESTINATION share/harpoon)
     install(FILES harpoon.desktop DESTINATION share/applications)

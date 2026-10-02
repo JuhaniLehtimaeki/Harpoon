@@ -80,6 +80,8 @@ add_library(harpoon-core STATIC
     src/app/backgroundscheduler.cpp
     src/app/backup.h
     src/app/backup.cpp
+    src/app/addlink.h
+    src/app/addlink.cpp
     src/notify/notifier.h
     src/notify/notifier.cpp
 )

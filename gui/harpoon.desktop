@@ -5,6 +5,10 @@ Icon=harpoon
 Exec=harpoon
 Name=Harpoon
 Comment=Install and update apps from GitHub, Codeberg and other forges
+MimeType=x-scheme-handler/harpoon;
+X-Maemo-Service=io.github.juhanilehtimaeki.harpoon
+X-Maemo-Object-Path=/harpoon
+X-Maemo-Method=io.github.juhanilehtimaeki.harpoon.openUrl
 
 [X-Sailjail]
 # Installing packages through PackageKit needs the privileged group, which a

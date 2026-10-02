@@ -25,6 +25,13 @@ void HarpoonDBus::showUpdates()
     emit showUpdatesRequested();
 }
 
+void HarpoonDBus::openUrl(const QStringList &urls)
+{
+    emit activateRequested();
+    for (const QString &url : urls)
+        emit addLinkRequested(url);
+}
+
 void HarpoonDBus::showApp(const QString &id)
 {
     emit activateRequested();
