@@ -29,7 +29,9 @@ public:
 
     // With a token, downloads through the asset API (works for private
     // repositories); the downloader drops the token on the storage redirect.
-    void prepareDownload(const Asset &asset, const AppSettings &settings, DownloadRequest &request) const override;
+    // The token is only attached to the repository's own host and its API.
+    void prepareDownload(const Asset &asset, const AppSettings &settings, const QString &standardUrl,
+                         DownloadRequest &request) const override;
 
 protected:
     virtual QByteArray authorizationHeader(const QString &token) const;

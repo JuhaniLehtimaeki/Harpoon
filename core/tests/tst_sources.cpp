@@ -242,6 +242,7 @@ private slots:
 
     void prepareDownloads()
     {
+        const QString ghRepo = QStringLiteral("https://github.com/o/r");
         Asset asset;
         asset.name = QStringLiteral("a-1-1.aarch64.rpm");
         asset.url = QStringLiteral("https://github.com/o/r/releases/download/v1/a-1-1.aarch64.rpm");
@@ -250,17 +251,28 @@ private slots:
         GitHubSource gh;
         DownloadRequest plain;
         plain.url = asset.url;
-        gh.prepareDownload(asset, AppSettings(), plain);
+        gh.prepareDownload(asset, AppSettings(), ghRepo, plain);
         QCOMPARE(plain.url, asset.url); // no token: public URL, no headers
         QVERIFY(plain.headers.isEmpty());
 
         gh.setConfig({{QStringLiteral("token"), QStringLiteral("t0k")}});
         DownloadRequest authed;
         authed.url = asset.url;
-        gh.prepareDownload(asset, AppSettings(), authed);
+        gh.prepareDownload(asset, AppSettings(), ghRepo, authed);
         QCOMPARE(authed.url, asset.apiUrl);
         QVERIFY(authed.headers.contains(qMakePair(QByteArray("Authorization"), QByteArray("Bearer t0k"))));
         QVERIFY(authed.headers.contains(qMakePair(QByteArray("Accept"), QByteArray("application/octet-stream"))));
+
+        // A record pointing the asset at another host (e.g. a crafted backup)
+        // must not receive the token.
+        Asset foreign = asset;
+        foreign.url = QStringLiteral("https://evil.example/a.rpm");
+        foreign.apiUrl = QStringLiteral("https://evil.example/api/asset");
+        DownloadRequest foreignReq;
+        foreignReq.url = foreign.url;
+        gh.prepareDownload(foreign, AppSettings(), ghRepo, foreignReq);
+        QCOMPARE(foreignReq.url, foreign.url);
+        QVERIFY(foreignReq.headers.isEmpty());
 
         ForgejoSource fj;
         fj.setConfig({{QStringLiteral("token"), QStringLiteral("abc")}});
@@ -268,26 +280,55 @@ private slots:
         fjAsset.url = QStringLiteral("https://codeberg.org/o/r/releases/download/v1/a.rpm");
         DownloadRequest fjReq;
         fjReq.url = fjAsset.url;
-        fj.prepareDownload(fjAsset, AppSettings(), fjReq);
+        fj.prepareDownload(fjAsset, AppSettings(), QStringLiteral("https://codeberg.org/o/r"), fjReq);
         QCOMPARE(fjReq.url, fjAsset.url);
         QVERIFY(fjReq.headers.contains(qMakePair(QByteArray("Authorization"), QByteArray("token abc"))));
 
         GitLabSource gl;
         gl.setConfig({{QStringLiteral("token"), QStringLiteral("glpat")}});
+        const QString glProject = QStringLiteral("https://gitlab.com/g/p");
         Asset glAsset;
         glAsset.url = QStringLiteral("https://gitlab.com/g/p/-/package_files/1/download");
         DownloadRequest glReq;
         glReq.url = glAsset.url;
-        gl.prepareDownload(glAsset, AppSettings(), glReq);
+        gl.prepareDownload(glAsset, AppSettings(), glProject, glReq);
         QVERIFY(glReq.url.contains(QLatin1String("private_token=glpat")));
+        Asset glForeign;
+        glForeign.url = QStringLiteral("https://cdn.example.com/p.rpm"); // release links can point anywhere
+        DownloadRequest glForeignReq;
+        glForeignReq.url = glForeign.url;
+        gl.prepareDownload(glForeign, AppSettings(), glProject, glForeignReq);
+        QCOMPARE(glForeignReq.url, glForeign.url);
 
         HtmlSource html;
         AppSettings s;
         s.set(Keys::requestHeader, QStringLiteral("Cookie: consent=yes\nX-Thing: 1"));
         DownloadRequest htmlReq;
-        html.prepareDownload(Asset(), s, htmlReq);
+        htmlReq.url = QStringLiteral("https://example.org/files/a.rpm");
+        html.prepareDownload(Asset(), s, QStringLiteral("https://example.org/downloads/"), htmlReq);
         QVERIFY(htmlReq.headers.contains(qMakePair(QByteArray("Cookie"), QByteArray("consent=yes"))));
         QVERIFY(htmlReq.headers.contains(qMakePair(QByteArray("X-Thing"), QByteArray("1"))));
+        DownloadRequest htmlForeign;
+        htmlForeign.url = QStringLiteral("https://mirror.other.net/a.rpm");
+        html.prepareDownload(Asset(), s, QStringLiteral("https://example.org/downloads/"), htmlForeign);
+        QVERIFY(htmlForeign.headers.isEmpty());
+    }
+
+    void tokenKeysArePerHost()
+    {
+        SourceRegistry registry;
+        QCOMPARE(registry.match(QStringLiteral("https://github.com/a/b")).value.source->tokenKey(), QStringLiteral("GitHub"));
+        QCOMPARE(registry.match(QStringLiteral("https://codeberg.org/a/b")).value.source->tokenKey(), QStringLiteral("Forgejo"));
+        QCOMPARE(registry.match(QStringLiteral("https://git.example.org/a/b"), QStringLiteral("Forgejo")).value.source->tokenKey(),
+                 QStringLiteral("Forgejo@git.example.org"));
+        QCOMPARE(registry.match(QStringLiteral("https://evil.example/a/b"), QStringLiteral("GitHub")).value.source->tokenKey(),
+                 QStringLiteral("GitHub@evil.example"));
+        QCOMPARE(registry.match(QStringLiteral("http://10.0.0.2:3000/a/b"), QStringLiteral("Forgejo")).value.source->tokenKey(),
+                 QStringLiteral("Forgejo@10.0.0.2:3000"));
+        QVERIFY(Source::isOwnOrigin(QStringLiteral("https://GitHub.com/x"), QStringLiteral("https://github.com/o/r")));
+        QVERIFY(!Source::isOwnOrigin(QStringLiteral("http://github.com/x"), QStringLiteral("https://github.com/o/r")));
+        QVERIFY(!Source::isOwnOrigin(QStringLiteral("https://github.com:444/x"), QStringLiteral("https://github.com/o/r")));
+        QVERIFY(!Source::isOwnOrigin(QStringLiteral("https://github.com.evil.example/x"), QStringLiteral("https://github.com/o/r")));
     }
 
     void forgejo403IsNotRateLimit()

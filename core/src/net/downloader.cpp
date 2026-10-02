@@ -1,6 +1,7 @@
 #include "net/downloader.h"
 
 #include "net/networktransport.h"
+#include "net/redirects.h"
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -76,6 +77,11 @@ void Downloader::start(const DownloadRequest &request, Progress progress, Done d
 {
     const QString partPath = request.targetPath + QStringLiteral(".part");
     auto file = std::make_shared<QFile>(partPath);
+    // Resume only when the result can be verified: a URL that always serves
+    // "latest" could otherwise glue an old start onto a new file.
+    const bool verifiable = request.expectedSize >= 0 || !request.expectedSha256.isEmpty();
+    if (!verifiable && file->exists())
+        file->remove();
     const qint64 resumeFrom = file->exists() ? file->size() : 0;
 
     QNetworkRequest req{QUrl(request.url)};
@@ -171,30 +177,20 @@ void Downloader::start(const DownloadRequest &request, Progress progress, Done d
                 if (status >= 300 && status < 400 && reply->hasRawHeader("Location")) {
                     if (file->isOpen())
                         file->close();
-                    if (redirects >= 10) {
+                    if (redirects >= Redirects::kMax) {
                         done(Result<QString>::failure(downloadError(QStringLiteral("Too many redirects"))));
                         return;
                     }
                     const QUrl from = reply->url();
                     const QUrl to = from.resolved(QUrl::fromEncoded(reply->rawHeader("Location")));
-                    if (to.scheme() == QLatin1String("http") && from.scheme() == QLatin1String("https")) {
+                    if (Redirects::isDowngrade(from, to)) {
                         done(Result<QString>::failure(
                             downloadError(QStringLiteral("Refusing redirect from https to http"))));
                         return;
                     }
                     DownloadRequest next = request;
                     next.url = to.toString();
-                    const bool sameOrigin = to.scheme() == from.scheme() && to.host() == from.host()
-                                            && to.port(-1) == from.port(-1);
-                    if (!sameOrigin) {
-                        QList<QPair<QByteArray, QByteArray>> kept;
-                        for (const auto &h : request.headers) {
-                            const QByteArray name = h.first.toLower();
-                            if (name != "authorization" && name != "private-token" && name != "cookie")
-                                kept << h;
-                        }
-                        next.headers = kept;
-                    }
+                    next.headers = Redirects::headersFor(from, to, request.headers);
                     start(next, progress, done, allowRestart, redirects + 1);
                     return;
                 }

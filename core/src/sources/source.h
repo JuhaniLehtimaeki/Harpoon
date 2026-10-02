@@ -67,8 +67,17 @@ public:
                                HttpTransport &transport, Callback done) = 0;
 
     // Adds what downloading one of this source's assets needs: credentials,
-    // headers, an authorized URL. The default changes nothing.
-    virtual void prepareDownload(const Asset &asset, const AppSettings &settings, DownloadRequest &request) const;
+    // headers, an authorized URL. standardUrl is the app's URL; credentials
+    // must only go to that origin (see isOwnOrigin). The default changes nothing.
+    virtual void prepareDownload(const Asset &asset, const AppSettings &settings, const QString &standardUrl,
+                                 DownloadRequest &request) const;
+
+    // Key under which this source's token is stored: the source id for its
+    // default hosts, "id@host[:port]" for a self-hosted server.
+    QString tokenKey() const { return m_customHost.isEmpty() ? id() : id() + QLatin1Char('@') + m_customHost; }
+
+    // True when url has the same scheme, host and port as standardUrl.
+    static bool isOwnOrigin(const QString &url, const QString &standardUrl);
 
 protected:
     // Matches ^https?://(www\.)?(<hosts>)<pathPattern> case-insensitively and

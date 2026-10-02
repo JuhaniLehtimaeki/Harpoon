@@ -18,8 +18,16 @@ ComboBox {
         return 0
     }
 
+    function _sync() {
+        currentIndex = _indexOf(values && values[key] !== undefined ? values[key] : options.length > 0 ? options[0].value : "")
+    }
+
     width: parent.width
-    currentIndex: _indexOf(values && values[key] !== undefined ? values[key] : options.length > 0 ? options[0].value : "")
+    // Picking an item assigns currentIndex inside ComboBox, which would break
+    // a binding; re-sync explicitly instead.
+    onValuesChanged: _sync()
+    onOptionsChanged: _sync()
+    Component.onCompleted: _sync()
     menu: ContextMenu {
         Repeater {
             model: box.options

@@ -111,6 +111,7 @@ private:
     AppListModel::Entry makeEntry(const App &app) const;
     void storeAndShow(const App &app, const QString &oldId = QString());
     PackageBackend &backend();
+    QHash<QString, QVariantMap> tokenConfigs() const;
     AppChecker &checker();
     void beginCheck();
     void endCheck();

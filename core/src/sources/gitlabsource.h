@@ -46,7 +46,9 @@ public:
     static QString apiBaseUrl(const QString &standardUrl);
     // assetUrl with ?private_token= (or &private_token=) when a token is configured.
     QString authorizedAssetUrl(const QString &assetUrl) const;
-    void prepareDownload(const Asset &asset, const AppSettings &settings, DownloadRequest &request) const override;
+    // Adds the token only to assets on the project's own host.
+    void prepareDownload(const Asset &asset, const AppSettings &settings, const QString &standardUrl,
+                         DownloadRequest &request) const override;
 
 private:
     HttpRequest request(const QString &url, const QString &standardUrl) const;

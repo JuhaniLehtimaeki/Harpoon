@@ -421,6 +421,22 @@ private slots:
         popToList();
     }
 
+    void idChangeReachesEveryPage()
+    {
+        QString gammaId;
+        for (const AppListModel::Entry &e : m_controller->apps()->entries())
+            if (e.app.name == QLatin1String("gamma"))
+                gammaId = e.app.id;
+        QObject *appPage = push(QStringLiteral("AppPage.qml"), QStringLiteral("{ appId: '%1' }").arg(gammaId));
+        QObject *settingsPage = push(QStringLiteral("AppSettingsPage.qml"), QStringLiteral("{ appId: '%1' }").arg(gammaId));
+        expectClean("pages for a temporary id");
+        emit m_controller->appIdChanged(gammaId, QStringLiteral("harbour-gamma"));
+        expectClean("id change");
+        QCOMPARE(appPage->property("appId").toString(), QStringLiteral("harbour-gamma"));
+        QCOMPARE(settingsPage->property("appId").toString(), QStringLiteral("harbour-gamma"));
+        popToList();
+    }
+
     void dbusOpensApp()
     {
         m_dbus.showApp(QStringLiteral("harbour-delta"));

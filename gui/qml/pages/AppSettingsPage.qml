@@ -25,8 +25,11 @@ Page {
     Connections {
         target: harpoon.apps
         onDataChanged: {
+            var before = JSON.stringify(page._values)
             page.details = harpoon.appDetails(page.appId)
-            page._changed = true
+            if (JSON.stringify(page._values) !== before) {
+                page._changed = true
+            }
         }
     }
 

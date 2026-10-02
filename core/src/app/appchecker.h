@@ -26,8 +26,11 @@ public:
     AppChecker(const SourceRegistry &registry, HttpTransport &transport, const DeviceInfo &device,
                QObject *parent = nullptr);
 
-    // Per-source configuration (tokens), keyed by source id.
-    void setSourceConfig(const QString &sourceId, const QVariantMap &config) { m_sourceConfig[sourceId] = config; }
+    // Per-source configuration (tokens), keyed by Source::tokenKey(): the
+    // source id, or "id@host" for a self-hosted server. Safe to change while
+    // checks run; each check reads it when it starts.
+    void setSourceConfig(const QString &key, const QVariantMap &config) { m_sourceConfig[key] = config; }
+    void setSourceConfigs(const QHash<QString, QVariantMap> &configs) { m_sourceConfig = configs; }
     void setMaxConcurrent(int n) { m_maxConcurrent = qMax(1, n); }
 
     void check(const App &app, AppDone done);

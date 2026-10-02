@@ -24,6 +24,8 @@ public:
     static QByteArray defaultUserAgent();
 
 private:
+    void get(const HttpRequest &request, Callback done, int redirects);
+
     QNetworkAccessManager *m_nam;
     int m_timeoutMs = 30000;
     QByteArray m_userAgent;

@@ -74,8 +74,10 @@ public:
     Result<QString> standardizeUrl(const QString &url) const override;
     void fetchReleases(const QString &standardUrl, const AppSettings &settings, HttpTransport &transport,
                        Callback done) override;
-    // Sends the requestHeader setting with the download too.
-    void prepareDownload(const Asset &asset, const AppSettings &settings, DownloadRequest &request) const override;
+    // Sends the requestHeader setting with downloads from the page's own
+    // origin (headers often carry cookies or credentials).
+    void prepareDownload(const Asset &asset, const AppSettings &settings, const QString &standardUrl,
+                         DownloadRequest &request) const override;
 
 protected:
     // Builds the release from the selected links (step 3 above). pageBody is

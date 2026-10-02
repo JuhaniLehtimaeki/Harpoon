@@ -151,7 +151,12 @@ void AppListModel::upsert(const Entry &entry, const QString &oldId)
         endInsertRows();
         emit countChanged();
     } else {
-        m_entries[row] = entry;
+        // Busy state is owned by setBusy(); a record update must not clear it.
+        Entry merged = entry;
+        merged.busy = m_entries.at(row).busy;
+        merged.stage = m_entries.at(row).stage;
+        merged.progress = m_entries.at(row).progress;
+        m_entries[row] = merged;
         emit dataChanged(index(row), index(row));
         resort();
     }

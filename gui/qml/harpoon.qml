@@ -27,12 +27,15 @@ ApplicationWindow {
 
     Connections {
         target: harpoon
-        // A first install replaces the temporary id with the RPM name.
+        // A first install replaces the temporary id with the RPM name; every
+        // page showing that app follows, not only the top one.
         onAppIdChanged: {
-            var page = pageStack.currentPage
-            if (page && page.appId === oldId) {
-                page.appId = newId
-            }
+            pageStack.find(function(page) {
+                if (page.appId === oldId) {
+                    page.appId = newId
+                }
+                return false
+            })
         }
     }
 }

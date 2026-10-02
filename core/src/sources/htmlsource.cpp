@@ -377,9 +377,11 @@ void HtmlSource::finish(const QString &pageUrl, const QString &pageBody, const Q
 
 namespace Harpoon {
 
-void HtmlSource::prepareDownload(const Asset &, const AppSettings &settings, DownloadRequest &request) const
+void HtmlSource::prepareDownload(const Asset &, const AppSettings &settings, const QString &standardUrl,
+                                 DownloadRequest &request) const
 {
-    request.headers.append(parseRequestHeaders(settings.values().value(QString::fromLatin1(Keys::requestHeader))));
+    if (isOwnOrigin(request.url, standardUrl))
+        request.headers.append(parseRequestHeaders(settings.values().value(QString::fromLatin1(Keys::requestHeader))));
 }
 
 } // namespace Harpoon

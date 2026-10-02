@@ -61,7 +61,11 @@ HarpoonController::HarpoonController(ControllerEnvironment env, QObject *parent)
     if (!m_scheduler)
         m_scheduler = new BackgroundScheduler(QDBusConnection::sessionBus(), QString(), this);
     m_inspector.reset(new RpmInspector(*m_runner));
-    connect(m_settings, &HarpoonSettings::tokensChanged, this, [this]() { m_checker.reset(); });
+    // Update tokens in place: destroying the checker would orphan running checks.
+    connect(m_settings, &HarpoonSettings::tokensChanged, this, [this]() {
+        if (m_checker)
+            m_checker->setSourceConfigs(tokenConfigs());
+    });
 
     // Re-apply the schedule only when its inputs change.
     auto schedule = std::make_shared<QPair<bool, int>>(m_settings->backgroundChecks(), m_settings->checkIntervalHours());
@@ -90,11 +94,18 @@ AppChecker &HarpoonController::checker()
 {
     if (!m_checker) {
         m_checker.reset(new AppChecker(m_registry, *m_transport, m_device));
-        const QVariantMap tokens = m_settings->tokens();
-        for (auto it = tokens.constBegin(); it != tokens.constEnd(); ++it)
-            m_checker->setSourceConfig(it.key(), {{QStringLiteral("token"), it.value()}});
+        m_checker->setSourceConfigs(tokenConfigs());
     }
     return *m_checker;
+}
+
+QHash<QString, QVariantMap> HarpoonController::tokenConfigs() const
+{
+    QHash<QString, QVariantMap> configs;
+    const QVariantMap tokens = m_settings->tokens();
+    for (auto it = tokens.constBegin(); it != tokens.constEnd(); ++it)
+        configs.insert(it.key(), {{QStringLiteral("token"), it.value()}});
+    return configs;
 }
 
 PackageBackend &HarpoonController::backend()
@@ -211,9 +222,23 @@ void HarpoonController::check(const QString &id)
     checker().check(e->app, [this, id](const App &checked, const Error &error) {
         endCheck();
         // The app may have been removed while the check ran.
-        if (!m_model.entry(id))
+        const AppListModel::Entry *current = m_model.entry(id);
+        if (!current)
             return;
-        storeAndShow(checked);
+        // Take only what the check owns; settings or the name may have been
+        // edited meanwhile.
+        App merged = current->app;
+        merged.latestVersion = checked.latestVersion;
+        merged.latestTag = checked.latestTag;
+        merged.latestTitle = checked.latestTitle;
+        merged.latestDate = checked.latestDate;
+        merged.changelog = checked.changelog;
+        merged.releasePageUrl = checked.releasePageUrl;
+        merged.latestPrerelease = checked.latestPrerelease;
+        merged.latestAssets = checked.latestAssets;
+        merged.lastCheck = checked.lastCheck;
+        merged.lastError = checked.lastError;
+        storeAndShow(merged);
         m_model.setBusy(id, false);
         emit operationFinished(id, error.ok(), error.ok() ? QString() : error.message);
     });
@@ -262,11 +287,34 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
                 emit operationFinished(id, false, result.error.message);
                 return;
             }
-            storeAndShow(result.value.app, id);
+            const AppListModel::Entry *current = m_model.entry(id);
+            if (!current) {
+                // Stopped tracking while installing: the install itself stands.
+                emit operationFinished(result.value.app.id, true,
+                                       tr("Installed %1").arg(result.value.installed.evr.toString()));
+                return;
+            }
             QString message = tr("Installed %1").arg(result.value.installed.evr.toString());
             for (const QString &w : result.value.warnings)
                 message += QLatin1Char('\n') + w;
-            emit operationFinished(result.value.app.id, true, message);
+
+            App merged = current->app;
+            merged.receipt = result.value.app.receipt;
+            const QString newId = result.value.app.id;
+            const AppListModel::Entry *other = newId != id ? m_model.entry(newId) : nullptr;
+            if (other || (newId != id && m_store.contains(newId))) {
+                // Another tracked app already is this package: never overwrite it.
+                message += QLatin1Char('\n')
+                           + tr("This package is also tracked as \"%1\"; remove one of the two.")
+                                 .arg(other ? other->app.name : newId);
+                storeAndShow(merged);
+                emit operationFinished(id, true, message);
+                return;
+            }
+            merged.id = newId;
+            merged.temporaryId = false;
+            storeAndShow(merged, id);
+            emit operationFinished(newId, true, message);
         });
 }
 
@@ -403,20 +451,17 @@ void HarpoonController::syncBackgroundSchedule()
 
 QVariantMap HarpoonController::exportBackup(bool includeTokens)
 {
-    Backup backup;
+    QList<App> apps;
     for (const AppListModel::Entry &e : m_model.entries())
-        backup.apps << e.app;
-    backup.settings = m_settings->exportable(includeTokens);
+        apps << e.app;
+    const Backup backup = Backup::create(apps, m_settings->exportable(includeTokens), includeTokens);
 
     QDir().mkpath(m_backupDir);
     const QString path = m_backupDir + QStringLiteral("/harpoon-backup-")
                          + QDate::currentDate().toString(Qt::ISODate) + QStringLiteral(".json");
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly) || file.write(backup.toJson()) < 0)
-        return {{QStringLiteral("ok"), false},
-                {QStringLiteral("error"), tr("Cannot write %1: %2").arg(path, file.errorString())}};
-    if (includeTokens)
-        file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    const Error written = backup.writeTo(path, includeTokens);
+    if (!written.ok())
+        return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), written.message}};
     return {{QStringLiteral("ok"), true}, {QStringLiteral("path"), path}, {QStringLiteral("count"), backup.apps.size()}};
 }
 
@@ -439,6 +484,9 @@ QVariantMap HarpoonController::importBackup(const QString &pathOrUrl, bool withS
         storeAndShow(app);
     if (withSettings)
         m_settings->restore(backup.value.settings);
+    // Imported apps carry no release data; fetch it.
+    for (const App &app : merged.added)
+        check(app.id);
     return {{QStringLiteral("ok"), true},
             {QStringLiteral("added"), merged.added.size()},
             {QStringLiteral("skipped"), merged.skipped}};

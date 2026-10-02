@@ -1,6 +1,7 @@
 #include "sources/source.h"
 
 #include <QRegularExpression>
+#include <QUrl>
 
 namespace Harpoon {
 
@@ -33,7 +34,16 @@ Result<QString> Source::standardizeWithRegex(const QString &url, const QString &
     return Result<QString>::success(match.captured(0));
 }
 
-void Source::prepareDownload(const Asset &, const AppSettings &, DownloadRequest &) const {}
+void Source::prepareDownload(const Asset &, const AppSettings &, const QString &, DownloadRequest &) const {}
+
+bool Source::isOwnOrigin(const QString &url, const QString &standardUrl)
+{
+    const QUrl a(url);
+    const QUrl b(standardUrl);
+    return a.isValid() && !a.host().isEmpty() && a.scheme().compare(b.scheme(), Qt::CaseInsensitive) == 0
+           && a.host().compare(b.host(), Qt::CaseInsensitive) == 0
+           && a.port(a.scheme() == QLatin1String("http") ? 80 : 443) == b.port(b.scheme() == QLatin1String("http") ? 80 : 443);
+}
 
 QString preStandardizeUrl(const QString &input)
 {

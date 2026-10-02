@@ -70,7 +70,12 @@ const char *kUsage =
     "                         Enable or disable the periodic background check.\n"
     "\n"
     "<app> is an app id (RPM name) or a unique name.\n"
-    "Tokens come from the app's settings; HARPOON_TOKEN_<SOURCE> (e.g. HARPOON_TOKEN_GITHUB) overrides.\n"
+    "  token <source>[@host] [value]\n"
+    "                         Store an API token (empty value removes it), e.g. token GitHub ghp_...\n"
+    "                         or token Forgejo@git.example.org abc for a self-hosted server.\n"
+    "\n"
+    "Tokens come from the app's settings; HARPOON_TOKEN_<SOURCE> (e.g. HARPOON_TOKEN_GITHUB) overrides\n"
+    "the token for a source's default host.\n"
     "Environment: HARPOON_DATA_DIR, HARPOON_CACHE_DIR, HARPOON_CONFIG_DIR.\n";
 
 struct Args
@@ -170,6 +175,8 @@ public:
             rc = importBackup(args);
         else if (command == QLatin1String("background"))
             rc = background(args);
+        else if (command == QLatin1String("token"))
+            rc = token(args);
         else {
             err() << "Unknown command: " << command << "\n\n" << kUsage;
             rc = 1;
@@ -190,11 +197,14 @@ private:
     {
         if (!m_checker) {
             m_checker.reset(new AppChecker(m_registry, m_transport, m_device));
+            // Stored tokens are keyed "GitHub" or "Forgejo@git.example.org".
+            const QVariantMap tokens = m_settings.tokens();
+            for (auto it = tokens.constBegin(); it != tokens.constEnd(); ++it)
+                m_checker->setSourceConfig(it.key(), {{QStringLiteral("token"), it.value()}});
             for (const QString &id : m_registry.ids()) {
                 const QByteArray env = qgetenv("HARPOON_TOKEN_" + id.toUpper().toLatin1());
-                const QString token = !env.isEmpty() ? QString::fromUtf8(env) : m_settings.token(id);
-                if (!token.isEmpty())
-                    m_checker->setSourceConfig(id, {{QStringLiteral("token"), token}});
+                if (!env.isEmpty())
+                    m_checker->setSourceConfig(id, {{QStringLiteral("token"), QString::fromUtf8(env)}});
             }
         }
         return *m_checker;
@@ -399,15 +409,13 @@ private:
     {
         if (args.positional.size() != 1)
             return fail(QStringLiteral("export takes a file name"));
-        Backup backup;
-        backup.apps = m_store.loadAll();
-        backup.settings = m_settings.exportable(args.has("--include-tokens"));
-        QFile file(args.positional.first());
-        if (!file.open(QIODevice::WriteOnly) || file.write(backup.toJson()) < 0)
-            return fail(QStringLiteral("Cannot write %1: %2").arg(file.fileName(), file.errorString()));
-        if (args.has("--include-tokens"))
-            file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
-        out() << "Exported " << backup.apps.size() << " app(s) to " << file.fileName() << "\n";
+        const bool secrets = args.has("--include-tokens");
+        const Backup backup = Backup::create(m_store.loadAll(), m_settings.exportable(secrets), secrets);
+        const Error written = backup.writeTo(args.positional.first(), secrets);
+        if (!written.ok())
+            return fail(written.message);
+        const QString fileName = args.positional.first();
+        out() << "Exported " << backup.apps.size() << " app(s) to " << fileName << "\n";
         return 0;
     }
 
@@ -429,10 +437,20 @@ private:
         }
         if (args.has("--with-settings"))
             m_settings.restore(backup.value.settings);
-        out() << "Imported " << merged.added.size() << " app(s)";
+        out() << "Imported " << merged.added.size() << " app(s); run harpoon-cli check to fetch their releases";
         if (!merged.skipped.isEmpty())
             out() << "; already tracked: " << merged.skipped.join(QStringLiteral(", "));
         out() << "\n";
+        return 0;
+    }
+
+    int token(const Args &args)
+    {
+        if (args.positional.isEmpty() || args.positional.size() > 2)
+            return fail(QStringLiteral("token takes a source key and an optional value"));
+        m_settings.setToken(args.positional.first(), args.positional.value(1));
+        out() << (args.positional.size() == 2 ? "Token stored for " : "Token removed for ") << args.positional.first()
+              << "\n";
         return 0;
     }
 
@@ -505,7 +523,18 @@ private:
             return fail(result.error.message);
         for (const QString &w : result.value.warnings)
             err() << "Warning: " << w << "\n";
-        const Error saved = m_store.replace(app.id, result.value.app);
+        const QString newId = result.value.app.id;
+        Error saved;
+        if (newId != app.id && m_store.contains(newId)) {
+            // Another tracked app already is this package: never overwrite it.
+            App kept = result.value.app;
+            kept.id = app.id;
+            kept.temporaryId = app.temporaryId;
+            saved = m_store.save(kept);
+            err() << "Warning: this package is also tracked as " << newId << "; remove one of the two\n";
+        } else {
+            saved = m_store.replace(app.id, result.value.app);
+        }
         if (!saved.ok())
             err() << "Warning: " << saved.message << "\n";
         out() << "Installed " << result.value.installed.nevra() << "\n";

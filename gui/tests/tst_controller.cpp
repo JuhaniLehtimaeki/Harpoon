@@ -11,6 +11,7 @@
 #include <QJsonObject>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QTimer>
 #include <QtTest>
 
 using namespace Harpoon;
@@ -45,6 +46,28 @@ public:
 private:
     FakeRpmDb &m_db;
     RpmInspector m_inspector;
+};
+
+// Answers like FakeTransport, but later from the event loop, as the real
+// network does; lets tests act while a check is in flight.
+class DelayedTransport : public HttpTransport
+{
+public:
+    explicit DelayedTransport(HttpTransport &inner) : m_inner(inner) {}
+    void get(const HttpRequest &request, Callback done) override
+    {
+        ++pending;
+        m_inner.get(request, [this, done](const HttpResponse &r) {
+            QTimer::singleShot(50, [this, done, r]() {
+                --pending;
+                done(r);
+            });
+        });
+    }
+    int pending = 0;
+
+private:
+    HttpTransport &m_inner;
 };
 
 QByteArray readFile(const QString &path)
@@ -333,6 +356,156 @@ private slots:
         const QVariantMap withTokens = m_controller->exportBackup(true);
         QVERIFY(readFile(withTokens.value(QStringLiteral("path")).toString()).contains("secret"));
         QVERIFY(!fresh.importBackup(m_dir->filePath(QStringLiteral("nothing.json")), false).value(QStringLiteral("ok")).toBool());
+    }
+
+    void tokenChangeDuringCheck()
+    {
+        // Every repository answers with the same releases.
+        const QByteArray releases = readFile(QStringLiteral(HARPOON_FIXTURE_DIR "/github/chum-gui-releases.json"));
+        m_transport->handler = [releases](const HttpRequest &req, HttpResponse *resp) {
+            if (!req.url.endsWith(QLatin1String("/releases?per_page=100")))
+                return false;
+            resp->status = 200;
+            resp->body = releases;
+            return true;
+        };
+        AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
+        for (int i = 0; i < 6; ++i)
+            QVERIFY(store.save(App::fromUrl(QStringLiteral("https://github.com/owner/app%1").arg(i))).ok());
+
+        DelayedTransport delayed(*m_transport);
+        ControllerEnvironment env;
+        env.dataDir = store.directory();
+        env.cacheDir = m_dir->filePath(QStringLiteral("cache"));
+        env.device.arch = QStringLiteral("aarch64");
+        env.transport = &delayed;
+        env.runner = m_db.get();
+        env.backend = m_backend.get();
+        env.settings = m_settings.get();
+        env.scheduler = m_scheduler.get();
+        HarpoonController controller(env);
+        controller.reload();
+        // More checks than run at once, so some are still queued...
+        controller.checkAll();
+        QVERIFY(controller.checking());
+        // ...when a token changes. Neither running nor queued checks may be lost.
+        m_settings->setToken(QStringLiteral("GitHub"), QStringLiteral("new-token"));
+        QTRY_VERIFY_WITH_TIMEOUT(!controller.checking(), 5000);
+        for (int row = 0; row < controller.apps()->count(); ++row) {
+            QVERIFY(!controller.apps()->data(controller.apps()->index(row), AppListModel::BusyRole).toBool());
+            QCOMPARE(controller.apps()->data(controller.apps()->index(row), AppListModel::LatestVersionRole).toString(),
+                     QStringLiteral("0.6.12-1"));
+        }
+        QCOMPARE(m_transport->requests.last().header("Authorization"), QByteArray("Bearer new-token"));
+    }
+
+    void editsDuringACheckAreKept()
+    {
+        QVERIFY(addApp(QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui")));
+        const QString id = m_controller->apps()->data(m_controller->apps()->index(0), AppListModel::IdRole).toString();
+        DelayedTransport delayed(*m_transport);
+        ControllerEnvironment env;
+        env.dataDir = m_dir->filePath(QStringLiteral("data/apps"));
+        env.cacheDir = m_dir->filePath(QStringLiteral("cache"));
+        env.device.arch = QStringLiteral("aarch64");
+        env.transport = &delayed;
+        env.runner = m_db.get();
+        env.backend = m_backend.get();
+        env.settings = m_settings.get();
+        env.scheduler = m_scheduler.get();
+        HarpoonController controller(env);
+        controller.reload();
+        controller.check(id);
+        controller.setAppSetting(id, QStringLiteral("assetFilterRegEx"), QStringLiteral("chum"));
+        controller.setAppName(id, QStringLiteral("Renamed"));
+        // An edit must not clear the busy state of a running operation.
+        QVERIFY(controller.apps()->data(controller.apps()->index(0), AppListModel::BusyRole).toBool());
+        QTRY_VERIFY(!controller.checking());
+        const QVariantMap details = controller.appDetails(id);
+        QCOMPARE(details.value(QStringLiteral("name")).toString(), QStringLiteral("Renamed"));
+        QCOMPARE(details.value(QStringLiteral("settings")).toMap().value(QStringLiteral("assetFilterRegEx")).toString(),
+                 QStringLiteral("chum"));
+        QCOMPARE(details.value(QStringLiteral("latestVersion")).toString(), QStringLiteral("0.6.12-1"));
+    }
+
+    void importedAppsAreCheckedBeforeInstall()
+    {
+        QVERIFY(addApp(QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui")));
+        const QString path = m_controller->exportBackup(false).value(QStringLiteral("path")).toString();
+        // Tamper with the backup: point the asset somewhere else.
+        QByteArray json = readFile(path);
+        json.replace("https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/download/",
+                     "https://evil.example/");
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(json);
+        f.close();
+
+        QTemporaryDir other;
+        HarpoonSettings otherSettings(other.filePath(QStringLiteral("harpoon.conf")));
+        DelayedTransport delayed(*m_transport);
+        ControllerEnvironment env;
+        env.dataDir = other.filePath(QStringLiteral("apps"));
+        env.cacheDir = other.filePath(QStringLiteral("cache"));
+        env.device.arch = QStringLiteral("aarch64");
+        env.transport = &delayed;
+        env.runner = m_db.get();
+        env.backend = m_backend.get();
+        env.settings = &otherSettings;
+        env.scheduler = m_scheduler.get();
+        HarpoonController fresh(env);
+        fresh.reload();
+        QVERIFY(fresh.importBackup(path, false).value(QStringLiteral("ok")).toBool());
+        const QString id = fresh.apps()->data(fresh.apps()->index(0), AppListModel::IdRole).toString();
+        // Nothing from the file is installable...
+        QVERIFY(fresh.appDetails(id).value(QStringLiteral("assets")).toList().isEmpty());
+        // ...until the automatic check has fetched the real release.
+        QTRY_VERIFY(!fresh.checking());
+        const QVariantList assets = fresh.appDetails(id).value(QStringLiteral("assets")).toList();
+        QCOMPARE(assets.size(), 1);
+        QVERIFY(assets.first().toMap().value(QStringLiteral("url")).toString().startsWith(QLatin1String("https://github.com/")));
+    }
+
+    void installNeverOverwritesAnotherApp()
+    {
+        if (!RpmFactory::available())
+            QSKIP("rpmbuild not installed");
+        RpmFactory factory;
+        const QString rpm = factory.build(QStringLiteral("harbour-tool"), QStringLiteral("1.1"), QStringLiteral("1"),
+                                          QStringLiteral("aarch64"));
+        MiniHttpServer server;
+        const QByteArray bytes = readFile(rpm);
+        server.routeBody(QStringLiteral("/dl/harbour-tool-1.1-1.aarch64.rpm"), bytes);
+        QJsonObject asset{{QStringLiteral("name"), QStringLiteral("harbour-tool-1.1-1.aarch64.rpm")},
+                          {QStringLiteral("browser_download_url"), server.url(QStringLiteral("/dl/harbour-tool-1.1-1.aarch64.rpm"))},
+                          {QStringLiteral("size"), bytes.size()}};
+        QJsonObject release{{QStringLiteral("tag_name"), QStringLiteral("v1.1")},
+                            {QStringLiteral("published_at"), QStringLiteral("2026-09-01T00:00:00Z")},
+                            {QStringLiteral("assets"), QJsonArray{asset}}};
+        const QByteArray releases = QJsonDocument(QJsonArray{release}).toJson();
+        m_transport->respondJson(QStringLiteral("https://api.github.com/repos/me/harbour-tool/releases?per_page=100"), releases);
+        m_transport->respondJson(QStringLiteral("https://api.github.com/repos/fork/harbour-tool/releases?per_page=100"), releases);
+
+        // The same package, tracked once under its name and once from a fork.
+        AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
+        App original = App::fromUrl(QStringLiteral("https://github.com/me/harbour-tool"));
+        original.id = QStringLiteral("harbour-tool");
+        original.temporaryId = false;
+        original.name = QStringLiteral("Original");
+        QVERIFY(store.save(original).ok());
+        m_controller->reload();
+        QString forkId;
+        QVERIFY(addApp(QStringLiteral("https://github.com/fork/harbour-tool"), {}, &forkId));
+
+        QSignalSpy finished(m_controller.get(), &HarpoonController::operationFinished);
+        m_controller->install(forkId);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 10000);
+        QVERIFY(finished.first().at(1).toBool());
+        QVERIFY(finished.first().at(2).toString().contains(QLatin1String("also tracked")));
+        QCOMPARE(m_controller->apps()->count(), 2);
+        QCOMPARE(m_controller->appDetails(QStringLiteral("harbour-tool")).value(QStringLiteral("name")).toString(),
+                 QStringLiteral("Original"));
+        QVERIFY(m_controller->apps()->indexOf(forkId) >= 0);
     }
 
     void sourcesListed()

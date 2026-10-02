@@ -380,3 +380,30 @@ file, tokens included.
   - A `%prep` that works both in place (`sfdk`) and from a `tar_git` tarball (OBS).
   - `rpm/_service.example`, `rpm/harpoon.changes` and `docs/packaging.md`.
   - A full `rpmbuild` from a tarball was tested on desktop with a stand-in libsailfishapp.
+
+## Review fixes (Oct 2026)
+An independent review found these problems; all are fixed and covered by tests.
+- **Token scope:** tokens are scoped per host (`GitHub`, or `Forgejo@git.example.org` for
+  self-hosted servers). Credentials are attached only to URLs on the app's own origin (for
+  GitHub, also its API host). A crafted record or backup can therefore no longer send a token
+  elsewhere.
+- **Redirects:** API requests and downloads follow redirects themselves and drop credentials
+  when leaving the origin. On Qt 5.6, Qt would otherwise copy them.
+- **Backup import:** imported apps carry no release data and are checked before they can be
+  installed.
+- **Backup export:** written atomically, owner-only when it contains secrets, and per-app
+  request headers are left out unless secrets are requested.
+- **Token changes:** they update the running checker in place; destroying it used to orphan
+  checks in flight.
+- **Concurrent edits:** editing an app during a check or install keeps its busy state, and the
+  result is merged into the current record, so edits are not reverted.
+- **Temporary ids:** a temporary id never takes over the record of another app that tracks the
+  same package.
+- **Resume:** an interrupted download is resumed only when its size or checksum can verify the
+  result.
+- **QML:** id changes reach every page on the stack, the "changed" flag on the settings page is
+  exact, and choice settings re-sync.
+
+Known limitation: the installation handler's `installFinished` signal carries no request id,
+so a reply to a timed-out dialog can be credited to the next job. The rpm check after every
+install still reports the true result.

@@ -1,5 +1,6 @@
 #include "minihttpserver.h"
 #include "net/downloader.h"
+#include "net/networktransport.h"
 
 #include <QCryptographicHash>
 #include <QSignalSpy>
@@ -219,6 +220,61 @@ private slots:
         QCOMPARE(int(r.error.kind), int(Error::Download));
         QVERIFY(r.error.message.contains(QLatin1String("redirects")));
         QCOMPARE(server.hits(QStringLiteral("/loop")), 11);
+    }
+
+    void unverifiablePartIsNotResumed()
+    {
+        MiniHttpServer server;
+        const QByteArray body = payload(3000);
+        server.routeBody(QStringLiteral("/latest.rpm"), body);
+        QTemporaryDir dir;
+        const QString target = dir.filePath(QStringLiteral("latest.rpm"));
+        {
+            QFile part(target + QStringLiteral(".part"));
+            QVERIFY(part.open(QIODevice::WriteOnly));
+            part.write(payload(1000).replace('a', 'z')); // an older version's first bytes
+        }
+        Downloader d;
+        DownloadRequest req; // no size, no sha256: nothing to verify a resume against
+        req.url = server.url(QStringLiteral("/latest.rpm"));
+        req.targetPath = target;
+        const auto r = run(d, req);
+        QVERIFY2(r.ok(), qPrintable(r.error.message));
+        QCOMPARE(readAll(target), body);
+        QVERIFY(server.rangeHeaders.isEmpty());
+    }
+
+    void transportRedirectsDropCredentialsAcrossOrigins()
+    {
+        MiniHttpServer api;
+        MiniHttpServer other;
+        other.routeBody(QStringLiteral("/data"), "{\"ok\":true}", "application/json");
+        MiniHttpServer::Route away;
+        away.status = 302;
+        away.headers << qMakePair(QByteArray("Location"), other.url(QStringLiteral("/data")).toUtf8());
+        api.route(QStringLiteral("/moved"), away);
+        MiniHttpServer::Route local;
+        local.status = 307;
+        local.headers << qMakePair(QByteArray("Location"), QByteArray("/moved"));
+        api.route(QStringLiteral("/start"), local);
+
+        NetworkTransport transport;
+        HttpRequest request;
+        request.url = api.url(QStringLiteral("/start"));
+        request.setHeader("Authorization", "Bearer secret");
+        request.setHeader("Accept", "application/json");
+        HttpResponse response;
+        bool finished = false;
+        transport.get(request, [&](const HttpResponse &r) {
+            response = r;
+            finished = true;
+        });
+        QTRY_VERIFY_WITH_TIMEOUT(finished, 5000);
+        QCOMPARE(response.status, 200);
+        QCOMPARE(response.body, QByteArray("{\"ok\":true}"));
+        QCOMPARE(api.lastRequestHeaders.value(QStringLiteral("/moved")).value("authorization"), QByteArray("Bearer secret"));
+        QVERIFY(!other.lastRequestHeaders.value(QStringLiteral("/data")).contains("authorization"));
+        QCOMPARE(other.lastRequestHeaders.value(QStringLiteral("/data")).value("accept"), QByteArray("application/json"));
     }
 
     void httpError()

@@ -1,6 +1,8 @@
 #include "app/backup.h"
 
+#include <QFileDevice>
 #include <QJsonArray>
+#include <QSaveFile>
 #include <QJsonDocument>
 #include <QSet>
 
@@ -19,6 +21,34 @@ QByteArray Backup::toJson() const
     root.insert(QStringLiteral("apps"), appArray);
     root.insert(QStringLiteral("settings"), QJsonObject::fromVariantMap(settings));
     return QJsonDocument(root).toJson(QJsonDocument::Indented);
+}
+
+Backup Backup::create(const QList<App> &apps, const QVariantMap &settings, bool includeSecrets)
+{
+    Backup backup;
+    backup.settings = settings;
+    for (App app : apps) {
+        if (!includeSecrets) {
+            QVariantMap values = app.settings.values();
+            values.remove(QString::fromLatin1(Keys::requestHeader));
+            app.settings = AppSettings(values);
+        }
+        backup.apps << app;
+    }
+    return backup;
+}
+
+Error Backup::writeTo(const QString &path, bool containsSecrets) const
+{
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly))
+        return Error::make(Error::Storage, QStringLiteral("Cannot write %1: %2").arg(path, file.errorString()));
+    if (containsSecrets)
+        file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    file.write(toJson());
+    if (!file.commit())
+        return Error::make(Error::Storage, QStringLiteral("Cannot write %1: %2").arg(path, file.errorString()));
+    return Error();
 }
 
 Result<Backup> Backup::fromJson(const QByteArray &json)
@@ -64,6 +94,16 @@ ImportResult mergeBackupApps(const QList<App> &existing, const QList<App> &fromB
         app.receipt = InstallReceipt();
         app.notifiedVersion.clear();
         app.lastError.clear();
+        // Release data is re-fetched from the source before any install.
+        app.latestVersion.clear();
+        app.latestTag.clear();
+        app.latestTitle.clear();
+        app.latestDate = QDateTime();
+        app.changelog.clear();
+        app.releasePageUrl.clear();
+        app.latestPrerelease = false;
+        app.latestAssets.clear();
+        app.lastCheck = QDateTime();
         urls.insert(app.url.toLower());
         ids.insert(app.id);
         result.added << app;

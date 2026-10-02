@@ -32,7 +32,7 @@ void AppChecker::check(const App &app, AppDone done)
             return;
         }
         std::shared_ptr<Source> source = match.value.source;
-        source->setConfig(m_sourceConfig.value(source->id()));
+        source->setConfig(m_sourceConfig.value(source->tokenKey()));
 
         fetchLatestRelease(*source, m_transport, match.value.standardUrl, app.settings, m_device,
                            [app, source, finish](const Result<LatestRelease> &result) {
@@ -65,10 +65,11 @@ std::function<void(const Asset &, DownloadRequest &)> AppChecker::downloadPrepar
     if (!match.ok())
         return nullptr;
     std::shared_ptr<Source> source = match.value.source;
-    source->setConfig(m_sourceConfig.value(source->id()));
+    source->setConfig(m_sourceConfig.value(source->tokenKey()));
     const AppSettings settings = app.settings;
-    return [source, settings](const Asset &asset, DownloadRequest &request) {
-        source->prepareDownload(asset, settings, request);
+    const QString standardUrl = match.value.standardUrl;
+    return [source, settings, standardUrl](const Asset &asset, DownloadRequest &request) {
+        source->prepareDownload(asset, settings, standardUrl, request);
     };
 }
 
@@ -82,7 +83,7 @@ AppInstaller::Verifier AppChecker::verifier(const App &app) const
         return nullptr;
     const auto *github = static_cast<const GitHubSource *>(match.value.source.get());
     const QString apiBase = github->apiBaseUrl(match.value.standardUrl);
-    const QString token = m_sourceConfig.value(github->id()).value(QStringLiteral("token")).toString().trimmed();
+    const QString token = m_sourceConfig.value(github->tokenKey()).value(QStringLiteral("token")).toString().trimmed();
     const bool enforce = mode == QLatin1String("enforce");
     HttpTransport *transport = &m_transport;
 

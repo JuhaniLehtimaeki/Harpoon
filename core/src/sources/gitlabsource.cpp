@@ -226,9 +226,11 @@ Result<QList<Release>> parseGitLabReleases(const QByteArray &json, const QString
 
 namespace Harpoon {
 
-void GitLabSource::prepareDownload(const Asset &asset, const AppSettings &, DownloadRequest &request) const
+void GitLabSource::prepareDownload(const Asset &asset, const AppSettings &, const QString &standardUrl,
+                                   DownloadRequest &request) const
 {
-    request.url = authorizedAssetUrl(asset.url);
+    if (isOwnOrigin(asset.url, standardUrl))
+        request.url = authorizedAssetUrl(asset.url);
 }
 
 } // namespace Harpoon
