@@ -8,6 +8,7 @@
 #include "app/appinstaller.h"
 #include "app/appstore.h"
 #include "app/updatestatus.h"
+#include "model/identity.h"
 #include "net/networktransport.h"
 #include "pkg/installhandlerbackend.h"
 #include "pkg/packagekitbackend.h"
@@ -512,9 +513,9 @@ private:
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
-    // Must match the GUI so both use ~/.local/share/harpoon/harpoon.
-    QCoreApplication::setOrganizationName(QStringLiteral("harpoon"));
-    QCoreApplication::setApplicationName(QStringLiteral("harpoon"));
+    // Shared with the GUI: both use the same data and cache folders.
+    QCoreApplication::setOrganizationName(organizationName());
+    QCoreApplication::setApplicationName(applicationName());
 
     Cli cli;
     return cli.run(app.arguments().mid(1));

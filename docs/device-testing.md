@@ -78,7 +78,7 @@ Use an app you don't need. This removes the package.
 
 | What | Path |
 |---|---|
-| App records | `~/.local/share/harpoon/harpoon/apps/*.json` |
-| Downloads (deleted after install) | `~/.cache/harpoon/harpoon/downloads/` |
+| App records | `~/.local/share/io.github.juhanilehtimaeki/harpoon/apps/*.json` |
+| Downloads (deleted after install) | `~/.cache/io.github.juhanilehtimaeki/harpoon/downloads/` |
 
 `HARPOON_DATA_DIR` and `HARPOON_CACHE_DIR` override these locations.
