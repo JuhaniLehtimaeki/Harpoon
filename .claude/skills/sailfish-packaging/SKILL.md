@@ -18,15 +18,16 @@ Read the relevant section before changing install or packaging code.
   ```
   Since SFOS 5.x (sailjail, Apr 2026) this shows a one-time warning on first launch. That is
   expected.
-- Install `/usr/share/mapplauncherd/privileges.d/harbour-harpoon` with the content
-  `/usr/bin/harbour-harpoon,r`. It makes mapplauncherd start the binary with egid
+- Install `/usr/share/mapplauncherd/privileges.d/harpoon` with the content
+  `/usr/bin/harpoon,r`. The binary is `harpoon`, not `harbour-harpoon`, because the app is not
+  published on Harbour. It makes mapplauncherd start the binary with egid
   `privileged`. Sailfish's PackageKit then accepts the calls without polkit.
 - Never change the `Vendor:` field between releases. libzypp vendor stickiness breaks the
   update path; Storeman keeps `Vendor: meego` for this reason.
 - Build targets: `aarch64`, `armv7hl` and `i486` (emulator). Use `noarch` only for pure
   QML/Python subpackages.
 - Background checks ship as a systemd **user** service and timer pair in `/usr/lib/systemd/user/`:
-  - The service runs `harbour-harpoon --check`, which is headless.
+  - The service runs `harpoon-cli check --notify --quiet`, which is headless.
   - It posts a `Nemo.Notifications` notification whose remote action opens the app over D-Bus.
 
 ## Where the code is
@@ -35,8 +36,15 @@ Read the relevant section before changing install or packaging code.
 - `core/src/pkg/installhandlerbackend.*`: the installation-handler fallback.
 - `core/src/pkg/rpminspector.*`: `rpm -qp` / `rpm -q` parsing.
 - `core/src/app/appinstaller.*`: the pre-install checks listed below.
-- `rpm/harpoon.spec`: the package. For now it only ships `harpoon-cli`; the GUI, desktop file
-  and privileges.d entry are still to come.
+- `rpm/harpoon.spec`: the package. It ships the app, `harpoon-cli`, the desktop file,
+  privileges.d entry, D-Bus activation file and systemd user units, and holds the Chum metadata.
+  Release and Chum steps are in `docs/packaging.md`.
+- `gui/harpoon.desktop`, `gui/privileges/harpoon`, `gui/dbus/*.service`,
+  `gui/systemd/harpoon-check.{service,timer}`: the platform integration files.
+- `core/src/app/backgroundscheduler.*`: enables or disables the timer over the systemd user D-Bus
+  API and writes the interval drop-in.
+- `core/src/notify/notifier.*`: freedesktop notifications with Nemo hints and remote actions,
+  encoded the way nemo-qml-plugin-notifications does it.
 - Tests: `core/tests/tst_packagebackends.cpp` (mock PackageKit and handler on a private
   dbus-daemon) and `core/tests/tst_appinstaller.cpp` (end to end with real RPMs).
 - Device validation steps: `docs/device-testing.md`.
