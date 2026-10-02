@@ -11,16 +11,17 @@ add_library(harpoon-ui STATIC
 target_include_directories(harpoon-ui PUBLIC src)
 target_link_libraries(harpoon-ui PUBLIC harpoon-core)
 
-# QR code decoding (vendored zxing-cpp, readers only, linked statically).
+# QR codes: reading from the camera and showing an app's link (vendored
+# zxing-cpp, linked statically).
 find_package(Qt5 5.6 REQUIRED COMPONENTS Gui)
-set(BUILD_WRITERS OFF CACHE BOOL "" FORCE)
+set(BUILD_WRITERS ON CACHE BOOL "" FORCE)
 set(BUILD_READERS ON CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 add_subdirectory(${CMAKE_SOURCE_DIR}/3rdparty/zxing-cpp/core ${CMAKE_BINARY_DIR}/zxing EXCLUDE_FROM_ALL)
 target_compile_options(ZXing PRIVATE -w)
 set_target_properties(ZXing PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-add_library(harpoon-qr STATIC qr/qrdecoder.h qr/qrdecoder.cpp)
+add_library(harpoon-qr STATIC qr/qrdecoder.h qr/qrdecoder.cpp qr/qrencoder.h qr/qrencoder.cpp qr/qrimageprovider.h)
 target_include_directories(harpoon-qr PUBLIC qr)
 target_link_libraries(harpoon-qr PUBLIC Qt5::Gui PRIVATE ZXing::ZXing)
 

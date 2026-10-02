@@ -14,11 +14,13 @@
 #include "harpooncontroller.h"
 #include "harpoondbus.h"
 #include "qrdecoder.h"
+#include "qrimageprovider.h"
 
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QQmlExpression>
 #include <QQuickItem>
+#include <QQuickItemGrabResult>
 #include <QQuickView>
 #include <QTemporaryDir>
 #include <QtQml>
@@ -76,7 +78,7 @@ void registerStubs()
 {
     const char *silica = "Sailfish.Silica";
     const QStringList types{"ApplicationWindow", "Page", "Dialog", "DialogHeader", "PageHeader", "SilicaListView",
-                            "SilicaFlickable", "PullDownMenu", "MenuItem", "ContextMenu", "ListItem", "SectionHeader",
+                            "SilicaFlickable", "PullDownMenu", "PushUpMenu", "MenuItem", "ContextMenu", "ListItem", "SectionHeader",
                             "ViewPlaceholder", "VerticalScrollDecorator", "Label", "InfoLabel", "LinkedLabel",
                             "BusyIndicator", "TextField", "PasswordField", "ComboBox", "TextSwitch", "ProgressBar",
                             "Button", "DetailItem", "CoverBackground", "CoverPlaceholder", "CoverActionList",
@@ -85,7 +87,7 @@ void registerStubs()
     for (const QString &t : types)
         qmlRegisterType(QUrl::fromLocalFile(kStubDir + QLatin1Char('/') + t + QStringLiteral(".qml")), silica, 1, 0,
                         qPrintable(t));
-    const QStringList singletons{"Theme", "Format", "Remorse"};
+    const QStringList singletons{"Theme", "Format", "Remorse", "Clipboard"};
     for (const QString &s : singletons)
         qmlRegisterSingletonType(QUrl::fromLocalFile(kStubDir + QLatin1Char('/') + s + QStringLiteral(".qml")), silica,
                                  1, 0, qPrintable(s));
@@ -257,6 +259,7 @@ private slots:
         m_view->rootContext()->setContextProperty(QStringLiteral("harpoon"), m_controller.get());
         m_view->rootContext()->setContextProperty(QStringLiteral("harpoonDBus"), &m_dbus);
         m_view->rootContext()->setContextProperty(QStringLiteral("qrDecoder"), &m_qrDecoder);
+        m_view->engine()->addImageProvider(QStringLiteral("harpoonqr"), new QrImageProvider);
         m_view->setSource(QUrl::fromLocalFile(kQmlDir + QStringLiteral("/harpoon.qml")));
         QVERIFY2(m_view->status() == QQuickView::Ready, qPrintable(g_messages.join(QLatin1Char('\n'))));
         // Shown and active, so the scan page's camera and grabToImage() run.
@@ -447,6 +450,47 @@ private slots:
         QCOMPARE(chosenSource(dialog), QString());
         popToList();
         expectClean("leaving the dialog");
+    }
+
+    void shareAsQrCode()
+    {
+        // A GitHub app needs nothing but its URL.
+        QObject *page = push(QStringLiteral("ShareQrPage.qml"), QStringLiteral("{ appId: 'harbour-alpha' }"));
+        expectClean("ShareQrPage");
+        QCOMPARE(page->property("link").toString(), QStringLiteral("https://github.com/someone/harbour-alpha"));
+        QObject *image = nullptr;
+        for (QObject *o : page->findChildren<QObject *>())
+            if (o->property("sourceSize").isValid() && o->property("source").toString().startsWith(QLatin1String("image://harpoonqr/")))
+                image = o;
+        QVERIFY(image);
+        QTRY_COMPARE(image->property("status").toInt(), 1); // Image.Ready
+
+        // The code on screen reads back as the link.
+        QQuickItem *item = qobject_cast<QQuickItem *>(image);
+        QSharedPointer<QQuickItemGrabResult> grab = item->grabToImage();
+        QVERIFY(grab);
+        QSignalSpy ready(grab.data(), &QQuickItemGrabResult::ready);
+        QVERIFY(ready.wait(5000));
+        QCOMPARE(QrDecoder::decode(grab->image()), QStringLiteral("https://github.com/someone/harbour-alpha"));
+
+        QVERIFY(QMetaObject::invokeMethod(findByProperty(page, "text", QStringLiteral("Copy link")), "clicked"));
+        expectClean("copying the link");
+        QQmlExpression clipboard(qmlContext(page), page, QStringLiteral("Clipboard.text"));
+        QCOMPARE(clipboard.evaluate().toString(), QStringLiteral("https://github.com/someone/harbour-alpha"));
+        popToList();
+
+        // An RPM repository needs the source and package in a harpoon:// link,
+        // which reads back into the same app.
+        page = push(QStringLiteral("ShareQrPage.qml"), QStringLiteral("{ appId: 'repoapp' }"));
+        expectClean("ShareQrPage for a repository");
+        const QString link = page->property("link").toString();
+        QVERIFY(link.startsWith(QLatin1String("harpoon://add?")));
+        const QVariantMap parsed = m_controller->parseAddLink(link);
+        QCOMPARE(parsed.value(QStringLiteral("url")).toString(), QStringLiteral("https://repo.example.org/obs/sailfishos_5.0_aarch64"));
+        QCOMPARE(parsed.value(QStringLiteral("sourceId")).toString(), QStringLiteral("RpmMdRepo"));
+        QCOMPARE(parsed.value(QStringLiteral("packageName")).toString(), QStringLiteral("repoapp"));
+        popToList();
+        QVERIFY(m_controller->shareLink(QStringLiteral("no-such-app")).isEmpty());
     }
 
     void addLinkOverDBus()

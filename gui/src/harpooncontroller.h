@@ -69,6 +69,10 @@ public:
     // Parses a scanned QR code or opened link (harpoon://add?... or a plain
     // http(s) URL): {ok, url, sourceId, packageName, error}.
     Q_INVOKABLE QVariantMap parseAddLink(const QString &text) const;
+    // What to put in a QR code so another Harpoon can add this app: the
+    // plain URL when its host identifies the source, else a harpoon://add
+    // link. Empty for an unknown id.
+    Q_INVOKABLE QString shareLink(const QString &id) const;
 
     // Checks the URL without saving: {ok, standardUrl, sourceId, sourceName, error}.
     Q_INVOKABLE QVariantMap inspectUrl(const QString &url, const QString &sourceId = QString()) const;

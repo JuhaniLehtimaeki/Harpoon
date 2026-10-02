@@ -169,6 +169,27 @@ QVariantMap HarpoonController::parseAddLink(const QString &text) const
             {QStringLiteral("packageName"), link.value.packageName}};
 }
 
+QString HarpoonController::shareLink(const QString &id) const
+{
+    const AppListModel::Entry *e = m_model.entry(id);
+    if (!e)
+        return QString();
+    const App &a = e->app;
+    const auto match = m_registry.match(a.url, a.sourceId);
+    if (!match.ok())
+        return QString();
+    AddLink link;
+    link.url = match.value.standardUrl;
+    const QString sourceId = match.value.source->id();
+    if (sourceId == QLatin1String("RpmMdRepo"))
+        link.packageName = a.settings.getString(Keys::packageName);
+    // Name the source unless the URL alone leads to the same one.
+    const auto detected = m_registry.match(link.url, QString());
+    if (!detected.ok() || detected.value.source->id() != sourceId || !link.packageName.isEmpty())
+        link.sourceId = sourceId;
+    return link.sourceId.isEmpty() ? link.url : link.toString();
+}
+
 QVariantMap HarpoonController::inspectUrl(const QString &url, const QString &sourceId) const
 {
     QVariantMap out;

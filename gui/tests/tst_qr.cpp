@@ -2,6 +2,7 @@
 
 #include "app/addlink.h"
 #include "qrdecoder.h"
+#include "qrencoder.h"
 
 #include <QPainter>
 #include <QtTest>
@@ -67,6 +68,21 @@ private slots:
         auto *doomed = new QrDecoder;
         QVERIFY(doomed->scan(QVariant::fromValue(QImage(fixture("repo-url.png")))));
         delete doomed;
+    }
+
+    void encodesCodesThatReadBack()
+    {
+        const QString link = QStringLiteral("harpoon://add?url=https%3A%2F%2Frepo.example.org%2Fobs%2Fsailfishos_5.0_aarch64"
+                                            "&source=RpmMdRepo&package=harbour-tides");
+        const QImage image = QrEncoder::encode(link, 400);
+        QVERIFY(!image.isNull());
+        QCOMPARE(image.width(), image.height());
+        QVERIFY(image.width() <= 400 && image.width() > 200);
+        QCOMPARE(QrDecoder::decode(image), link);
+        // Tiny sizes still give one pixel per module.
+        QVERIFY(QrEncoder::encode(link, 10).width() > 10);
+        QVERIFY(QrEncoder::encode(QString(), 400).isNull());
+        QVERIFY(QrEncoder::encode(QString(5000, QLatin1Char('x')), 400).isNull());
     }
 
     void parsesLinks()

@@ -7,6 +7,7 @@
 #include "app/harpoonsettings.h"
 #include "model/identity.h"
 #include "qrdecoder.h"
+#include "qrimageprovider.h"
 
 #include <sailfishapp.h>
 
@@ -47,6 +48,7 @@ int main(int argc, char *argv[])
     view->rootContext()->setContextProperty(QStringLiteral("harpoonDBus"), &dbus);
     QrDecoder qrDecoder;
     view->rootContext()->setContextProperty(QStringLiteral("qrDecoder"), &qrDecoder);
+    view->engine()->addImageProvider(QStringLiteral("harpoonqr"), new Harpoon::QrImageProvider);
     view->setSource(SailfishApp::pathToMainQml());
     view->show();
 

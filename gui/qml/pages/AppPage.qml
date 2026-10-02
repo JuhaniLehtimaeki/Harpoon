@@ -9,6 +9,7 @@ Page {
     property string appId
     // Refreshed whenever the model changes, so the page follows checks and installs.
     property var details: harpoon.appDetails(appId)
+    readonly property bool _installed: details.installedVersion !== undefined && details.installedVersion.length > 0
 
     function refresh() {
         details = harpoon.appDetails(appId)
@@ -37,15 +38,13 @@ Page {
             visible: !details.busy
 
             MenuItem {
-                visible: details.installedVersion !== undefined && details.installedVersion.length > 0
-                         && !details.trackOnly && !details.temporaryId
+                visible: page._installed && !details.trackOnly && !details.temporaryId
                 text: qsTr("Uninstall")
                 onClicked: Remorse.popupAction(page, qsTr("Uninstalling"), function() { harpoon.uninstall(appId) })
             }
             MenuItem {
-                visible: details.releasePageUrl !== undefined && details.releasePageUrl.length > 0
-                text: qsTr("Open release page")
-                onClicked: Qt.openUrlExternally(details.releasePageUrl)
+                text: qsTr("Share as QR code")
+                onClicked: pageStack.push(Qt.resolvedUrl("ShareQrPage.qml"), { appId: appId })
             }
             MenuItem {
                 text: qsTr("App settings")
@@ -54,6 +53,26 @@ Page {
             MenuItem {
                 text: qsTr("Check now")
                 onClicked: harpoon.check(appId)
+            }
+        }
+
+        PushUpMenu {
+            visible: !details.busy && (releaseItem.visible || reinstallItem.visible)
+
+            MenuItem {
+                id: releaseItem
+
+                visible: details.releasePageUrl !== undefined && details.releasePageUrl.length > 0
+                text: qsTr("Open release page")
+                onClicked: Qt.openUrlExternally(details.releasePageUrl)
+            }
+            MenuItem {
+                id: reinstallItem
+
+                visible: page._installed && !details.trackOnly
+                         && (details.state === AppListModel.UpToDate || details.state === AppListModel.Unknown)
+                text: qsTr("Reinstall")
+                onClicked: harpoon.install(appId, true, true)
             }
         }
 
@@ -107,14 +126,6 @@ Page {
                 visible: !details.busy && details.trackOnly === true && details.state === AppListModel.UpdateAvailable
                 text: qsTr("Mark as seen")
                 onClicked: harpoon.acknowledge(appId)
-            }
-
-            Button {
-                anchors.horizontalCenter: parent.horizontalCenter
-                visible: !details.busy && !details.trackOnly
-                         && (details.state === AppListModel.UpToDate || details.state === AppListModel.Unknown)
-                text: qsTr("Reinstall")
-                onClicked: harpoon.install(appId, true, true)
             }
 
             SectionHeader { text: qsTr("Latest release") }
