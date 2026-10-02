@@ -1,0 +1,358 @@
+// Loads the real QML UI offscreen against minimal stand-ins for
+// Sailfish.Silica and Nemo.Notifications (silica-stub/), with a controller
+// seeded with apps in every state. Any QML error or warning fails the test.
+//
+// This catches mistakes in Harpoon's own QML and C++ bindings: undefined
+// names, wrong property types, broken JavaScript, missing files. It cannot
+// prove that the real Silica components have the properties we use; that
+// needs the SailfishOS SDK or a device.
+
+#include "faketransport.h"
+#include "fakerpmdb.h"
+
+#include "applistmodel.h"
+#include "harpooncontroller.h"
+#include "harpoondbus.h"
+
+#include <QQmlContext>
+#include <QQmlEngine>
+#include <QQmlExpression>
+#include <QQuickItem>
+#include <QQuickView>
+#include <QTemporaryDir>
+#include <QtQml>
+#include <QtTest>
+
+using namespace Harpoon;
+
+// ---- EnterKey attached property (C++ in real Silica) ----
+class EnterKeyAttached : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(bool enabled MEMBER m_enabled NOTIFY changed)
+    Q_PROPERTY(QString iconSource MEMBER m_iconSource NOTIFY changed)
+public:
+    explicit EnterKeyAttached(QObject *parent) : QObject(parent) {}
+signals:
+    void changed();
+    void clicked();
+private:
+    bool m_enabled = true;
+    QString m_iconSource;
+};
+
+class EnterKey : public QObject
+{
+    Q_OBJECT
+public:
+    static EnterKeyAttached *qmlAttachedProperties(QObject *object) { return new EnterKeyAttached(object); }
+};
+QML_DECLARE_TYPEINFO(EnterKey, QML_HAS_ATTACHED_PROPERTIES)
+
+namespace {
+
+QStringList g_messages;
+
+void collect(QtMsgType type, const QMessageLogContext &, const QString &message)
+{
+    if (type == QtDebugMsg || type == QtInfoMsg)
+        return;
+    // Qt 5.15 wants "function onFoo()" in Connections; Qt 5.6 on the phone
+    // only understands the "onFoo:" form, so this warning is expected.
+    if (message.contains(QLatin1String("Implicitly defined onFoo properties in Connections are deprecated")))
+        return;
+    // Installed icon paths only exist on a device.
+    if (message.contains(QLatin1String("/usr/share/icons/hicolor/")))
+        return;
+    g_messages << message;
+}
+
+const QString kStubDir = QStringLiteral(HARPOON_STUB_DIR);
+const QString kQmlDir = QStringLiteral(HARPOON_QML_DIR);
+
+void registerStubs()
+{
+    const char *silica = "Sailfish.Silica";
+    const QStringList types{"ApplicationWindow", "Page", "Dialog", "DialogHeader", "PageHeader", "SilicaListView",
+                            "SilicaFlickable", "PullDownMenu", "MenuItem", "ContextMenu", "ListItem", "SectionHeader",
+                            "ViewPlaceholder", "VerticalScrollDecorator", "Label", "InfoLabel", "LinkedLabel",
+                            "BusyIndicator", "TextField", "PasswordField", "ComboBox", "TextSwitch", "ProgressBar",
+                            "Button", "DetailItem", "CoverBackground", "CoverPlaceholder", "CoverActionList",
+                            "CoverAction", "Orientation", "TruncationMode", "BusyIndicatorSize", "PageStatus",
+                            "PageStackAction", "Formatter"};
+    for (const QString &t : types)
+        qmlRegisterType(QUrl::fromLocalFile(kStubDir + QLatin1Char('/') + t + QStringLiteral(".qml")), silica, 1, 0,
+                        qPrintable(t));
+    const QStringList singletons{"Theme", "Format", "Remorse"};
+    for (const QString &s : singletons)
+        qmlRegisterSingletonType(QUrl::fromLocalFile(kStubDir + QLatin1Char('/') + s + QStringLiteral(".qml")), silica,
+                                 1, 0, qPrintable(s));
+    qmlRegisterUncreatableType<EnterKey>(silica, 1, 0, "EnterKey", QStringLiteral("attached only"));
+    qmlRegisterType(QUrl::fromLocalFile(kStubDir + QStringLiteral("/Notification.qml")), "Nemo.Notifications", 1, 0,
+                    "Notification");
+
+    // Same registrations as gui/src/harpoon.cpp.
+    const char *uri = "harbour.harpoon";
+    qmlRegisterUncreatableType<AppListModel>(uri, 1, 0, "AppListModel", QStringLiteral("model"));
+    qmlRegisterUncreatableType<HarpoonSettings>(uri, 1, 0, "HarpoonSettings", QStringLiteral("settings"));
+    qmlRegisterUncreatableType<HarpoonController>(uri, 1, 0, "HarpoonController", QStringLiteral("controller"));
+}
+
+App seededApp(const QString &id, const QString &latest, bool temporary = false)
+{
+    App a = App::fromUrl(QStringLiteral("https://github.com/someone/") + id);
+    if (!temporary) {
+        a.id = id;
+        a.temporaryId = false;
+    }
+    a.latestVersion = latest;
+    a.latestTag = QStringLiteral("v") + latest;
+    a.latestTitle = QStringLiteral("Release ") + latest;
+    a.latestDate = QDateTime::fromString(QStringLiteral("2026-09-01T10:00:00Z"), Qt::ISODate);
+    a.changelog = QStringLiteral("- Fixed things\n- Added things");
+    a.releasePageUrl = QStringLiteral("https://github.com/someone/") + id + QStringLiteral("/releases/tag/v") + latest;
+    a.lastCheck = QDateTime::currentDateTimeUtc();
+    Asset asset;
+    asset.name = id + QStringLiteral("-") + latest + QStringLiteral("-1.aarch64.rpm");
+    asset.url = QStringLiteral("https://example.invalid/") + asset.name;
+    asset.size = 1234;
+    a.latestAssets << asset;
+    return a;
+}
+
+RpmInfo rpm(const QString &name, const QString &evr)
+{
+    RpmInfo i;
+    i.name = name;
+    i.evr = parseEvr(evr);
+    i.arch = QStringLiteral("aarch64");
+    i.vendor = QStringLiteral("chum");
+    return i;
+}
+
+} // namespace
+
+class TestQmlSmoke : public QObject
+{
+    Q_OBJECT
+
+    QTemporaryDir m_dir;
+    FakeTransport m_transport;
+    FakeRpmDb m_db;
+    std::unique_ptr<HarpoonSettings> m_settings;
+    std::unique_ptr<HarpoonController> m_controller;
+    HarpoonDBus m_dbus;
+    std::unique_ptr<QQuickView> m_view;
+
+    QVariant eval(const QString &js)
+    {
+        QQmlExpression expr(m_view->engine()->rootContext(), m_view->rootObject(), js);
+        const QVariant v = expr.evaluate();
+        if (expr.hasError())
+            g_messages << expr.error().toString();
+        return v;
+    }
+
+    void settle()
+    {
+        for (int i = 0; i < 10; ++i)
+            QTest::qWait(20);
+    }
+
+    void expectClean(const char *step)
+    {
+        settle();
+        if (!g_messages.isEmpty()) {
+            const QString all = g_messages.join(QLatin1Char('\n'));
+            g_messages.clear();
+            QFAIL(qPrintable(QStringLiteral("%1:\n%2").arg(QLatin1String(step), all)));
+        }
+    }
+
+    QObject *currentPage() { return eval(QStringLiteral("pageStack.currentPage")).value<QObject *>(); }
+
+    // pageStack.push() of a page file, with optional JS properties object.
+    QObject *push(const QString &page, const QString &props = QStringLiteral("{}"))
+    {
+        const QString url = QUrl::fromLocalFile(kQmlDir + QStringLiteral("/pages/") + page).toString();
+        return eval(QStringLiteral("pageStack.push('%1', %2)").arg(url, props)).value<QObject *>();
+    }
+
+    void popToList()
+    {
+        eval(QStringLiteral("pageStack.pop(pageStack.find(function(p) { return p.objectName === 'appListPage' }))"));
+    }
+
+private slots:
+    void initTestCase()
+    {
+        registerStubs();
+        AppStore store(m_dir.filePath(QStringLiteral("apps")));
+
+        App alpha = seededApp(QStringLiteral("harbour-alpha"), QStringLiteral("1.1"));
+        m_db.installed.insert(QStringLiteral("harbour-alpha"), rpm(QStringLiteral("harbour-alpha"), QStringLiteral("1.0-1")));
+        QVERIFY(store.save(alpha).ok());
+
+        App beta = seededApp(QStringLiteral("beta"), QStringLiteral("2.0"));
+        beta.settings.set(Keys::trackOnly, true);
+        beta.latestAssets.clear();
+        QVERIFY(store.save(beta).ok());
+
+        App gamma = seededApp(QStringLiteral("gamma"), QString(), true);
+        gamma.latestVersion.clear();
+        gamma.latestDate = QDateTime();
+        gamma.latestAssets.clear();
+        gamma.changelog.clear();
+        gamma.lastError = QStringLiteral("Repository not found");
+        QVERIFY(store.save(gamma).ok());
+
+        App delta = seededApp(QStringLiteral("harbour-delta"), QStringLiteral("3.0"));
+        delta.receipt.evr = QStringLiteral("3.0-1");
+        delta.receipt.version = QStringLiteral("3.0");
+        delta.receipt.installedAt = QDateTime::currentDateTimeUtc();
+        m_db.installed.insert(QStringLiteral("harbour-delta"), rpm(QStringLiteral("harbour-delta"), QStringLiteral("3.0-1")));
+        QVERIFY(store.save(delta).ok());
+
+        m_settings.reset(new HarpoonSettings(m_dir.filePath(QStringLiteral("config/harpoon.conf"))));
+        ControllerEnvironment env;
+        env.dataDir = store.directory();
+        env.cacheDir = m_dir.filePath(QStringLiteral("cache"));
+        env.device.arch = QStringLiteral("aarch64");
+        env.device.osVersion = QStringLiteral("5.0.0.62");
+        env.transport = &m_transport;
+        env.runner = &m_db;
+        env.settings = m_settings.get();
+        m_controller.reset(new HarpoonController(env));
+        m_controller->reload();
+        QCOMPARE(m_controller->apps()->count(), 4);
+        QCOMPARE(m_controller->apps()->updatesCount(), 2);
+
+        qInstallMessageHandler(collect);
+        m_view.reset(new QQuickView);
+        m_view->rootContext()->setContextProperty(QStringLiteral("harpoon"), m_controller.get());
+        m_view->rootContext()->setContextProperty(QStringLiteral("harpoonDBus"), &m_dbus);
+        m_view->setSource(QUrl::fromLocalFile(kQmlDir + QStringLiteral("/harpoon.qml")));
+        QVERIFY2(m_view->status() == QQuickView::Ready, qPrintable(g_messages.join(QLatin1Char('\n'))));
+    }
+
+    void cleanupTestCase()
+    {
+        m_view.reset();
+        qInstallMessageHandler(nullptr);
+    }
+
+    void mainWindowAndCover()
+    {
+        expectClean("loading harpoon.qml");
+        QCOMPARE(eval(QStringLiteral("pageStack.currentPage.objectName")).toString(), QStringLiteral("appListPage"));
+        QVERIFY(eval(QStringLiteral("coverItem !== null")).toBool());
+        // The list page refreshes stale apps on start (gamma was never checked).
+        QTRY_VERIFY(!m_controller->checking());
+        expectClean("after the startup check");
+    }
+
+    void appPages_data()
+    {
+        QTest::addColumn<QString>("appId");
+        for (const char *id : {"harbour-alpha", "beta", "harbour-delta"})
+            QTest::newRow(id) << QString::fromLatin1(id);
+        for (const AppListModel::Entry &e : m_controller->apps()->entries())
+            if (e.app.name == QLatin1String("gamma"))
+                QTest::newRow("gamma (temporary id)") << e.app.id;
+    }
+
+    void appPages()
+    {
+        QFETCH(QString, appId);
+        QVERIFY(m_controller->apps()->indexOf(appId) >= 0);
+        push(QStringLiteral("AppPage.qml"), QStringLiteral("{ appId: '%1' }").arg(appId));
+        expectClean("AppPage");
+        QCOMPARE(currentPage()->property("details").toMap().value(QStringLiteral("appId")).toString(), appId);
+
+        push(QStringLiteral("AppSettingsPage.qml"), QStringLiteral("{ appId: '%1' }").arg(appId));
+        expectClean("AppSettingsPage");
+        popToList();
+        expectClean("popping back");
+    }
+
+    void busyStateUpdatesPages()
+    {
+        push(QStringLiteral("AppPage.qml"), QStringLiteral("{ appId: 'harbour-alpha' }"));
+        m_controller->apps()->setBusy(QStringLiteral("harbour-alpha"), true, QStringLiteral("Downloading"), 0.5);
+        expectClean("busy with progress");
+        QVERIFY(currentPage()->property("details").toMap().value(QStringLiteral("busy")).toBool());
+        m_controller->apps()->setBusy(QStringLiteral("harbour-alpha"), true, QStringLiteral("Installing"), -1);
+        expectClean("busy indeterminate");
+        m_controller->apps()->setBusy(QStringLiteral("harbour-alpha"), false);
+        expectClean("idle again");
+        popToList();
+    }
+
+    void perAppSettingChangesFlowBack()
+    {
+        push(QStringLiteral("AppSettingsPage.qml"), QStringLiteral("{ appId: 'harbour-alpha' }"));
+        m_controller->setAppSetting(QStringLiteral("harbour-alpha"), QStringLiteral("includePrereleases"), true);
+        m_controller->setAppSetting(QStringLiteral("harbour-alpha"), QStringLiteral("sortMethodChoice"), QStringLiteral("name"));
+        expectClean("settings changed");
+        QVERIFY(currentPage()->property("_changed").toBool());
+        popToList();
+        expectClean("leaving settings");
+    }
+
+    void addDialog()
+    {
+        QObject *dialog = push(QStringLiteral("AddAppDialog.qml"));
+        expectClean("AddAppDialog");
+        QVERIFY(dialog);
+        QVERIFY(!dialog->property("canAccept").toBool());
+        QObject *field = nullptr;
+        for (QObject *o : dialog->findChildren<QObject *>())
+            if (o->property("label").toString() == QLatin1String("Repository URL"))
+                field = o;
+        QVERIFY(field);
+        field->setProperty("text", QStringLiteral("https://codeberg.org/someone/thing"));
+        expectClean("typing a URL");
+        QVERIFY(dialog->property("canAccept").toBool());
+        field->setProperty("text", QStringLiteral("https://github.com/someone/harbour-alpha"));
+        expectClean("typing a duplicate URL");
+        QVERIFY(!dialog->property("canAccept").toBool());
+        popToList();
+    }
+
+    void settingsAndAbout()
+    {
+        push(QStringLiteral("SettingsPage.qml"));
+        expectClean("SettingsPage");
+        m_settings->setInstallBackend(QStringLiteral("handler"));
+        m_settings->setBackgroundChecks(false);
+        expectClean("settings changed");
+        push(QStringLiteral("AboutPage.qml"));
+        // The icon path only exists on a device.
+        settle();
+        g_messages.erase(std::remove_if(g_messages.begin(), g_messages.end(),
+                                        [](const QString &m) { return m.contains(QLatin1String("harpoon.png")); }),
+                         g_messages.end());
+        expectClean("AboutPage");
+        popToList();
+    }
+
+    void dbusOpensApp()
+    {
+        m_dbus.showApp(QStringLiteral("harbour-delta"));
+        expectClean("showApp over D-Bus");
+        QCOMPARE(currentPage()->property("appId").toString(), QStringLiteral("harbour-delta"));
+        m_dbus.showUpdates();
+        expectClean("showUpdates over D-Bus");
+        QCOMPARE(currentPage()->objectName(), QStringLiteral("appListPage"));
+    }
+
+    void removingAnAppWhileListed()
+    {
+        m_controller->removeApp(QStringLiteral("beta"));
+        expectClean("removing an app");
+        QCOMPARE(m_controller->apps()->count(), 3);
+    }
+};
+
+QTEST_MAIN(TestQmlSmoke)
+#include "tst_qmlsmoke.moc"

@@ -32,6 +32,7 @@ QVariant AppListModel::data(const QModelIndex &index, int role) const
     case BusyRole: return e.busy;
     case StageRole: return e.stage;
     case ProgressRole: return e.progress;
+    case HasUpdateRole: return e.status.state == UpdateState::UpdateAvailable;
     default: return QVariant();
     }
 }
@@ -54,6 +55,7 @@ QHash<int, QByteArray> AppListModel::roleNames() const
         {BusyRole, "busy"},
         {StageRole, "stage"},
         {ProgressRole, "progress"},
+        {HasUpdateRole, "hasUpdate"},
     };
 }
 

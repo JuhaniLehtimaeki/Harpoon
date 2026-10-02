@@ -74,6 +74,23 @@ devel-su -p harpoon-cli remove <some-test-app> --uninstall
 
 Use an app you don't need. This removes the package.
 
+## 6. The app
+
+Launch Harpoon from the app grid. On SailfishOS 5.x the system should first warn once that the
+app runs without a sandbox.
+
+1. Pull down → **Add app** and paste a GitHub URL. The line under the field should name the
+   source, and the dialog should only accept once the URL is valid.
+2. In the list, long-press an app → **Install** / **Update**. Watch the progress line.
+3. Open an app, then check the release notes, the **App settings** page and **Uninstall**.
+4. Minimise the app. The cover should show the number of updates; the refresh action runs a
+   check.
+5. Switch between a light and a dark ambience and check that all text stays readable.
+
+**Report:** anything that looks wrong or un-Sailfish-like, any QML errors from
+`devel-su journalctl -fa | grep -i harpoon`, and whether installing from the app works without
+`devel-su -p`. That last one tests the privileges.d entry.
+
 ## Where things live
 
 | What | Path |

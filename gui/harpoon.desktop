@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Icon=harpoon
+Exec=harpoon
+Name=Harpoon
+Comment=Install and update apps from GitHub, Codeberg and other forges
+
+[X-Sailjail]
+# Installing packages through PackageKit needs the privileged group, which a
+# sandboxed app cannot get. See docs/research/03-sailfishos-installation.md.
+Sandboxing=Disabled
+OrganizationName=io.github.juhanilehtimaeki
+ApplicationName=harpoon

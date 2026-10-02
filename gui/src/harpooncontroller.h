@@ -71,6 +71,8 @@ public:
                             bool force = false);
 
     Q_INVOKABLE void checkAll();
+    // Checks apps whose last check is older than maxAgeMinutes (or never).
+    Q_INVOKABLE void checkStale(int maxAgeMinutes);
     Q_INVOKABLE void check(const QString &id);
     Q_INVOKABLE void install(const QString &id, bool reinstall = false, bool downgrade = false);
     Q_INVOKABLE void updateAll();

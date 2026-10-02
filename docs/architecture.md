@@ -3,7 +3,7 @@
 Harpoon is an Obtainium-style updater for SailfishOS. It tracks apps published as RPM
 release assets on code forges, then downloads and installs them.
 
-Status: **Phases 1–2 implemented; awaiting device validation** (`docs/device-testing.md`). This builds on the research in `docs/research/01-03`.
+Status: **Phases 1–3 implemented; awaiting device validation** (`docs/device-testing.md`). This builds on the research in `docs/research/01-03`.
 
 ## Decisions (Oct 2026)
 | # | Question | Decision |
@@ -258,3 +258,66 @@ Implemented and tested on desktop. Not yet validated on a device; see `docs/devi
 
 **Licence:** GPL-3.0-or-later (decided Oct 2026). Parts of the core are translated from
 ObtainX, which is GPL-3.0.
+
+## Phase 3 status
+Implemented. The C++ layer and QML are tested on desktop; the real Silica rendering is not
+validated yet.
+
+**QML-facing C++** (`gui/src/`):
+- Built as `harpoon-ui`, a QtCore-only library, so it is unit-tested on desktop.
+- `AppListModel`: updates first, then by name. Roles cover state, versions, busy state, stage
+  and progress.
+- `HarpoonController`: add (validates before saving, refuses duplicates), check / checkStale /
+  checkAll, install / updateAll, uninstall, stop tracking, acknowledge, per-app settings,
+  rename, `appDetails`.
+- `HarpoonSettings`: stored in `<AppConfigLocation>/harpoon.conf`, mode 0600. Holds the
+  install backend, the background-check toggle and interval, notifications and per-source
+  tokens.
+- `HarpoonDBus`: the session service `io.github.juhanilehtimaeki.harpoon` at `/harpoon`, with
+  `activate`, `showUpdates` and `showApp`. It is D-Bus-activatable through
+  `gui/dbus/*.service`.
+
+**Silica UI** (`gui/qml/`):
+- `AppListPage`:
+  - Sections: Updates and Apps.
+  - Each item shows its state line, last error or progress.
+  - Context menu: install/update, mark as seen, check, stop tracking (with remorse).
+  - Pulley: Settings, Add app, Update all, Check for updates.
+  - A placeholder when the list is empty.
+- `AddAppDialog`: checks the URL live, offers a source-type override for self-hosted servers,
+  and options for prereleases, track-only and a package filter.
+- `AppPage`: state, progress, an install/update/reinstall/mark-as-seen button, the latest and
+  installed release, the source and plain-text release notes. Pulley: uninstall (remorse),
+  release page, app settings, check now.
+- `AppSettingsPage`: every per-app setting. Leaving the page re-checks the app if anything
+  changed.
+- `SettingsPage` (backend, background checks, interval, notifications, tokens, device) and
+  `AboutPage`.
+- Cover: update count or a check mark, plus a refresh action.
+- Style follows the `sailfish-ui-design` checklist:
+  - `Theme` constants only.
+  - Labels coloured to show what is interactive.
+  - At most 4 pulley items, hidden when unusable.
+  - Scroll decorators, labelled text fields and configured Enter keys.
+  - Remorse instead of confirmation dialogs.
+
+**Packaging:**
+- `gui/harpoon.desktop` with `[X-Sailjail] Sandboxing=Disabled`.
+- `privileges.d/harpoon` containing `/usr/bin/harpoon,r`.
+- Icons in 4 sizes, rendered from `gui/icons/harpoon.svg`.
+- A translation catalogue, `gui/translations/harpoon.ts`.
+- `rpm/harpoon.spec` ships both the GUI and `harpoon-cli`.
+
+**Verification on desktop:**
+- `tst_controller` covers the controller.
+- `tst_qmlsmoke` loads every page offscreen against stand-ins for Silica and
+  Nemo.Notifications (`gui/tests/silica-stub/`), with apps in every state. Any QML warning fails
+  it. It already caught one real bug: invalid dates reaching `Format.formatDate`.
+- `harpoon.cpp` is compiled against a stand-in `sailfishapp.h`.
+- A staged install was compared with the spec's `%files`.
+
+**Not covered by these tests:**
+- Whether the real Silica components accept every property used. The stand-ins mirror Silica's
+  documented API; `sfdk build` plus a device run will tell.
+- Qt 5.15 prefers the `function onFoo()` form in `Connections`. The code keeps `onFoo:`
+  because Qt 5.6 only understands that form.

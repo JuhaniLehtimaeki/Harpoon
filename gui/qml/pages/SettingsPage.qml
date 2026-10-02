@@ -1,0 +1,126 @@
+import QtQuick 2.0
+import Sailfish.Silica 1.0
+
+Page {
+    id: page
+
+    readonly property var _intervals: [1, 3, 6, 12, 24, 48]
+
+    allowedOrientations: Orientation.All
+
+    SilicaFlickable {
+        anchors.fill: parent
+        contentHeight: column.height + Theme.paddingLarge
+
+        PullDownMenu {
+            MenuItem {
+                text: qsTr("About Harpoon")
+                onClicked: pageStack.push(Qt.resolvedUrl("AboutPage.qml"))
+            }
+        }
+
+        Column {
+            id: column
+
+            width: parent.width
+
+            PageHeader { title: qsTr("Settings") }
+
+            SectionHeader { text: qsTr("Updates") }
+
+            TextSwitch {
+                text: qsTr("Check in the background")
+                description: qsTr("Checks for new releases even when Harpoon is closed")
+                checked: harpoon.settings.backgroundChecks
+                automaticCheck: false
+                onClicked: harpoon.settings.backgroundChecks = !checked
+            }
+
+            ComboBox {
+                width: parent.width
+                enabled: harpoon.settings.backgroundChecks
+                label: qsTr("Check every")
+                currentIndex: Math.max(0, page._intervals.indexOf(harpoon.settings.checkIntervalHours))
+                menu: ContextMenu {
+                    Repeater {
+                        model: page._intervals
+                        MenuItem {
+                            text: qsTr("%n hour(s)", "", modelData)
+                            onClicked: harpoon.settings.checkIntervalHours = modelData
+                        }
+                    }
+                }
+            }
+
+            TextSwitch {
+                text: qsTr("Notify about updates")
+                checked: harpoon.settings.notifyUpdates
+                automaticCheck: false
+                onClicked: harpoon.settings.notifyUpdates = !checked
+            }
+
+            SectionHeader { text: qsTr("Installing") }
+
+            ComboBox {
+                width: parent.width
+                label: qsTr("Install with")
+                description: currentIndex === 0
+                             ? qsTr("Installs without asking. Harpoon must run with the privileged group, which the app launcher provides.")
+                             : qsTr("The system asks you to confirm each installation. Allow untrusted software must be enabled in Settings.")
+                currentIndex: harpoon.settings.installBackend === "handler" ? 1 : 0
+                menu: ContextMenu {
+                    MenuItem {
+                        text: qsTr("PackageKit")
+                        onClicked: harpoon.settings.installBackend = "packagekit"
+                    }
+                    MenuItem {
+                        text: qsTr("System installer")
+                        onClicked: harpoon.settings.installBackend = "handler"
+                    }
+                }
+            }
+
+            SectionHeader { text: qsTr("Access tokens") }
+
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                wrapMode: Text.Wrap
+                font.pixelSize: Theme.fontSizeExtraSmall
+                color: Theme.secondaryHighlightColor
+                text: qsTr("Optional. A token raises GitHub's limit of 60 checks per hour and allows private repositories. Tokens are stored unencrypted in Harpoon's private settings file.")
+            }
+
+            Repeater {
+                model: harpoon.sources
+
+                PasswordField {
+                    width: column.width
+                    label: qsTr("%1 token").arg(modelData.name)
+                    placeholderText: label
+                    text: harpoon.settings.token(modelData.id)
+                    EnterKey.iconSource: "image://theme/icon-m-enter-close"
+                    EnterKey.onClicked: focus = false
+                    onActiveFocusChanged: {
+                        if (!activeFocus && text !== harpoon.settings.token(modelData.id)) {
+                            harpoon.settings.setToken(modelData.id, text)
+                        }
+                    }
+                }
+            }
+
+            SectionHeader { text: qsTr("Device") }
+
+            DetailItem {
+                label: qsTr("Architecture")
+                value: harpoon.deviceArch
+            }
+            DetailItem {
+                label: qsTr("SailfishOS")
+                value: harpoon.osVersion.length > 0 ? harpoon.osVersion : qsTr("Unknown")
+            }
+        }
+
+        VerticalScrollDecorator { }
+    }
+}

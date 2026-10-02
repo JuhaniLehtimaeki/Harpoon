@@ -209,6 +209,14 @@ void HarpoonController::checkAll()
     emit checkingChanged();
 }
 
+void HarpoonController::checkStale(int maxAgeMinutes)
+{
+    const QDateTime limit = QDateTime::currentDateTimeUtc().addSecs(-qint64(maxAgeMinutes) * 60);
+    for (const AppListModel::Entry &e : m_model.entries())
+        if (!e.busy && (!e.app.lastCheck.isValid() || e.app.lastCheck < limit))
+            check(e.app.id);
+}
+
 void HarpoonController::install(const QString &id, bool reinstall, bool downgrade)
 {
     const AppListModel::Entry *e = m_model.entry(id);
@@ -350,6 +358,8 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
         {QStringLiteral("receiptInstalledAt"), a.receipt.installedAt},
         {QStringLiteral("settings"), a.settings.values()},
         {QStringLiteral("busy"), e->busy},
+        {QStringLiteral("stage"), e->stage},
+        {QStringLiteral("progress"), e->progress},
     };
 }
 

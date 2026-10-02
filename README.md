@@ -16,8 +16,8 @@ desktop Linux. They cover:
 - RPM inspection;
 - installing through PackageKit or the system installation handler.
 
-They have not been tested on a device yet; see [docs/device-testing.md](docs/device-testing.md).
-There is no Sailfish UI yet.
+A Silica UI (`gui/`) sits on top of it. Nothing has been tested on a device yet; see
+[docs/device-testing.md](docs/device-testing.md).
 
 ## Using harpoon-cli (on the phone)
 ```sh
@@ -30,12 +30,13 @@ devel-su -p harpoon-cli upgrade                     # install every available up
 Run `harpoon-cli --help` for all commands.
 
 ## Building the core on desktop Linux
-The core needs Qt 5 (Core, Network, DBus, Test) and CMake. The tests also use `rpm`,
+The core needs Qt 5 (Core, Network, DBus, Test) and CMake. With Qt Quick installed
+(`qtdeclarative5-dev`), the QML smoke test also runs. The tests also use `rpm`,
 `rpmbuild` and `dbus-daemon` when they are available. The phone ships Qt 5.6, so the core
 code must use only Qt 5.6 APIs, even though desktop builds use newer Qt.
 
 ```sh
-sudo apt install qtbase5-dev cmake g++ rpm dbus     # Debian/Ubuntu
+sudo apt install qtbase5-dev qtdeclarative5-dev qml-module-qtquick2 cmake g++ rpm dbus   # Debian/Ubuntu
 cmake -S . -B build
 cmake --build build -j
 ctest --test-dir build --output-on-failure
@@ -43,7 +44,7 @@ ctest --test-dir build --output-on-failure
 
 ## Building for SailfishOS
 ```sh
-sfdk build      # uses rpm/harpoon.spec
+sfdk build      # uses rpm/harpoon.spec; builds the app (harpoon) and harpoon-cli
 ```
 
 ## Licence

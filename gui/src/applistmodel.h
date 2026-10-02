@@ -35,6 +35,7 @@ public:
         BusyRole,
         StageRole,
         ProgressRole,
+        HasUpdateRole,
     };
 
     struct Entry

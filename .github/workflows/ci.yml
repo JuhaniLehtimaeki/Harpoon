@@ -9,8 +9,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install Qt 5, rpm and dbus
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qtbase5-dev cmake g++ rpm dbus
+      - name: Install Qt 5, Qt Quick, rpm and dbus
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qtbase5-dev qtdeclarative5-dev qml-module-qtquick2 cmake g++ rpm dbus
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror -Wno-deprecated-declarations"
       - name: Build

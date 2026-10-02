@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=io.github.juhanilehtimaeki.harpoon
+Exec=/usr/bin/invoker --type=silica-qt5 --single-instance harpoon
