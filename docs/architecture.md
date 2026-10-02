@@ -12,6 +12,7 @@ Status: **Phases 1–2 implemented; awaiting device validation** (`docs/device-t
 | 2 | Distribution | **Chum** (maybe OpenRepos too). No Harbour build for now, but the installation-handler backend stays in the design. |
 | 3 | Android APKs via AppSupport | **Out of scope** |
 | 4 | Obtainium/ObtainX backup import | **Out of scope.** Harpoon has its own backup format. |
+| 5 | Licence | **GPL-3.0-or-later** |
 
 ## Goals (v1)
 - Add an app by pasting a forge URL: GitHub, Codeberg/Forgejo/Gitea, GitLab, SourceHut,
@@ -171,11 +172,10 @@ public:
 5. **Optional extras:** rpm-md repo source, attestation, Chum packaging.
 
 ## Open questions
-1. **Licence.** The project must pick one; GPL-3.0 is likely required, see Phase 2 status.
-2. **C++17 on the SDK targets.** The core uses `std::optional` and inline variables. The
+1. **C++17 on the SDK targets.** The core uses `std::optional` and inline variables. The
    SailfishOS SDK compiler should be GCC 8, which supports both, but no `sfdk build` has
    confirmed it yet. If it fails, those two features are easy to replace.
-3. Device tests on SailfishOS 5.x (steps in `docs/device-testing.md`):
+2. Device tests on SailfishOS 5.x (steps in `docs/device-testing.md`):
    - Does privileged `InstallFiles` respect the "untrusted software" setting?
    - Does `devel-su -p` give the CLI the `privileged` group PackageKit expects?
    - Does the installation handler accept calls from an unsandboxed terminal process?
@@ -256,6 +256,5 @@ Implemented and tested on desktop. Not yet validated on a device; see `docs/devi
 - A private `dbus-daemon` hosts the mock PackageKit and installation handler.
 - An end-to-end check-then-install runs through a fake rpm database.
 
-**Licence:** parts of the core are translated from ObtainX (GPL-3.0). That most likely makes
-Harpoon a derivative work, which must then be GPL-3.0. The project needs to choose and add a
-LICENSE; the spec's `License:` is provisional.
+**Licence:** GPL-3.0-or-later (decided Oct 2026). Parts of the core are translated from
+ObtainX, which is GPL-3.0.

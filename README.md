@@ -47,9 +47,8 @@ sfdk build      # uses rpm/harpoon.spec
 ```
 
 ## Licence
-Not decided yet. Parts of the core are ported from
-[ObtainX](https://github.com/bikram-agarwal/ObtainX), which is GPL-3.0, so Harpoon will most
-likely have to be GPL-3.0 as well.
+GPL-3.0-or-later, see [LICENSE](LICENSE). Parts of the core are ported from
+[ObtainX](https://github.com/bikram-agarwal/ObtainX) (GPL-3.0).
 
 ## Trying a real repository
 ```sh
