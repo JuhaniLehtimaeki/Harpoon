@@ -13,6 +13,7 @@
 #include "applistmodel.h"
 #include "harpooncontroller.h"
 #include "harpoondbus.h"
+#include "qrdecoder.h"
 
 #include <QQmlContext>
 #include <QQmlEngine>
@@ -69,6 +70,7 @@ void collect(QtMsgType type, const QMessageLogContext &, const QString &message)
 
 const QString kStubDir = QStringLiteral(HARPOON_STUB_DIR);
 const QString kQmlDir = QStringLiteral(HARPOON_QML_DIR);
+const QString kFixtureDir = QStringLiteral(HARPOON_GUI_FIXTURE_DIR);
 
 void registerStubs()
 {
@@ -90,8 +92,12 @@ void registerStubs()
     qmlRegisterUncreatableType<EnterKey>(silica, 1, 0, "EnterKey", QStringLiteral("attached only"));
     qmlRegisterType(QUrl::fromLocalFile(kStubDir + QStringLiteral("/Notification.qml")), "Nemo.Notifications", 1, 0,
                     "Notification");
-    qmlRegisterType(QUrl::fromLocalFile(kStubDir + QStringLiteral("/FilePickerPage.qml")), "Sailfish.Pickers", 1, 0,
-                    "FilePickerPage");
+    for (const char *picker : {"FilePickerPage", "ImagePickerPage"})
+        qmlRegisterType(QUrl::fromLocalFile(kStubDir + QLatin1Char('/') + QLatin1String(picker) + QStringLiteral(".qml")),
+                        "Sailfish.Pickers", 1, 0, picker);
+    for (const char *media : {"Camera", "VideoOutput"})
+        qmlRegisterType(QUrl::fromLocalFile(kStubDir + QLatin1Char('/') + QLatin1String(media) + QStringLiteral(".qml")),
+                        "QtMultimedia", 5, 0, media);
 
     // Same registrations as gui/src/harpoon.cpp.
     const char *uri = "harbour.harpoon";
@@ -145,6 +151,7 @@ class TestQmlSmoke : public QObject
     std::unique_ptr<BackgroundScheduler> m_scheduler;
     std::unique_ptr<HarpoonController> m_controller;
     HarpoonDBus m_dbus;
+    QrDecoder m_qrDecoder;
     std::unique_ptr<QQuickView> m_view;
 
     QVariant eval(const QString &js)
@@ -249,8 +256,13 @@ private slots:
         m_view.reset(new QQuickView);
         m_view->rootContext()->setContextProperty(QStringLiteral("harpoon"), m_controller.get());
         m_view->rootContext()->setContextProperty(QStringLiteral("harpoonDBus"), &m_dbus);
+        m_view->rootContext()->setContextProperty(QStringLiteral("qrDecoder"), &m_qrDecoder);
         m_view->setSource(QUrl::fromLocalFile(kQmlDir + QStringLiteral("/harpoon.qml")));
         QVERIFY2(m_view->status() == QQuickView::Ready, qPrintable(g_messages.join(QLatin1Char('\n'))));
+        // Shown and active, so the scan page's camera and grabToImage() run.
+        m_view->show();
+        m_view->requestActivate();
+        QVERIFY(QTest::qWaitForWindowExposed(m_view.get()));
     }
 
     void cleanupTestCase()
@@ -361,6 +373,106 @@ private slots:
         packageField->setProperty("text", QStringLiteral("harbour-thing"));
         expectClean("typing a package name");
         QVERIFY(dialog->property("canAccept").toBool());
+        popToList();
+    }
+
+    QObject *findByProperty(QObject *root, const char *name, const QString &value)
+    {
+        for (QObject *o : root->findChildren<QObject *>())
+            if (o->property(name).toString() == value)
+                return o;
+        return nullptr;
+    }
+
+    // The source id selected in the add dialog's "Source type" box.
+    QString chosenSource(QObject *dialog)
+    {
+        QObject *box = findByProperty(dialog, "label", QStringLiteral("Source type"));
+        const int index = box ? box->property("currentIndex").toInt() : -1;
+        if (index <= 0)
+            return QString();
+        return m_controller->sources().value(index - 1).toMap().value(QStringLiteral("id")).toString();
+    }
+
+    void scanQrCodeIntoAddDialog()
+    {
+        QObject *dialog = push(QStringLiteral("AddAppDialog.qml"));
+        expectClean("AddAppDialog");
+        QObject *scanButton = findByProperty(dialog, "text", QStringLiteral("Scan QR code"));
+        QVERIFY(scanButton);
+        QVERIFY(QMetaObject::invokeMethod(scanButton, "clicked"));
+        expectClean("opening the scanner");
+        QObject *scanPage = currentPage();
+        QCOMPARE(scanPage->objectName(), QStringLiteral("scanPage"));
+        QVERIFY(scanPage->property("_scanning").toBool());
+
+        QObject *viewfinder = nullptr;
+        for (QObject *o : scanPage->findChildren<QObject *>())
+            if (o->property("testImage").isValid())
+                viewfinder = o;
+        QVERIFY(viewfinder);
+
+        // Not an app link: the scanner says so and keeps looking.
+        viewfinder->setProperty("testImage", QUrl::fromLocalFile(kFixtureDir + QStringLiteral("/qr/javascript.png")));
+        QTRY_VERIFY_WITH_TIMEOUT(!scanPage->property("_message").toString().isEmpty(), 10000);
+        QCOMPARE(currentPage(), scanPage);
+        expectClean("an unusable QR code");
+
+        // A harpoon:// link from the viewfinder fills in the dialog.
+        viewfinder->setProperty("testImage", QUrl::fromLocalFile(kFixtureDir + QStringLiteral("/qr/harpoon-link.png")));
+        QTRY_COMPARE_WITH_TIMEOUT(currentPage(), dialog, 10000);
+        expectClean("a scanned link");
+        QObject *urlField = findByProperty(dialog, "label", QStringLiteral("Repository URL"));
+        QCOMPARE(urlField->property("text").toString(), QStringLiteral("https://git.example.org/me/harbour-tides"));
+        QCOMPARE(chosenSource(dialog), QStringLiteral("Forgejo"));
+        QVERIFY(dialog->property("canAccept").toBool());
+
+        // Reading a code from a saved image goes through the image picker.
+        QVERIFY(QMetaObject::invokeMethod(findByProperty(dialog, "text", QStringLiteral("Scan QR code")), "clicked"));
+        scanPage = currentPage();
+        QVERIFY(QMetaObject::invokeMethod(findByProperty(scanPage, "text", QStringLiteral("Read from image")), "clicked"));
+        expectClean("opening the image picker");
+        QObject *picker = currentPage();
+        QVERIFY(picker && picker != scanPage);
+        picker->setProperty("selectedContentProperties",
+                            QVariantMap{{QStringLiteral("filePath"), kFixtureDir + QStringLiteral("/qr/no-code.png")}});
+        expectClean("an image without a code");
+        QCOMPARE(scanPage->property("_message").toString(), QStringLiteral("No QR code found in the image"));
+        picker->setProperty("selectedContentProperties",
+                            QVariantMap{{QStringLiteral("filePath"), kFixtureDir + QStringLiteral("/qr/repo-url.png")}});
+        expectClean("an image with a code");
+        QCOMPARE(currentPage(), dialog);
+        QCOMPARE(urlField->property("text").toString(),
+                 QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui"));
+        QCOMPARE(chosenSource(dialog), QString());
+        popToList();
+        expectClean("leaving the dialog");
+    }
+
+    void addLinkOverDBus()
+    {
+        m_dbus.openUrl({QStringLiteral("harpoon://add?url=https%3A%2F%2Frepo.example.org%2Fobs%2Fsfos&source=RpmMdRepo"
+                                       "&package=harbour-tides")});
+        expectClean("openUrl over D-Bus");
+        QObject *dialog = currentPage();
+        QCOMPARE(dialog->property("initialUrl").toString(), QStringLiteral("https://repo.example.org/obs/sfos"));
+        QCOMPARE(chosenSource(dialog), QStringLiteral("RpmMdRepo"));
+        QCOMPARE(findByProperty(dialog, "label", QStringLiteral("Package name in the repository"))->property("text").toString(),
+                 QStringLiteral("harbour-tides"));
+        QVERIFY(dialog->property("canAccept").toBool());
+
+        // A bad link shows a banner and leaves the pages alone.
+        QObject *banner = nullptr;
+        for (QObject *o : m_view->rootObject()->findChildren<QObject *>(QString(), Qt::FindDirectChildrenOnly))
+            if (o->property("publishCount").isValid())
+                banner = o;
+        QVERIFY(banner);
+        const int published = banner->property("publishCount").toInt();
+        m_dbus.openUrl({QStringLiteral("harpoon://add?url=javascript%3Aalert(1)")});
+        expectClean("a bad link over D-Bus");
+        QCOMPARE(banner->property("publishCount").toInt(), published + 1);
+        QVERIFY(banner->property("previewSummary").toString().startsWith(QLatin1String("Cannot add app")));
+        QCOMPARE(currentPage(), dialog);
         popToList();
     }
 

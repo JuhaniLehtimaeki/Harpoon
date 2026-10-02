@@ -13,13 +13,15 @@ find_package(Qt5 5.6 QUIET COMPONENTS Quick Qml)
 if(Qt5Quick_FOUND)
     add_executable(tst_qmlsmoke tst_qmlsmoke.cpp)
     target_include_directories(tst_qmlsmoke PRIVATE ${CORE_TESTS_DIR})
-    target_link_libraries(tst_qmlsmoke PRIVATE harpoon-ui Qt5::Quick Qt5::Qml Qt5::Test)
+    target_link_libraries(tst_qmlsmoke PRIVATE harpoon-ui harpoon-qr Qt5::Quick Qt5::Qml Qt5::Test)
     target_compile_definitions(tst_qmlsmoke PRIVATE
         HARPOON_FIXTURE_DIR="${CORE_TESTS_DIR}/fixtures"
+        HARPOON_GUI_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
         HARPOON_STUB_DIR="${CMAKE_CURRENT_SOURCE_DIR}/silica-stub"
         HARPOON_QML_DIR="${CMAKE_SOURCE_DIR}/gui/qml")
     add_test(NAME tst_qmlsmoke COMMAND tst_qmlsmoke)
-    set_tests_properties(tst_qmlsmoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    # The software renderer, so grabToImage() works without OpenGL.
+    set_tests_properties(tst_qmlsmoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
 endif()
 
 # Compile (not run) the real entry point against a stand-in sailfishapp.h.

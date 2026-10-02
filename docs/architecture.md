@@ -381,6 +381,25 @@ file, tokens included.
   - `rpm/_service.example`, `rpm/harpoon.changes` and `docs/packaging.md`.
   - A full `rpmbuild` from a tarball was tested on desktop with a stand-in libsailfishapp.
 
+## Adding apps by QR code
+- **Links** (`core/src/app/addlink`): the scanner accepts a plain `http(s)` repository URL, or
+  `harpoon://add?url=...&source=...&package=...`. The source and package values are checked
+  against strict patterns, and a link can only prefill the add dialog. The user confirms, and
+  nothing is installed. See `docs/add-to-harpoon.md`.
+- **Decoding** (`gui/qr`): zxing-cpp v2.2.1 is vendored in `3rdparty/` (Apache-2.0, readers
+  only, linked statically). Chum's OBS builds offline and SailfishOS has no zxing package.
+  `QrDecoder::scan()` decodes in a worker thread so the viewfinder stays smooth.
+- **Camera** (`ScanPage.qml`): a QtMultimedia `Camera` and `VideoOutput`. Every 400 ms the
+  viewfinder is grabbed with `grabToImage()` and the frame is decoded. The camera runs only
+  while the page is active and the app is in the foreground. **Read from image** decodes a
+  saved screenshot instead.
+- **Scheme handler:** `harpoon.desktop` declares `x-scheme-handler/harpoon` and routes it to
+  the D-Bus method `openUrl`. A `harpoon:` argument on the command line works too.
+- **CLI:** `harpoon-cli link URL [--source] [--package]` prints a link, and `add` accepts one.
+- **Tests:** `tst_qr` decodes generated codes (including a large colour frame and an inverted
+  code). The QML smoke test drives the real scan page: a stand-in viewfinder shows a QR image,
+  and the grab-decode-parse path fills in the add dialog.
+
 ## Review fixes (Oct 2026)
 An independent review found these problems; all are fixed and covered by tests.
 - **Token scope:** tokens are scoped per host (`GitHub`, or `Forgejo@git.example.org` for

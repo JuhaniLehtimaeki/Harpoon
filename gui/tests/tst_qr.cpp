@@ -47,6 +47,28 @@ private slots:
         QCOMPARE(decoder.decodeFile(fixture("repo-url.png")), QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui"));
     }
 
+    void scansInTheBackground()
+    {
+        QrDecoder decoder;
+        QSignalSpy scanned(&decoder, &QrDecoder::scanned);
+        QVERIFY(!decoder.scan(QVariant()));
+        QVERIFY(decoder.scan(QVariant::fromValue(QImage(fixture("harpoon-link.png")))));
+        QVERIFY(decoder.busy());
+        QVERIFY(!decoder.scan(QVariant::fromValue(QImage(fixture("repo-url.png"))))); // one at a time
+        QVERIFY(scanned.wait(5000));
+        QVERIFY(!decoder.busy());
+        QVERIFY(scanned.first().first().toString().startsWith(QLatin1String("harpoon://add?url=")));
+
+        QVERIFY(decoder.scan(QVariant::fromValue(QImage(fixture("no-code.png")))));
+        QVERIFY(scanned.wait(5000));
+        QVERIFY(scanned.last().first().toString().isEmpty());
+
+        // Destroying the decoder mid-scan waits for the worker.
+        auto *doomed = new QrDecoder;
+        QVERIFY(doomed->scan(QVariant::fromValue(QImage(fixture("repo-url.png")))));
+        delete doomed;
+    }
+
     void parsesLinks()
     {
         auto link = parseAddLink(QStringLiteral(" https://github.com/owner/repo "));

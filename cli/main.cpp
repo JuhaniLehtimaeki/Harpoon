@@ -4,6 +4,7 @@
 //   devel-su -p harpoon-cli install <app>
 // Everything else runs as the normal user.
 
+#include "app/addlink.h"
 #include "app/appchecker.h"
 #include "app/appinstaller.h"
 #include "app/appstore.h"
@@ -50,6 +51,10 @@ const char *kUsage =
     "  add <url> [--source ID] [--set key=value]... [--force]\n"
     "                         Track an app. --source forces a forge type (Forgejo, GitHub)\n"
     "                         for self-hosted servers. --force saves even if the first check fails.\n"
+    "                         <url> may also be a harpoon://add link.\n"
+    "  link <url> [--source ID] [--package NAME]\n"
+    "                         Print the harpoon://add link for a repository, to publish as a QR\n"
+    "                         code (e.g. qrencode -o harpoon-qr.png \"$(harpoon-cli link URL)\").\n"
     "  list                   Show tracked apps and their update state.\n"
     "  show <app>             Show details and the latest changelog.\n"
     "  check [app]... [--notify] [--quiet]\n"
@@ -68,11 +73,11 @@ const char *kUsage =
     "                         Add the apps from a backup (already tracked ones are skipped).\n"
     "  background on|off [--hours N]\n"
     "                         Enable or disable the periodic background check.\n"
-    "\n"
-    "<app> is an app id (RPM name) or a unique name.\n"
     "  token <source>[@host] [value]\n"
     "                         Store an API token (empty value removes it), e.g. token GitHub ghp_...\n"
     "                         or token Forgejo@git.example.org abc for a self-hosted server.\n"
+    "\n"
+    "<app> is an app id (RPM name) or a unique name.\n"
     "\n"
     "Tokens come from the app's settings; HARPOON_TOKEN_<SOURCE> (e.g. HARPOON_TOKEN_GITHUB) overrides\n"
     "the token for a source's default host.\n"
@@ -149,10 +154,13 @@ public:
         }
         const QString command = argv.first();
         const Args args = parseArgs(argv.mid(1), {QStringLiteral("--source"), QStringLiteral("--set"),
-                                                  QStringLiteral("--backend"), QStringLiteral("--hours")});
+                                                  QStringLiteral("--backend"), QStringLiteral("--hours"),
+                                                  QStringLiteral("--package")});
         int rc;
         if (command == QLatin1String("add"))
             rc = add(args);
+        else if (command == QLatin1String("link"))
+            rc = link(args);
         else if (command == QLatin1String("list"))
             rc = list();
         else if (command == QLatin1String("show"))
@@ -279,14 +287,20 @@ private:
     {
         if (args.positional.size() != 1)
             return fail(QStringLiteral("add takes exactly one URL"));
-        const auto match = m_registry.match(args.positional.first(), args.value("--source"));
+        const auto link = parseAddLink(args.positional.first());
+        if (!link.ok())
+            return fail(link.error.message);
+        const QString sourceId = args.has("--source") ? args.value("--source") : link.value.sourceId;
+        const auto match = m_registry.match(link.value.url, sourceId);
         if (!match.ok())
             return fail(match.error.message);
         for (const App &existing : m_store.loadAll())
             if (existing.url.compare(match.value.standardUrl, Qt::CaseInsensitive) == 0)
                 return fail(QStringLiteral("Already tracked as %1").arg(existing.id));
 
-        App app = App::fromUrl(match.value.standardUrl, args.value("--source"));
+        App app = App::fromUrl(match.value.standardUrl, sourceId);
+        if (!link.value.packageName.isEmpty())
+            app.settings.set(Keys::packageName, link.value.packageName);
         const Error bad = applySettings(app, args.values("--set"));
         if (!bad.ok())
             return fail(bad.message);
@@ -303,6 +317,28 @@ private:
         printStatusLine(app);
         for (const Asset &a : app.latestAssets)
             out() << "    package: " << a.name << "\n";
+        return 0;
+    }
+
+    int link(const Args &args)
+    {
+        if (args.positional.size() != 1)
+            return fail(QStringLiteral("link takes exactly one URL"));
+        AddLink link;
+        link.url = args.positional.first().trimmed();
+        link.sourceId = args.value("--source");
+        link.packageName = args.value("--package");
+        // Only hand out links Harpoon can read back and follow.
+        const auto parsed = parseAddLink(link.toString());
+        if (!parsed.ok())
+            return fail(parsed.error.message);
+        const auto match = m_registry.match(link.url, link.sourceId);
+        if (!match.ok())
+            return fail(match.error.message);
+        if (match.value.source->id() == QLatin1String("RpmMdRepo") && link.packageName.isEmpty())
+            return fail(QStringLiteral("An RPM repository link needs --package NAME"));
+        link.url = match.value.standardUrl;
+        out() << link.toString() << "\n";
         return 0;
     }
 

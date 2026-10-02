@@ -4,6 +4,11 @@ import Sailfish.Silica 1.0
 Dialog {
     id: dialog
 
+    // Prefilled from a scanned QR code or a harpoon://add link.
+    property string initialUrl
+    property string initialSourceId
+    property string initialPackage
+
     // Source forced for self-hosted forges; empty means "by host".
     readonly property string _sourceId: sourceBox.currentIndex > 0
                                         ? harpoon.sources[sourceBox.currentIndex - 1].id : ""
@@ -12,6 +17,33 @@ Dialog {
 
     readonly property bool _needsPackageName: _inspected.sourceId === "RpmMdRepo"
                                               && urlField.text.indexOf("package=") < 0
+
+    // Fills the form from harpoon.parseAddLink() output.
+    function applyLink(link) {
+        urlField.text = link.url
+        var index = 0
+        for (var i = 0; i < harpoon.sources.length; ++i) {
+            if (harpoon.sources[i].id === link.sourceId) {
+                index = i + 1
+            }
+        }
+        sourceBox.currentIndex = index
+        packageField.text = link.packageName || ""
+    }
+
+    function _scan() {
+        var scanPage = pageStack.push(Qt.resolvedUrl("ScanPage.qml"))
+        scanPage.linkFound.connect(function(link) {
+            dialog.applyLink(link)
+            pageStack.pop(dialog)
+        })
+    }
+
+    Component.onCompleted: {
+        if (initialUrl.length > 0) {
+            applyLink({ url: initialUrl, sourceId: initialSourceId, packageName: initialPackage })
+        }
+    }
 
     allowedOrientations: Orientation.All
     canAccept: _inspected.ok === true && (!_needsPackageName || packageField.text.trim().length > 0)
@@ -70,6 +102,12 @@ Dialog {
                       ? qsTr("For example https://github.com/owner/repo or https://codeberg.org/owner/repo")
                       : _inspected.ok ? qsTr("%1: %2").arg(_inspected.sourceName).arg(_inspected.standardUrl)
                                       : _inspected.error
+            }
+
+            Button {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("Scan QR code")
+                onClicked: dialog._scan()
             }
 
             ComboBox {

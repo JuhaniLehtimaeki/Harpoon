@@ -1,5 +1,6 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
+import "components"
 import "pages"
 
 ApplicationWindow {
@@ -10,6 +11,22 @@ ApplicationWindow {
         pageStack.pop(pageStack.find(function(page) { return page.objectName === "appListPage" }),
                       PageStackAction.Immediate)
         pageStack.push(Qt.resolvedUrl("pages/AppPage.qml"), { appId: appId })
+    }
+
+    // Opens the add dialog for a harpoon://add link or repository URL.
+    function openAddLink(text) {
+        var link = harpoon.parseAddLink(text)
+        if (!link.ok) {
+            linkBanner.show(qsTr("Cannot add app: %1").arg(link.error))
+            return
+        }
+        pageStack.pop(pageStack.find(function(page) { return page.objectName === "appListPage" }),
+                      PageStackAction.Immediate)
+        pageStack.push(Qt.resolvedUrl("pages/AddAppDialog.qml"), {
+                           initialUrl: link.url,
+                           initialSourceId: link.sourceId,
+                           initialPackage: link.packageName
+                       })
     }
 
     initialPage: Component { AppListPage { } }
@@ -23,7 +40,10 @@ ApplicationWindow {
             return page.objectName === "appListPage"
         }), PageStackAction.Immediate)
         onShowAppRequested: window.showApp(id)
+        onAddLinkRequested: window.openAddLink(link)
     }
+
+    Banner { id: linkBanner }
 
     Connections {
         target: harpoon

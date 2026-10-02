@@ -5,6 +5,7 @@ assets on GitHub, Codeberg/Forgejo/Gitea, GitLab and other sources, and installs
 from the source.
 
 - Design: [docs/architecture.md](docs/architecture.md)
+- App developers: [let users add your app with a QR code](docs/add-to-harpoon.md)
 - Research: [docs/research](docs/research)
 
 ## Status
@@ -21,7 +22,7 @@ A Silica UI (`gui/`) sits on top of it. Nothing has been tested on a device yet;
 
 ## Using harpoon-cli (on the phone)
 ```sh
-harpoon-cli add https://github.com/owner/repo      # track an app
+harpoon-cli add https://github.com/owner/repo      # track an app (or a harpoon://add link)
 harpoon-cli list                                    # installed vs latest
 harpoon-cli check                                   # check all apps for updates
 devel-su -p harpoon-cli install <app>               # install; needs the privileged group

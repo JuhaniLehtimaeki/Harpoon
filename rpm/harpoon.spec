@@ -4,12 +4,15 @@ Summary:    Install and update apps from GitHub, Codeberg and other forges
 Version:    0.1.0
 Release:    1
 # Parts of the core are ported from ObtainX (GPL-3.0).
-License:    GPLv3+
+# zxing-cpp (3rdparty/, Apache-2.0) is linked into the app.
+License:    GPLv3+ and ASL 2.0
 URL:        https://github.com/JuhaniLehtimaeki/Harpoon
 Source0:    %{name}-%{version}.tar.bz2
 Group:      Software Management/Package Manager
 Requires:   sailfishsilica-qt5 >= 0.10.9
 Requires:   nemo-qml-plugin-notifications-qt5
+# QtMultimedia QML import for the QR code scanner's camera.
+Requires:   qt5-qtdeclarative-import-multimedia
 Requires:   rpm
 Requires:   PackageKit
 Requires:   systemd
@@ -17,6 +20,7 @@ BuildRequires:  cmake
 BuildRequires:  pkgconfig(sailfishapp) >= 1.0.2
 BuildRequires:  pkgconfig(Qt5Core)
 BuildRequires:  pkgconfig(Qt5Network)
+BuildRequires:  pkgconfig(Qt5Gui)
 BuildRequires:  pkgconfig(Qt5DBus)
 BuildRequires:  pkgconfig(Qt5Qml)
 BuildRequires:  pkgconfig(Qt5Quick)
@@ -55,6 +59,7 @@ Links:
 %endif
 
 %build
+cp 3rdparty/zxing-cpp/LICENSE LICENSE.zxing-cpp
 mkdir -p build
 cd build
 cmake .. \
@@ -73,7 +78,7 @@ desktop-file-install --delete-original \
 
 %files
 %defattr(-,root,root,-)
-%license LICENSE
+%license LICENSE LICENSE.zxing-cpp
 %{_bindir}/harpoon
 %{_bindir}/harpoon-cli
 %{_datadir}/harpoon

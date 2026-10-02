@@ -15,7 +15,8 @@ sfdk build
 ```
 
 **Report:** whether the build succeeds. The core is C++17 (`std::optional`, inline
-variables). If the target compiler refuses it, paste the first error.
+variables), and so is the vendored zxing-cpp QR decoder. If the target compiler refuses
+either, paste the first error.
 
 Copy the RPM from `RPMS/` to the phone and install it there:
 
@@ -86,10 +87,24 @@ app runs without a sandbox.
 4. Minimise the app. The cover should show the number of updates; the refresh action runs a
    check.
 5. Switch between a light and a dark ambience and check that all text stays readable.
+6. **QR codes.** On a computer, make a code with
+   `qrencode -t ANSIUTF8 "https://github.com/sailfishos-chum/sailfishos-chum-gui"`. Then in
+   Harpoon, pull down → **Add app** → **Scan QR code** and point the camera at it. The
+   dialog should fill in the URL within about a second. Check that:
+   - the viewfinder shows a live, correctly rotated picture. The scanner grabs frames from
+     `VideoOutput`; if they come out black on the device, nothing will ever be found, so
+     report it;
+   - the camera turns off when you leave the page or minimise the app;
+   - **Read from image** works with a screenshot of a code.
+7. **Links.** Open `harpoon://add?url=https%3A%2F%2Fcodeberg.org%2Fsomeone%2Fthing`, for example
+   by tapping it in a note or on a web page, or with `xdg-open` if it is installed. Harpoon
+   should open with the add dialog filled in. Also try scanning that link with the system
+   camera app's code reader.
 
 **Report:** anything that looks wrong or un-Sailfish-like, any QML errors from
 `devel-su journalctl -fa | grep -i harpoon`, and whether installing from the app works without
-`devel-su -p`. That last one tests the privileges.d entry.
+`devel-su -p`. That last one tests the privileges.d entry. For QR codes, report whether the
+scanner found codes and whether `harpoon:` links open Harpoon.
 
 ## Where things live
 

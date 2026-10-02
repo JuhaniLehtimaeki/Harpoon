@@ -2,7 +2,39 @@
 
 #include <ReadBarcode.h>
 
+#include <QRunnable>
+
 namespace Harpoon {
+
+namespace {
+
+class ScanJob : public QRunnable
+{
+public:
+    ScanJob(QrDecoder *decoder, const QImage &image) : m_decoder(decoder), m_image(image) {}
+    void run() override
+    {
+        // The decoder waits for this job before it is destroyed.
+        QMetaObject::invokeMethod(m_decoder, "finishScan", Qt::QueuedConnection,
+                                  Q_ARG(QString, QrDecoder::decode(m_image)));
+    }
+
+private:
+    QrDecoder *m_decoder;
+    QImage m_image;
+};
+
+} // namespace
+
+QrDecoder::QrDecoder(QObject *parent) : QObject(parent)
+{
+    m_pool.setMaxThreadCount(1);
+}
+
+QrDecoder::~QrDecoder()
+{
+    m_pool.waitForDone();
+}
 
 QString QrDecoder::decode(const QImage &image)
 {
@@ -35,6 +67,24 @@ QString QrDecoder::decodeImage(const QVariant &image) const
 QString QrDecoder::decodeFile(const QString &path) const
 {
     return decode(QImage(path));
+}
+
+bool QrDecoder::scan(const QVariant &image)
+{
+    const QImage frame = image.value<QImage>();
+    if (m_busy || frame.isNull())
+        return false;
+    m_busy = true;
+    emit busyChanged();
+    m_pool.start(new ScanJob(this, frame));
+    return true;
+}
+
+void QrDecoder::finishScan(const QString &text)
+{
+    m_busy = false;
+    emit busyChanged();
+    emit scanned(text);
 }
 
 } // namespace Harpoon
