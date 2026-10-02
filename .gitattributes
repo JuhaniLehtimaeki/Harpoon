@@ -1,0 +1,2 @@
+# rpmbuild, bash and the phone's shell all refuse CRLF. Keep every checkout LF, Windows ones too.
+* text=auto eol=lf
