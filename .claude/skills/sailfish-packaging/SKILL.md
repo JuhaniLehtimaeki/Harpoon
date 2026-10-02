@@ -29,6 +29,18 @@ Read the relevant section before changing install or packaging code.
   - The service runs `harbour-harpoon --check`, which is headless.
   - It posts a `Nemo.Notifications` notification whose remote action opens the app over D-Bus.
 
+## Where the code is
+- `core/src/pkg/packagekitbackend.*`: PackageKit D-Bus calls, the error-code mapping and the
+  transaction queue.
+- `core/src/pkg/installhandlerbackend.*`: the installation-handler fallback.
+- `core/src/pkg/rpminspector.*`: `rpm -qp` / `rpm -q` parsing.
+- `core/src/app/appinstaller.*`: the pre-install checks listed below.
+- `rpm/harpoon.spec`: the package. For now it only ships `harpoon-cli`; the GUI, desktop file
+  and privileges.d entry are still to come.
+- Tests: `core/tests/tst_packagebackends.cpp` (mock PackageKit and handler on a private
+  dbus-daemon) and `core/tests/tst_appinstaller.cpp` (end to end with real RPMs).
+- Device validation steps: `docs/device-testing.md`.
+
 ## Installing other RPMs
 
 ### Default backend: `PackageKitBackend`

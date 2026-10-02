@@ -21,6 +21,18 @@ struct Error
         NoAsset,         // no release had a matching package
         NoVersion,       // version extraction produced nothing
         InvalidSetting,  // e.g. a regex setting does not compile
+        Download,        // download failed or was incomplete
+        Checksum,        // downloaded file does not match the published sha256
+        Package,         // rpm could not read a package or the database
+        WrongArch,       // package is for another architecture
+        IdChanged,       // package name differs from the tracked app id
+        AlreadyInstalled,// same EVR installed; needs allowReinstall
+        Downgrade,       // older EVR than installed; needs allowDowngrade
+        Install,         // the package manager reported a failure
+        NotAuthorized,   // the package manager refused the caller
+        Cancelled,
+        Busy,            // another operation is running
+        Storage,         // app records could not be read or written
     };
 
     Kind kind = None;

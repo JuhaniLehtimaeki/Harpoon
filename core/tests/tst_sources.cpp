@@ -50,6 +50,8 @@ private slots:
                                   << "Forgejo" << "https://codeberg.org/fishdev/harbour-tides";
         QTest::newRow("self-hosted forgejo") << "https://git.example.net/me/app/src/branch/main" << "Forgejo"
                                              << "Forgejo" << "https://git.example.net/me/app";
+        QTest::newRow("gitea with port") << "http://192.168.1.5:3000/me/app/releases" << "Forgejo"
+                                         << "Forgejo" << "http://192.168.1.5:3000/me/app";
         QTest::newRow("github enterprise") << "https://ghe.corp.example/team/tool" << "GitHub"
                                            << "GitHub" << "https://ghe.corp.example/team/tool";
     }

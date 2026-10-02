@@ -3,7 +3,7 @@
 Harpoon is an Obtainium-style updater for SailfishOS. It tracks apps published as RPM
 release assets on code forges, then downloads and installs them.
 
-Status: **Phase 1 in progress.** This builds on the research in `docs/research/01-03`.
+Status: **Phases 1–2 implemented; awaiting device validation** (`docs/device-testing.md`). This builds on the research in `docs/research/01-03`.
 
 ## Decisions (Oct 2026)
 | # | Question | Decision |
@@ -162,21 +162,24 @@ public:
 1. **Core skeleton:** models, HttpClient, GitHub + Forgejo sources, ReleaseSelector,
    AssetFilter, VersionCompare, and unit tests on desktop with recorded JSON fixtures.
 2. **Package layer:** RpmInspector, DeviceInfo, PackageKitBackend. Then an end-to-end CLI:
-   `harpoon add <url>`, `harpoon check`, `harpoon install <id>`. Validate on a device
-   (privileges.d + PackageKit).
+   `harpoon-cli add <url>`, `check`, `install <id>`. Validate on a device
+   (`devel-su -p` for now; privileges.d once the GUI exists).
 3. **Silica UI:** app list, add-app page with settings form, app details/changelog, settings,
    and notifications.
 4. **More sources:** GitLab, SourceHut, SourceForge, Jenkins, HTML/Direct. Background
    timer, Harpoon backup export/import.
-5. **Optional extras:** rpm-md repo source, InstallHandler fallback, attestation, Chum packaging.
+5. **Optional extras:** rpm-md repo source, attestation, Chum packaging.
 
 ## Open questions
-1. **C++17 on the SDK targets.** The core uses `std::optional` and inline variables. The
+1. **Licence.** The project must pick one; GPL-3.0 is likely required, see Phase 2 status.
+2. **C++17 on the SDK targets.** The core uses `std::optional` and inline variables. The
    SailfishOS SDK compiler should be GCC 8, which supports both, but no `sfdk build` has
    confirmed it yet. If it fails, those two features are easy to replace.
-2. Device tests on SailfishOS 5.x:
+3. Device tests on SailfishOS 5.x (steps in `docs/device-testing.md`):
    - Does privileged `InstallFiles` respect the "untrusted software" setting?
-   - Does the `Sandboxing=Disabled` warning prompt appear?
+   - Does `devel-su -p` give the CLI the `privileged` group PackageKit expects?
+   - Does the installation handler accept calls from an unsandboxed terminal process?
+   - Does the `Sandboxing=Disabled` warning prompt appear (GUI phase)?
 
 ## Phase 1 status
 Implemented in `core/src`, built with CMake, tests in `core/tests`:
@@ -203,3 +206,56 @@ Implemented in `core/src`, built with CMake, tests in `core/tests`:
 Not yet in Phase 1:
 - `verifyLatestTag`, release-title-as-version for GitHub's commit SHA, and attestation.
 - Pagination beyond 100 releases (same as upstream).
+
+## Phase 2 status
+Implemented and tested on desktop. Not yet validated on a device; see `docs/device-testing.md`.
+
+**Package layer** (`core/src/pkg/`):
+- `RpmInspector` uses `rpm -qp` / `rpm -q` behind a `ProcessRunner`, so tests can fake it.
+- `PackageKitBackend` talks to PackageKit over D-Bus:
+  - Install: `CreateTransaction` then `InstallFiles` (with reinstall and downgrade flags).
+  - Remove: `Resolve` with the installed filter, then `RemovePackages`.
+  - Error codes map to Harpoon error kinds, transactions run one at a time, and there is a
+    timeout.
+- `InstallHandlerBackend` uses `org.sailfishos.installationhandler`:
+  - `installFiles` with `file://` URLs, answered by the `installFinished` signal.
+  - `removePackages`, answered by the `removalFinished` signal.
+
+**Downloader** (`net/downloader`):
+- Streams to a `.part` file.
+- Resumes with Range requests and restarts if the server answers 200, 416 or a mismatched range.
+- Checks size and sha256, reuses a download that already verifies, and keeps the `.part` when
+  a transfer is interrupted.
+
+**Apps** (`core/src/app/`):
+- `App` record and `AppStore`: one JSON file per app, with atomic writes and safe file names.
+- `updateStatusFor`:
+  - Compares the RPM VERSION (and VERSION-RELEASE) with the forge version.
+  - Falls back to the install receipt for pseudo-versions such as dates.
+  - Handles track-only apps.
+- `AppChecker`: concurrent update checks that write the result into the record.
+- `AppInstaller`, in order:
+  1. Download and verify.
+  2. Read the RPMs and check the arch.
+  3. Pick the main package (the temporary id becomes the RPM name).
+  4. Guard against id changes, downgrades and reinstalls, and warn about vendor changes.
+  5. Install everything in one transaction.
+  6. Confirm the result with rpm, record the receipt and clean up.
+
+**CLI** (`cli/`):
+- `harpoon-cli` with `add`, `list`, `show`, `check`, `install`, `upgrade`, `set`, `ack` and
+  `remove`.
+
+**Packaging:**
+- `rpm/harpoon.spec` builds and installs `harpoon-cli`.
+
+**Tests** cover 12 suites:
+- `rpmbuild` produces real RPMs, including cross-arch ones.
+- A local HTTP server plays the forge and the download host, with Range support and dropped
+  connections.
+- A private `dbus-daemon` hosts the mock PackageKit and installation handler.
+- An end-to-end check-then-install runs through a fake rpm database.
+
+**Licence:** parts of the core are translated from ObtainX (GPL-3.0). That most likely makes
+Harpoon a derivative work, which must then be GPL-3.0. The project needs to choose and add a
+LICENSE; the spec's `License:` is provisional.

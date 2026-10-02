@@ -8,19 +8,48 @@ from the source.
 - Research: [docs/research](docs/research)
 
 ## Status
-Phase 1 is the core library: forge sources, release and asset selection, and version
-comparison. There is no Sailfish UI or installer yet.
+The core library and the `harpoon-cli` command-line tool are implemented and tested on
+desktop Linux. They cover:
+- forge sources;
+- release and asset selection;
+- downloading;
+- RPM inspection;
+- installing through PackageKit or the system installation handler.
+
+They have not been tested on a device yet; see [docs/device-testing.md](docs/device-testing.md).
+There is no Sailfish UI yet.
+
+## Using harpoon-cli (on the phone)
+```sh
+harpoon-cli add https://github.com/owner/repo      # track an app
+harpoon-cli list                                    # installed vs latest
+harpoon-cli check                                   # check all apps for updates
+devel-su -p harpoon-cli install <app>               # install; needs the privileged group
+devel-su -p harpoon-cli upgrade                     # install every available update
+```
+Run `harpoon-cli --help` for all commands.
 
 ## Building the core on desktop Linux
-The core needs Qt 5 (Core, Network, Test) and CMake. The phone ships Qt 5.6, so the core
+The core needs Qt 5 (Core, Network, DBus, Test) and CMake. The tests also use `rpm`,
+`rpmbuild` and `dbus-daemon` when they are available. The phone ships Qt 5.6, so the core
 code must use only Qt 5.6 APIs, even though desktop builds use newer Qt.
 
 ```sh
-sudo apt install qtbase5-dev cmake g++     # Debian/Ubuntu
+sudo apt install qtbase5-dev cmake g++ rpm dbus     # Debian/Ubuntu
 cmake -S . -B build
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
+
+## Building for SailfishOS
+```sh
+sfdk build      # uses rpm/harpoon.spec
+```
+
+## Licence
+Not decided yet. Parts of the core are ported from
+[ObtainX](https://github.com/bikram-agarwal/ObtainX), which is GPL-3.0, so Harpoon will most
+likely have to be GPL-3.0 as well.
 
 ## Trying a real repository
 ```sh

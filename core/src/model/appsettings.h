@@ -16,6 +16,8 @@ inline const char *filterReleaseNotesByRegEx = "filterReleaseNotesByRegEx";
 inline const char *sortMethodChoice = "sortMethodChoice";   // date|smartname|smartname-datefallback|name|none
 inline const char *useLatestAssetDateAsReleaseDate = "useLatestAssetDateAsReleaseDate";
 inline const char *trackOnly = "trackOnly";
+// Installation
+inline const char *allowIdChange = "allowIdChange";         // accept a different RPM name than the tracked id
 // Version string
 inline const char *versionSource = "versionSource";         // tag|title|assetName|date
 inline const char *versionExtractionRegEx = "versionExtractionRegEx";

@@ -54,7 +54,11 @@ Result<SourceMatch> SourceRegistry::match(const QString &rawUrl, const QString &
         QString bareHost = host;
         if (bareHost.startsWith(QLatin1String("www.")))
             bareHost = bareHost.mid(4);
-        if (!source->defaultHosts().contains(bareHost))
+        // Keep a non-default port: self-hosted forges often run on :3000 etc.
+        const int port = QUrl(url).port();
+        if (port > 0)
+            source->setCustomHost(bareHost + QLatin1Char(':') + QString::number(port));
+        else if (!source->defaultHosts().contains(bareHost))
             source->setCustomHost(bareHost);
     } else {
         for (size_t i = 0; i < m_templates.size() && !source; ++i) {

@@ -12,6 +12,8 @@ add_library(harpoon-core STATIC
     src/net/httptransport.h
     src/net/networktransport.h
     src/net/networktransport.cpp
+    src/net/downloader.h
+    src/net/downloader.cpp
     src/net/ratelimit.h
     src/net/ratelimit.cpp
     src/sources/source.h
@@ -30,8 +32,27 @@ add_library(harpoon-core STATIC
     src/pipeline/releaseselector.cpp
     src/pipeline/releasepipeline.h
     src/pipeline/releasepipeline.cpp
+    src/pkg/processrunner.h
+    src/pkg/processrunner.cpp
+    src/pkg/rpminspector.h
+    src/pkg/rpminspector.cpp
+    src/pkg/packagebackend.h
+    src/pkg/packagekitbackend.h
+    src/pkg/packagekitbackend.cpp
+    src/pkg/installhandlerbackend.h
+    src/pkg/installhandlerbackend.cpp
+    src/app/app.h
+    src/app/app.cpp
+    src/app/appstore.h
+    src/app/appstore.cpp
+    src/app/updatestatus.h
+    src/app/updatestatus.cpp
+    src/app/appchecker.h
+    src/app/appchecker.cpp
+    src/app/appinstaller.h
+    src/app/appinstaller.cpp
 )
 target_include_directories(harpoon-core PUBLIC src)
-target_link_libraries(harpoon-core PUBLIC Qt5::Core Qt5::Network)
+target_link_libraries(harpoon-core PUBLIC Qt5::Core Qt5::Network Qt5::DBus)
 target_compile_definitions(harpoon-core PUBLIC
     HARPOON_VERSION="${PROJECT_VERSION}")
