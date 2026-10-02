@@ -1,0 +1,44 @@
+#pragma once
+
+#include "sources/source.h"
+
+namespace Harpoon {
+
+// GitHub releases via the REST API (ObtainX lib/app_sources/github.dart).
+//
+//   GET {api}/releases?per_page=100   (first page only, like upstream)
+//   GET {api}/tags?per_page=100       fallback when there are no releases and
+//                                     the app is track-only
+//
+// {api} is https://api.github.com/repos/{owner}/{repo} for github.com and
+// https://{host}/api/v3/repos/{owner}/{repo} for GitHub Enterprise hosts.
+// Config key "token": personal access token, sent as a Bearer token. A 401
+// with a token is retried once without it.
+class GitHubSource : public Source
+{
+public:
+    QString id() const override { return QStringLiteral("GitHub"); }
+    QString displayName() const override { return QStringLiteral("GitHub"); }
+    QStringList defaultHosts() const override { return {QStringLiteral("github.com")}; }
+
+    Result<QString> standardizeUrl(const QString &url) const override;
+    void fetchReleases(const QString &standardUrl, const AppSettings &settings, HttpTransport &transport,
+                       Callback done) override;
+
+    virtual QString apiBaseUrl(const QString &standardUrl) const;
+
+protected:
+    virtual QByteArray authorizationHeader(const QString &token) const;
+    virtual Error errorForResponse(const HttpResponse &response) const;
+
+private:
+    void getJson(const QString &url, HttpTransport &transport, bool withToken,
+                 std::function<void(const Result<QByteArray> &)> done);
+};
+
+// Parses a GitHub-compatible /releases response (GitHub, Forgejo, Gitea).
+Result<QList<Release>> parseGitHubStyleReleases(const QByteArray &json);
+// Parses a GitHub-compatible /tags response into tag-only releases.
+Result<QList<Release>> parseGitHubStyleTags(const QByteArray &json);
+
+} // namespace Harpoon

@@ -1,0 +1,41 @@
+[
+  {
+    "html_url": "https://github.com/example/harbour-notes/releases/tag/v2.1.0",
+    "tag_name": "v2.1.0",
+    "name": "Notes 2.1.0",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-03-04T10:00:00Z",
+    "body": "New sync engine",
+    "assets": [
+      {
+        "url": "https://api.github.com/repos/example/harbour-notes/releases/assets/11",
+        "name": "harbour-notes-2.1.0-1_sfos4.6.noarch.rpm",
+        "size": 50000,
+        "updated_at": "2026-03-04T10:01:00Z",
+        "browser_download_url": "https://github.com/example/harbour-notes/releases/download/v2.1.0/harbour-notes-2.1.0-1_sfos4.6.noarch.rpm"
+      },
+      {
+        "url": "https://api.github.com/repos/example/harbour-notes/releases/assets/12",
+        "name": "harbour-notes-2.1.0-1_sfos5.0.noarch.rpm",
+        "size": 50100,
+        "updated_at": "2026-03-04T10:02:00Z",
+        "browser_download_url": "https://github.com/example/harbour-notes/releases/download/v2.1.0/harbour-notes-2.1.0-1_sfos5.0.noarch.rpm"
+      },
+      {
+        "url": "https://api.github.com/repos/example/harbour-notes/releases/assets/13",
+        "name": "harbour-notes-2.1.0-1_sfos5.2.noarch.rpm",
+        "size": 50200,
+        "updated_at": "2026-03-04T10:03:00Z",
+        "browser_download_url": "https://github.com/example/harbour-notes/releases/download/v2.1.0/harbour-notes-2.1.0-1_sfos5.2.noarch.rpm"
+      },
+      {
+        "url": "https://api.github.com/repos/example/harbour-notes/releases/assets/14",
+        "name": "harbour-notes-2.1.0.apk",
+        "size": 3000000,
+        "updated_at": "2026-03-04T10:04:00Z",
+        "browser_download_url": "https://github.com/example/harbour-notes/releases/download/v2.1.0/harbour-notes-2.1.0.apk"
+      }
+    ]
+  }
+]

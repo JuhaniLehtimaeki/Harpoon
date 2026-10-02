@@ -32,9 +32,10 @@ These are deliberate differences from ObtainX.
 
 ## Porting checklist
 1. **Identity**
-   - `id()` must equal ObtainX's class name (`GitHub`, `GitLab`, `Codeberg`, `Forgejo`,
-     `SourceHut`, `SourceForge`, `Jenkins`, `HTML`, `DirectAPKLink`→`DirectLink`). Imported
-     Obtainium JSON uses these names in `overrideSource`.
+   - `id()` is stored per app as `overrideSource`, so never change it once released. Use
+     ObtainX's class name where one exists (`GitHub`, `GitLab`, `Forgejo`, `SourceHut`,
+     `SourceForge`, `Jenkins`, `HTML`), and `DirectLink` for `DirectAPKLink`.
+     Codeberg is served by `Forgejo`.
    - `hosts()`: the same list as upstream.
    - Copy upstream's flags `allowSubDomains` and `neverAutoSelect`.
 2. **URL standardization**
@@ -58,12 +59,12 @@ These are deliberate differences from ObtainX.
    - Read the reset time from `x-ratelimit-reset`, then `retry-after`, otherwise use 30 min.
    - Raise `RateLimitError(minutes)` so `UpdateChecker` can back off.
 6. **Settings**
-   - Keep upstream's `additionalSettings` key names: `includePrereleases`,
-     `fallbackToOlderReleases`, `filterReleaseTitlesByRegEx`, `filterReleaseNotesByRegEx`,
-     `sortMethodChoice`, `verifyLatestTag`, `useLatestAssetDateAsReleaseDate`, and so on.
-     This keeps Obtainium imports working.
-   - Rename only Android-specific keys, and add the mapping to the importer:
-     `apkFilterRegEx`→`assetFilterRegEx`, `autoApkFilterByArch`→`autoAssetFilterByArch`.
+   - Declare keys in `core/src/model/appsettings.h` (`Harpoon::Keys`).
+   - Reuse upstream's key names where the meaning is the same (`includePrereleases`,
+     `fallbackToOlderReleases`, `filterReleaseTitlesByRegEx`, `sortMethodChoice`, ...).
+     That keeps the code easy to compare with ObtainX.
+   - Obtainium backup import is out of scope, so there is no compatibility constraint
+     beyond this.
 7. **Android leftovers to drop or replace**
    - APK extension checks: assets are any files here; `AssetFilter` keeps the `.rpm` ones.
    - Android ABIs.

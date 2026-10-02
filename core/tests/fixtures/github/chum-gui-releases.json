@@ -1,0 +1,150 @@
+[
+  {
+    "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/300",
+    "html_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/tag/0.6.13-1",
+    "tag_name": "0.6.13-1",
+    "name": "0.6.13 (draft)",
+    "draft": true,
+    "prerelease": false,
+    "created_at": "2025-07-01T10:00:00Z",
+    "published_at": null,
+    "body": "Unfinished",
+    "assets": [
+      {
+        "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/assets/3001",
+        "name": "sailfishos-chum-gui-0.6.13-1.aarch64.rpm",
+        "size": 210000,
+        "digest": null,
+        "created_at": "2025-07-01T10:05:00Z",
+        "updated_at": "2025-07-01T10:05:00Z",
+        "browser_download_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/download/0.6.13-1/sailfishos-chum-gui-0.6.13-1.aarch64.rpm"
+      }
+    ]
+  },
+  {
+    "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/290",
+    "html_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/tag/0.7.0-0.rc1",
+    "tag_name": "0.7.0-0.rc1",
+    "name": "0.7.0 RC1",
+    "draft": false,
+    "prerelease": true,
+    "created_at": "2025-06-01T09:00:00Z",
+    "published_at": "2025-06-01T09:30:00Z",
+    "body": "Release candidate",
+    "assets": [
+      {
+        "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/assets/2901",
+        "name": "sailfishos-chum-gui-0.7.0-0.rc1.aarch64.rpm",
+        "size": 215000,
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "created_at": "2025-06-01T09:20:00Z",
+        "updated_at": "2025-06-01T09:20:00Z",
+        "browser_download_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/download/0.7.0-0.rc1/sailfishos-chum-gui-0.7.0-0.rc1.aarch64.rpm"
+      },
+      {
+        "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/assets/2902",
+        "name": "sailfishos-chum-gui-0.7.0-0.rc1.armv7hl.rpm",
+        "size": 205000,
+        "digest": null,
+        "created_at": "2025-06-01T09:21:00Z",
+        "updated_at": "2025-06-01T09:21:00Z",
+        "browser_download_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/download/0.7.0-0.rc1/sailfishos-chum-gui-0.7.0-0.rc1.armv7hl.rpm"
+      }
+    ]
+  },
+  {
+    "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/280",
+    "html_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/tag/0.6.12-1",
+    "tag_name": "0.6.12-1",
+    "name": "0.6.12",
+    "draft": false,
+    "prerelease": false,
+    "created_at": "2025-02-10T12:00:00Z",
+    "published_at": "2025-02-10T12:30:00Z",
+    "body": "- Fix crash on start\n- Update translations",
+    "assets": [
+      {
+        "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/assets/2801",
+        "name": "sailfishos-chum-gui-0.6.12-1.aarch64.rpm",
+        "size": 212345,
+        "digest": "sha256:ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789",
+        "created_at": "2025-02-10T12:10:00Z",
+        "updated_at": "2025-02-10T12:11:00Z",
+        "browser_download_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/download/0.6.12-1/sailfishos-chum-gui-0.6.12-1.aarch64.rpm"
+      },
+      {
+        "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/assets/2802",
+        "name": "sailfishos-chum-gui-0.6.12-1.armv7hl.rpm",
+        "size": 201234,
+        "digest": null,
+        "created_at": "2025-02-10T12:12:00Z",
+        "updated_at": "2025-02-10T12:12:00Z",
+        "browser_download_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/download/0.6.12-1/sailfishos-chum-gui-0.6.12-1.armv7hl.rpm"
+      },
+      {
+        "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/assets/2803",
+        "name": "sailfishos-chum-gui-0.6.12-1.i486.rpm",
+        "size": 220000,
+        "digest": null,
+        "created_at": "2025-02-10T12:13:00Z",
+        "updated_at": "2025-02-10T12:13:00Z",
+        "browser_download_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/download/0.6.12-1/sailfishos-chum-gui-0.6.12-1.i486.rpm"
+      },
+      {
+        "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/assets/2804",
+        "name": "sailfishos-chum-gui-debuginfo-0.6.12-1.aarch64.rpm",
+        "size": 900000,
+        "digest": null,
+        "created_at": "2025-02-10T12:14:00Z",
+        "updated_at": "2025-02-10T12:14:00Z",
+        "browser_download_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/download/0.6.12-1/sailfishos-chum-gui-debuginfo-0.6.12-1.aarch64.rpm"
+      },
+      {
+        "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/assets/2805",
+        "name": "sailfishos-chum-gui-0.6.12-1.src.rpm",
+        "size": 150000,
+        "digest": null,
+        "created_at": "2025-02-10T12:15:00Z",
+        "updated_at": "2025-02-10T12:15:00Z",
+        "browser_download_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/download/0.6.12-1/sailfishos-chum-gui-0.6.12-1.src.rpm"
+      }
+    ]
+  },
+  {
+    "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/270",
+    "html_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/tag/0.6.11-1",
+    "tag_name": "0.6.11-1",
+    "name": "0.6.11",
+    "draft": false,
+    "prerelease": false,
+    "created_at": "2024-11-20T08:00:00Z",
+    "published_at": "2024-11-20T08:15:00Z",
+    "body": "Maintenance release",
+    "assets": [
+      {
+        "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/assets/2701",
+        "name": "sailfishos-chum-gui-0.6.11-1.aarch64.rpm",
+        "size": 211000,
+        "created_at": "2024-11-20T08:05:00Z",
+        "updated_at": "2024-11-20T08:05:00Z",
+        "browser_download_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/download/0.6.11-1/sailfishos-chum-gui-0.6.11-1.aarch64.rpm"
+      },
+      {
+        "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/assets/2702",
+        "name": "sailfishos-chum-gui-0.6.11-1.armv7hl.rpm",
+        "size": 200000,
+        "created_at": "2024-11-20T08:06:00Z",
+        "updated_at": "2024-11-20T08:06:00Z",
+        "browser_download_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/download/0.6.11-1/sailfishos-chum-gui-0.6.11-1.armv7hl.rpm"
+      },
+      {
+        "url": "https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases/assets/2703",
+        "name": "sailfishos-chum-gui-0.6.11-1.i486.rpm",
+        "size": 219000,
+        "created_at": "2024-11-20T08:07:00Z",
+        "updated_at": "2024-11-20T08:07:00Z",
+        "browser_download_url": "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/download/0.6.11-1/sailfishos-chum-gui-0.6.11-1.i486.rpm"
+      }
+    ]
+  }
+]

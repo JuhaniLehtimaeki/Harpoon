@@ -1,0 +1,16 @@
+find_package(Qt5 5.6 REQUIRED COMPONENTS Test)
+
+function(harpoon_test name)
+    add_executable(${name} ${name}.cpp faketransport.h)
+    target_link_libraries(${name} PRIVATE harpoon-core Qt5::Test)
+    target_compile_definitions(${name} PRIVATE HARPOON_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
+    add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+harpoon_test(tst_versioncompare)
+harpoon_test(tst_rpmversion)
+harpoon_test(tst_versionextractor)
+harpoon_test(tst_assetfilter)
+harpoon_test(tst_releaseselector)
+harpoon_test(tst_ratelimit)
+harpoon_test(tst_sources)

@@ -1,0 +1,4 @@
+[
+  { "name": "v1.4.0", "commit": { "sha": "c3d4", "url": "https://api.github.com/repos/example/lib/commits/c3d4" } },
+  { "name": "v1.3.2", "commit": { "sha": "a1b2", "url": "https://api.github.com/repos/example/lib/commits/a1b2" } }
+]

@@ -1,9 +1,17 @@
-# Harpoon: draft architecture
+# Harpoon: architecture
 
 Harpoon is an Obtainium-style updater for SailfishOS. It tracks apps published as RPM
 release assets on code forges, then downloads and installs them.
 
-Status: **draft for discussion**. It builds on the research in `docs/research/01-03`.
+Status: **Phase 1 in progress.** This builds on the research in `docs/research/01-03`.
+
+## Decisions (Oct 2026)
+| # | Question | Decision |
+|---|---|---|
+| 1 | Language / stack | **C++17 + Qt 5.6, Silica QML UI** |
+| 2 | Distribution | **Chum** (maybe OpenRepos too). No Harbour build for now, but the installation-handler backend stays in the design. |
+| 3 | Android APKs via AppSupport | **Out of scope** |
+| 4 | Obtainium/ObtainX backup import | **Out of scope.** Harpoon has its own backup format. |
 
 ## Goals (v1)
 - Add an app by pasting a forge URL: GitHub, Codeberg/Forgejo/Gitea, GitLab, SourceHut,
@@ -11,29 +19,36 @@ Status: **draft for discussion**. It builds on the research in `docs/research/01
 - Pick the correct RPM asset for the device: arch, plus an optional SFOS-version tag.
 - Show installed vs. latest version and the changelog. Install, update and uninstall.
 - Check for updates in the background and post notifications.
-- Import apps from Obtainium/ObtainX JSON exports where the source is a forge.
-- Export and back up in a compatible schema.
+- Export and import Harpoon's own app list and settings.
 
 ## Non-goals (v1)
-- Android APKs via AppSupport. Possible later through `com.jolla.apkd`.
+- Android APKs via AppSupport.
+- Importing Obtainium/ObtainX backups.
 - Managing ssu repositories. Chum and Storeman already do that.
 - Harbour distribution. Silent installs need privileges that Harbour forbids.
 
-## Stack decision (proposed)
+## Stack
 - **C++17 / Qt 5.6 core library + QML/Silica UI.** This is the native SFOS stack.
   - QtNetwork, QtDBus, Nemo.Notifications and Nemo.KeepAlive are all first-class.
   - It is the same stack as Storeman and Chum GUI, so their code is reference material.
   - Flutter on SFOS is experimental and aarch64-only (see research 03).
 - The ObtainX Dart code is **ported, not reused**. Its algorithms are small and well defined.
-- **Core library rules:** no Silica dependency, and it builds on desktop Linux. Unit tests
-  run in CI against recorded API responses.
+- **Core library rules:**
+  - No Silica dependency, and it builds on desktop Linux. Unit tests run in CI against
+    recorded API responses.
+  - Use **only Qt 5.6 APIs**. Desktop builds use newer Qt, so the compiler won't catch a
+    newer API. Where a newer replacement exists, branch on `QT_VERSION`; see
+    `net/networktransport.cpp` for an example.
+  - Exceptions are not used. Fallible calls return `Result<T>` (`model/error.h`).
+  - Style follows the `sailfish-app-development` skill: CamelCase namespaces
+    (`Harpoon`, `Harpoon::Keys`), function-pointer `connect()`, ranged-for.
 
 ## Module layout
 
 ```text
 harpoon/
   core/                       # libharpoon-core (Qt Core/Network/DBus only)
-    model/        App, Release, Asset, InstalledPackage, AppSettings (JSON <-> Obtainium schema)
+    model/        App, Release, Asset, InstalledPackage, AppSettings, Error/Result
     sources/      Source (interface), SourceRegistry,
                   GitHubSource, ForgejoSource(Codeberg/Gitea), GitLabSource,
                   SourceHutSource, SourceForgeSource, JenkinsSource,
@@ -132,11 +147,13 @@ public:
 - Silent background install is opt-in.
 
 ## Storage
-- `~/.local/share/<org>/harpoon/apps/<id>.json`, one file per app, written atomically. The
-  field names follow Obtainium/ObtainX: `id, url, author, name, installedVersion,
-  latestVersion, apkUrls (assets), additionalSettings, overrideSource, ...`. This keeps
-  import and export compatible.
-- Settings live in QSettings. Tokens (GitHub PAT, GitLab token) go to Sailfish Secrets if
+- `~/.local/share/<org>/harpoon/apps/<id>.json`, one file per app, written atomically.
+- The record format is Harpoon's own. Field names follow ObtainX's where an equivalent
+  exists, which makes cross-referencing easier, but Obtainium compatibility is not a goal.
+- Settings live in QSettings at `~/.config/<Org>/harpoon/harpoon.conf`, never the default
+  `~/.config/<Org>/<App>.conf`. Sailjail only persists the three per-app folders, and
+  following that rule keeps a sandboxed build possible.
+- Tokens (GitHub PAT, GitLab token) go to Sailfish Secrets if
   available, otherwise into the settings file with 0600 permissions.
 - Downloads go to `~/.cache/<org>/harpoon/downloads/<id>-<hash>.rpm.part`, which is renamed on
   completion and pruned after a successful install.
@@ -149,17 +166,40 @@ public:
    (privileges.d + PackageKit).
 3. **Silica UI:** app list, add-app page with settings form, app details/changelog, settings,
    and notifications.
-4. **More sources:** GitLab, SourceHut, SourceForge, Jenkins, HTML/Direct. Background timer,
-   Obtainium import/export.
+4. **More sources:** GitLab, SourceHut, SourceForge, Jenkins, HTML/Direct. Background
+   timer, Harpoon backup export/import.
 5. **Optional extras:** rpm-md repo source, InstallHandler fallback, attestation, Chum packaging.
 
 ## Open questions
-1. **Language:** C++/Qt as proposed, or Python + PyOtherSide for faster iteration on the
-   logic layer?
-2. **Distribution:** Chum (recommended) vs OpenRepos. Is Harbour compatibility (handler-only
-   mode) wanted at all?
-3. **Obtainium import scope:** forge-based apps only? Store-based entries (Play, APKMirror)
-   are meaningless here.
-4. **APK support via AppSupport:** in or out of scope for v1?
-5. **Device tests:** we need answers on 5.x for whether privileged `InstallFiles` respects
-   "untrusted software", and whether the `Sandboxing=Disabled` warning prompt is present.
+1. **C++17 on the SDK targets.** The core uses `std::optional` and inline variables. The
+   SailfishOS SDK compiler should be GCC 8, which supports both, but no `sfdk build` has
+   confirmed it yet. If it fails, those two features are easy to replace.
+2. Device tests on SailfishOS 5.x:
+   - Does privileged `InstallFiles` respect the "untrusted software" setting?
+   - Does the `Sandboxing=Disabled` warning prompt appear?
+
+## Phase 1 status
+Implemented in `core/src`, built with CMake, tests in `core/tests`:
+- `model/`: `Release`, `Asset`, `AppSettings` (setting keys), `Error`/`Result`.
+- `version/`:
+  - `versioncompare`: the ObtainX tag comparator, without the Android-only schemes.
+  - `rpmversion`: rpmvercmp and EVR comparison, checked against rpm's own test vectors.
+  - `versionextractor`: regex and match-group extraction.
+- `net/`: the `HttpTransport` interface, the QNetworkAccessManager transport with timeout
+  and redirects, and GitHub rate-limit detection.
+- `sources/`:
+  - `Source` base class and `SourceRegistry`, with host matching and override for
+    self-hosted forges.
+  - `GitHubSource`: releases, tags fallback for track-only apps, token with retry without it
+    on 401, and GitHub Enterprise via `/api/v3`.
+  - `ForgejoSource`: Codeberg, Forgejo and Gitea, reusing the GitHub parser.
+- `pipeline/`:
+  - `DeviceInfo`: arch and OS version detection.
+  - `AssetFilter`: RPM-only, arch with noarch fallback, sfos-tag preference, user regex.
+  - `ReleaseSelector`: the 5 sort methods, draft/prerelease/title/notes filters, fallback.
+  - `ReleasePipeline`: version source plus extraction.
+- `tools/harpoon-probe`: a CLI that runs the whole pipeline against a live URL.
+
+Not yet in Phase 1:
+- `verifyLatestTag`, release-title-as-version for GitHub's commit SHA, and attestation.
+- Pagination beyond 100 releases (same as upstream).

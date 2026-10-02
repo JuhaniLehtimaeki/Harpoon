@@ -1,0 +1,48 @@
+[
+  {
+    "id": 501,
+    "tag_name": "v3.0.1",
+    "target_commitish": "main",
+    "name": "3.0.1",
+    "body": "Bug fixes",
+    "url": "https://codeberg.org/api/v1/repos/fishdev/harbour-tides/releases/501",
+    "html_url": "https://codeberg.org/fishdev/harbour-tides/releases/tag/v3.0.1",
+    "draft": false,
+    "prerelease": false,
+    "created_at": "2026-05-10T07:00:00Z",
+    "published_at": "2026-05-10T07:00:00Z",
+    "author": { "login": "fishdev" },
+    "assets": [
+      {
+        "id": 9001,
+        "name": "harbour-tides-3.0.1-1.aarch64.rpm",
+        "size": 81234,
+        "download_count": 42,
+        "created_at": "2026-05-10T07:02:00Z",
+        "uuid": "6b8e1f8e-1111-2222-3333-444455556666",
+        "browser_download_url": "https://codeberg.org/fishdev/harbour-tides/releases/download/v3.0.1/harbour-tides-3.0.1-1.aarch64.rpm"
+      },
+      {
+        "id": 9002,
+        "name": "harbour-tides-3.0.1-1.armv7hl.rpm",
+        "size": 79000,
+        "download_count": 7,
+        "created_at": "2026-05-10T07:03:00Z",
+        "uuid": "6b8e1f8e-1111-2222-3333-444455556667",
+        "browser_download_url": "https://codeberg.org/fishdev/harbour-tides/releases/download/v3.0.1/harbour-tides-3.0.1-1.armv7hl.rpm"
+      }
+    ]
+  },
+  {
+    "id": 480,
+    "tag_name": "v3.0.0",
+    "name": "3.0.0",
+    "body": "Initial 3.x",
+    "html_url": "https://codeberg.org/fishdev/harbour-tides/releases/tag/v3.0.0",
+    "draft": false,
+    "prerelease": false,
+    "created_at": "2026-04-01T07:00:00Z",
+    "published_at": "2026-04-01T07:00:00Z",
+    "assets": []
+  }
+]
