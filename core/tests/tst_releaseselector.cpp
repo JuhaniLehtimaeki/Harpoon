@@ -176,6 +176,23 @@ private slots:
         QCOMPARE(r.value.assets.first().name, QStringLiteral("harbour-notes-2.1.0-1_sfos5.0.noarch.rpm"));
     }
 
+    void archivesOnlyExplainWhy()
+    {
+        // Like sailfishos-chum-gui: RPMs only inside SDK build-result zips.
+        QList<Release> list{rel("0.6.12", "2024-01-01T00:00:00Z")};
+        Asset zip;
+        zip.name = QStringLiteral("RPM-build-results_SDK-for-5.0.0.43.zip");
+        zip.url = QStringLiteral("https://example.org/") + zip.name;
+        list.first().assets = {zip};
+        const auto r = resolveLatestRelease(list, AppSettings(), aarch64());
+        QCOMPARE(int(r.error.kind), int(Error::NoAsset));
+        QVERIFY(r.error.message.contains(QLatin1String("RPM-build-results_SDK-for-5.0.0.43.zip")));
+        QVERIFY(r.error.message.contains(QLatin1String("Chum")));
+        // No archives: the plain message.
+        list.first().assets.clear();
+        QVERIFY(!resolveLatestRelease(list, AppSettings(), aarch64()).error.message.contains(QLatin1String("archives")));
+    }
+
     void trackOnlyNeedsNoAssets()
     {
         QList<Release> list{rel("1.0", "2024-01-01T00:00:00Z")};

@@ -115,7 +115,7 @@ void registerStubs()
                         "Sailfish.Pickers", 1, 0, picker);
     for (const char *media : {"Camera", "VideoOutput"})
         qmlRegisterType(QUrl::fromLocalFile(kStubDir + QLatin1Char('/') + QLatin1String(media) + QStringLiteral(".qml")),
-                        "QtMultimedia", 5, 0, media);
+                        "QtMultimedia", 5, 6, media);
 
     // Same registrations as gui/src/harpoon.cpp.
     const char *uri = "harbour.harpoon";

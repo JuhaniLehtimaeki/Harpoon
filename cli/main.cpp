@@ -28,6 +28,7 @@
 #include <QTextStream>
 
 #include <cstdio>
+#include <sys/stat.h>
 #include <memory>
 
 using namespace Harpoon;
@@ -256,7 +257,9 @@ private:
         out() << app.id << "  " << app.name << "\n    installed: "
               << (s.installedVersion.isEmpty() ? QStringLiteral("-") : s.installedVersion)
               << "  latest: " << (s.latestVersion.isEmpty() ? QStringLiteral("-") : s.latestVersion)
-              << "  [" << updateStateName(s.state) << "]";
+              << "  [" << (s.state == UpdateState::NotChecked && !app.lastError.isEmpty()
+                               ? QStringLiteral("check failed") : updateStateName(s.state))
+              << "]";
         if (!app.lastError.isEmpty())
             out() << "\n    last check failed: " << app.lastError;
         out() << "\n";
@@ -373,15 +376,15 @@ private:
         printStatusLine(a);
         out() << "    url: " << a.url << (a.sourceId.isEmpty() ? QString() : QStringLiteral(" (") + a.sourceId + QLatin1Char(')'))
               << "\n    author: " << a.author
-              << "\n    last check: " << (a.lastCheck.isValid() ? a.lastCheck.toString(Qt::ISODate) : QStringLiteral("never"));
+              << "\n    last check: " << (a.lastCheck.isValid() ? a.lastCheck.toLocalTime().toString(Qt::ISODate) : QStringLiteral("never"));
         if (!a.latestTag.isEmpty())
             out() << "\n    release: " << a.latestTag << (a.latestPrerelease ? " [prerelease]" : "") << "  "
-                  << a.latestDate.toString(Qt::ISODate) << "\n    page: " << a.releasePageUrl;
+                  << a.latestDate.toLocalTime().toString(Qt::ISODate) << "\n    page: " << a.releasePageUrl;
         for (const Asset &asset : a.latestAssets)
             out() << "\n    package: " << asset.name << " (" << asset.size << " bytes)";
         if (a.receipt.isValid())
             out() << "\n    installed by Harpoon: " << a.receipt.evr << " from " << a.receipt.tag << " at "
-                  << a.receipt.installedAt.toString(Qt::ISODate);
+                  << a.receipt.installedAt.toLocalTime().toString(Qt::ISODate);
         if (!a.settings.values().isEmpty()) {
             out() << "\n    settings:";
             for (auto it = a.settings.values().constBegin(); it != a.settings.values().constEnd(); ++it)
@@ -754,6 +757,9 @@ private:
 
 int main(int argc, char **argv)
 {
+    // Started through invoker (harpoon-autoupdate) the umask is 0000; never
+    // write world-writable files.
+    umask(022);
 #ifdef HARPOON_AUTOUPDATE_ONLY
     // harpoon-autoupdate runs with the privileged group (privileges.d) so
     // PackageKit installs without asking. It does exactly one thing, and

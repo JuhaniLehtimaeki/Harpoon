@@ -33,6 +33,9 @@ Dialog {
 
     function _scan() {
         var scanPage = pageStack.push(Qt.resolvedUrl("ScanPage.qml"))
+        if (!scanPage) {
+            return // the page failed to load; Silica shows why
+        }
         scanPage.linkFound.connect(function(link) {
             dialog.applyLink(link)
             pageStack.pop(dialog)
@@ -75,6 +78,7 @@ Dialog {
             width: parent.width
 
             DialogHeader {
+                dialog: dialog
                 acceptText: qsTr("Add")
                 title: qsTr("Add app")
             }
@@ -99,9 +103,14 @@ Dialog {
                 font.pixelSize: Theme.fontSizeExtraSmall
                 color: _inspected.ok ? Theme.highlightColor : Theme.secondaryHighlightColor
                 text: urlField.text.trim().length === 0
-                      ? qsTr("For example https://github.com/owner/repo or https://codeberg.org/owner/repo")
+                      ? qsTr("The address of the app's repository or releases page, for example on GitHub or Codeberg")
                       : _inspected.ok ? qsTr("%1: %2").arg(_inspected.sourceName).arg(_inspected.standardUrl)
                                       : _inspected.error
+            }
+
+            Item {
+                width: 1
+                height: Theme.paddingLarge
             }
 
             Button {

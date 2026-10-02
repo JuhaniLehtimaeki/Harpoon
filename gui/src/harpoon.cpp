@@ -18,10 +18,15 @@
 #include <QTimer>
 #include <QtQml>
 
+#include <sys/stat.h>
+
 using namespace Harpoon;
 
 int main(int argc, char *argv[])
 {
+    // The app launcher (booster) starts apps with umask 0000, which would
+    // make every file Harpoon writes world-writable.
+    umask(022);
     QScopedPointer<QGuiApplication> app(SailfishApp::application(argc, argv));
     app->setOrganizationName(organizationName());
     app->setApplicationName(applicationName());

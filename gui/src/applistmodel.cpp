@@ -71,6 +71,15 @@ AppListModel::State AppListModel::toState(UpdateState state)
     return Unknown;
 }
 
+int AppListModel::failedCount() const
+{
+    int n = 0;
+    for (const Entry &e : m_entries)
+        if (!e.app.lastError.isEmpty())
+            ++n;
+    return n;
+}
+
 int AppListModel::updatesCount() const
 {
     int n = 0;
@@ -140,6 +149,7 @@ void AppListModel::resort()
 void AppListModel::upsert(const Entry &entry, const QString &oldId)
 {
     const int previousUpdates = updatesCount();
+    const int previousFailed = failedCount();
     int row = indexOf(oldId.isEmpty() ? entry.app.id : oldId);
     if (row < 0)
         row = indexOf(entry.app.id);
@@ -160,7 +170,7 @@ void AppListModel::upsert(const Entry &entry, const QString &oldId)
         emit dataChanged(index(row), index(row));
         resort();
     }
-    if (updatesCount() != previousUpdates)
+    if (updatesCount() != previousUpdates || failedCount() != previousFailed)
         emit updatesCountChanged();
 }
 
@@ -170,11 +180,12 @@ void AppListModel::remove(const QString &id)
     if (row < 0)
         return;
     const int previousUpdates = updatesCount();
+    const int previousFailed = failedCount();
     beginRemoveRows(QModelIndex(), row, row);
     m_entries.removeAt(row);
     endRemoveRows();
     emit countChanged();
-    if (updatesCount() != previousUpdates)
+    if (updatesCount() != previousUpdates || failedCount() != previousFailed)
         emit updatesCountChanged();
 }
 

@@ -3,6 +3,10 @@ Description=Harpoon: periodic check for new releases
 
 [Timer]
 OnBootSec=15min
+# The first run when the timer is started later than that (installing,
+# enabling from Settings): monotonic triggers in the past never fire, and
+# OnUnitActiveSec only counts from a run that has happened.
+OnActiveSec=15min
 # Harpoon writes a drop-in that overrides this from its settings.
 OnUnitActiveSec=6h
 RandomizedDelaySec=10min

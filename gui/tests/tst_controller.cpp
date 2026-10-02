@@ -229,6 +229,8 @@ private slots:
         m_controller->check(id);
         QTRY_COMPARE(spy.count(), 1);
         QVERIFY(!spy.first().at(1).toBool());
+        QVERIFY(spy.first().at(2).toString().isEmpty()); // shown in place, not as a banner
+        QCOMPARE(m_controller->apps()->failedCount(), 1);
         const QModelIndex idx = m_controller->apps()->index(0);
         QVERIFY(m_controller->apps()->data(idx, AppListModel::LastErrorRole).toString().contains(QLatin1String("Rate limited")));
         // The previous result is kept.

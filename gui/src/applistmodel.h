@@ -13,6 +13,8 @@ class AppListModel : public QAbstractListModel
     Q_OBJECT
     Q_PROPERTY(int count READ count NOTIFY countChanged)
     Q_PROPERTY(int updatesCount READ updatesCount NOTIFY updatesCountChanged)
+    // Apps whose last check failed. Shares updatesCount's change signal.
+    Q_PROPERTY(int failedCount READ failedCount NOTIFY updatesCountChanged)
 
 public:
     // Mirrors Harpoon::UpdateState for QML.
@@ -56,6 +58,7 @@ public:
 
     int count() const { return m_entries.size(); }
     int updatesCount() const;
+    int failedCount() const;
 
     void setEntries(QList<Entry> entries);
     // Inserts or replaces by id. oldId: the previous id when it changed.

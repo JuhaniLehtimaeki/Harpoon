@@ -16,6 +16,8 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
+#include <sys/stat.h>
+
 using namespace Harpoon;
 
 class MockNotifications : public QObject
@@ -235,7 +237,10 @@ private slots:
         QTemporaryDir config;
         BackgroundScheduler scheduler(client(), config.path());
         m_systemd->calls.clear();
+        // As under the app launcher, which starts apps with umask 0000.
+        const mode_t oldMask = umask(0);
         const Error e = waitFor([&](std::function<void(const Error &)> d) { scheduler.apply(true, 12, d); });
+        umask(oldMask);
         QVERIFY2(e.ok(), qPrintable(e.message));
         QCOMPARE(m_systemd->calls, (QStringList{"Reload", "EnableUnitFiles harpoon-check.timer false true",
                                                 "RestartUnit harpoon-check.timer replace"}));
@@ -243,6 +248,9 @@ private slots:
         QVERIFY(dropIn.open(QIODevice::ReadOnly));
         const QByteArray content = dropIn.readAll();
         QVERIFY(content.contains("OnUnitActiveSec=\nOnUnitActiveSec=12h\n"));
+        // Never world-writable, whatever the umask (systemd ignores such files).
+        QVERIFY(!(dropIn.permissions() & QFileDevice::WriteOther));
+        QVERIFY(!(QFileInfo(QFileInfo(scheduler.dropInPath()).absolutePath()).permissions() & QFileDevice::WriteOther));
         QVERIFY(scheduler.dropInPath().startsWith(config.path() + QStringLiteral("/systemd/user/harpoon-check.timer.d/")));
     }
 

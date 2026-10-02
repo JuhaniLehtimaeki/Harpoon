@@ -143,10 +143,24 @@ Result<Selection> selectRelease(const QList<Release> &newestFirst, const AppSett
         return Result<Selection>::success(selection);
     }
 
-    return Result<Selection>::failure(Error::make(
-        Error::NoAsset,
-        QStringLiteral("No release has an installable package for %1")
-            .arg(device.arch.isEmpty() ? QStringLiteral("this device") : device.arch)));
+    QString message = QStringLiteral("No release has an installable package for %1")
+                          .arg(device.arch.isEmpty() ? QStringLiteral("this device") : device.arch);
+    // Some projects publish their RPMs inside archives (e.g. SDK build
+    // results); say so instead of leaving the user guessing.
+    static const QRegularExpression archive(QStringLiteral("\\.(zip|tar|tar\\.gz|tgz|tar\\.bz2|tar\\.xz)$"),
+                                            QRegularExpression::CaseInsensitiveOption);
+    for (const Release &release : newestFirst) {
+        const auto found = std::find_if(release.assets.begin(), release.assets.end(),
+                                        [](const Asset &a) { return archive.match(a.name).hasMatch(); });
+        if (found != release.assets.end()) {
+            message += QStringLiteral(". The releases contain archives such as %1, and Harpoon installs only "
+                                      ".rpm files. If the app is on SailfishOS:Chum, add its Chum repository "
+                                      "instead, or turn on Track only")
+                           .arg(found->name);
+            break;
+        }
+    }
+    return Result<Selection>::failure(Error::make(Error::NoAsset, message));
 }
 
 } // namespace Harpoon

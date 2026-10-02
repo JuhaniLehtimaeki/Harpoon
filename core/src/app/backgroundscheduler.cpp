@@ -79,6 +79,14 @@ void BackgroundScheduler::apply(bool enabled, int intervalHours, std::function<v
         finish(Error::make(Error::System, QStringLiteral("Cannot write %1").arg(path)));
         return;
     }
+    // systemd refuses to trust world-writable unit files; do not rely on the
+    // umask (the app launcher starts apps with 0000).
+    const QFileDevice::Permissions dirMode = QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner
+                                             | QFileDevice::ReadGroup | QFileDevice::ExeGroup | QFileDevice::ReadOther
+                                             | QFileDevice::ExeOther;
+    QFile::setPermissions(QFileInfo(path).absolutePath(), dirMode);
+    QFile::setPermissions(path, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ReadGroup
+                                    | QFileDevice::ReadOther);
 
     const QStringList units{timerUnit()};
     call(QStringLiteral("Reload"), {}, [this, enabled, units, finish](const Error &reloaded) {

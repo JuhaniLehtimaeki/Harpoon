@@ -197,7 +197,9 @@ Page {
             SettingSwitch {
                 appId: page.appId; key: "allowIdChange"; values: page._values
                 text: qsTr("Allow a different package name")
-                description: qsTr("Accept a release whose RPM is not named %1").arg(page.appId)
+                description: details.temporaryId === true
+                             ? qsTr("Accept a release whose RPM has a different name from the first one installed")
+                             : qsTr("Accept a release whose RPM is not named %1").arg(page.appId)
             }
 
             SectionHeader {

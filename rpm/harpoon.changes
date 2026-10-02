@@ -1,3 +1,12 @@
+* Fri Oct 02 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.1.1-1
+- Fixes from the first device test on SailfishOS 5.1: files are no longer
+  created world-writable under the app launcher (umask), the background
+  check now runs when the timer is started after boot, the QR scanner page
+  loads (QtMultimedia 5.6), English plural forms, clearer status for apps
+  whose check failed, a hint for projects that publish RPMs only inside
+  archives, the cover counts failed checks, smaller layout fixes, and
+  stripped, position-independent binaries.
+
 * Fri Oct 02 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.1.0-1
 - First release: track apps on GitHub, Codeberg/Forgejo/Gitea, GitLab,
   SourceHut, SourceForge, Jenkins, web pages, direct links and rpm-md

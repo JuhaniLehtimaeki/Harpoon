@@ -308,7 +308,8 @@ void HarpoonController::check(const QString &id)
         merged.lastError = checked.lastError;
         storeAndShow(merged);
         m_model.setBusy(id, false);
-        emit operationFinished(id, error.ok(), error.ok() ? QString() : error.message);
+        // No banner: the list, the app page and the cover show a failed check.
+        emit operationFinished(id, error.ok(), QString());
     });
 }
 

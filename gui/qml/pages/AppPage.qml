@@ -88,6 +88,9 @@ Page {
             }
 
             StateLabel {
+                // A failed first check has nothing to summarise; the error says it.
+                visible: !(appState === AppListModel.NotChecked && details.lastError !== undefined
+                           && details.lastError.length > 0)
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
                 font.pixelSize: Theme.fontSizeSmall

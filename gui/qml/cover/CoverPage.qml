@@ -29,7 +29,17 @@ CoverBackground {
             color: Theme.secondaryColor
             text: harpoon.checking ? qsTr("Checking…")
                                    : _updates > 0 ? qsTr("%n update(s)", "", _updates)
+                                   : harpoon.apps.failedCount > 0 ? qsTr("%n app(s)", "", harpoon.apps.count)
                                                   : qsTr("%n app(s), all up to date", "", harpoon.apps.count)
+        }
+
+        Label {
+            width: parent.width
+            visible: !harpoon.checking && harpoon.apps.failedCount > 0
+            wrapMode: Text.Wrap
+            font.pixelSize: Theme.fontSizeExtraSmall
+            color: Theme.secondaryColor
+            text: qsTr("%n check(s) failed", "", harpoon.apps.failedCount)
         }
 
         Item {

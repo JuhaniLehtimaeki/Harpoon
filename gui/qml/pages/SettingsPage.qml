@@ -139,6 +139,11 @@ Page {
                 text: qsTr("Optional. A token raises GitHub's limit of 60 checks per hour and allows private repositories. Self-hosted servers get their own field once you track an app on them. Tokens are stored unencrypted in Harpoon's private settings file.")
             }
 
+            Item {
+                width: 1
+                height: Theme.paddingMedium
+            }
+
             Repeater {
                 model: harpoon.tokenTargets
 
