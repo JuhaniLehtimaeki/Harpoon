@@ -64,6 +64,11 @@ void InstallHandlerBackend::runNext()
             complete(m_currentOp, Error::make(Error::Install, QStringLiteral("The installation handler did not answer")));
     });
 
+    if (!m_bus.isConnected()) {
+        const Error e = Error::make(Error::Install, QStringLiteral("No D-Bus session bus"));
+        QTimer::singleShot(0, this, [this, op = job.op, e]() { complete(op, e); });
+        return;
+    }
     QDBusMessage call = QDBusMessage::createMethodCall(
         m_service, kPath, kInterface,
         job.op == Op::Install ? QStringLiteral("installFiles") : QStringLiteral("removePackages"));

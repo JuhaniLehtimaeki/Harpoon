@@ -4,7 +4,7 @@
 #include "applistmodel.h"
 #include "harpooncontroller.h"
 #include "harpoondbus.h"
-#include "harpoonsettings.h"
+#include "app/harpoonsettings.h"
 #include "model/identity.h"
 
 #include <sailfishapp.h>
@@ -33,6 +33,8 @@ int main(int argc, char *argv[])
 
     HarpoonController controller;
     controller.reload();
+    // Make the systemd timer match the settings (also enables it on first run).
+    controller.syncBackgroundSchedule();
 
     HarpoonDBus dbus;
     if (!dbus.registerOnSessionBus())

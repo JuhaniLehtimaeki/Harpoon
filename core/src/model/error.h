@@ -33,6 +33,7 @@ struct Error
         Cancelled,
         Busy,            // another operation is running
         Storage,         // app records could not be read or written
+        System,          // a system service (notifications, systemd) failed
     };
 
     Kind kind = None;

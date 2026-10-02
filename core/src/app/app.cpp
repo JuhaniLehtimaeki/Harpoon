@@ -107,6 +107,8 @@ QJsonObject App::toJson() const
     }
     if (!acknowledgedVersion.isEmpty())
         o.insert(QStringLiteral("acknowledgedVersion"), acknowledgedVersion);
+    if (!notifiedVersion.isEmpty())
+        o.insert(QStringLiteral("notifiedVersion"), notifiedVersion);
     return o;
 }
 
@@ -151,6 +153,7 @@ Result<App> App::fromJson(const QJsonObject &o)
     app.receipt.sha256s = fromArray(r.value(QStringLiteral("sha256s")));
     app.receipt.installedAt = dateFromJson(r.value(QStringLiteral("installedAt")));
     app.acknowledgedVersion = o.value(QStringLiteral("acknowledgedVersion")).toString();
+    app.notifiedVersion = o.value(QStringLiteral("notifiedVersion")).toString();
     return Result<App>::success(app);
 }
 

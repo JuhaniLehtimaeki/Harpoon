@@ -51,6 +51,16 @@ add_library(harpoon-core STATIC
     src/app/appchecker.cpp
     src/app/appinstaller.h
     src/app/appinstaller.cpp
+    src/app/harpoonsettings.h
+    src/app/harpoonsettings.cpp
+    src/app/updatenotifications.h
+    src/app/updatenotifications.cpp
+    src/app/backgroundscheduler.h
+    src/app/backgroundscheduler.cpp
+    src/app/backup.h
+    src/app/backup.cpp
+    src/notify/notifier.h
+    src/notify/notifier.cpp
 )
 target_include_directories(harpoon-core PUBLIC src)
 target_link_libraries(harpoon-core PUBLIC Qt5::Core Qt5::Network Qt5::DBus)

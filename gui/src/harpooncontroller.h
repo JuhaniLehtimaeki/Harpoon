@@ -1,10 +1,11 @@
 #pragma once
 
 #include "applistmodel.h"
-#include "harpoonsettings.h"
+#include "app/harpoonsettings.h"
 
 #include "app/appchecker.h"
 #include "app/appstore.h"
+#include "app/backgroundscheduler.h"
 #include "net/downloader.h"
 #include "net/httptransport.h"
 #include "pipeline/deviceinfo.h"
@@ -32,6 +33,8 @@ struct ControllerEnvironment
     ProcessRunner *runner = nullptr;
     PackageBackend *backend = nullptr;   // forces a backend regardless of settings
     HarpoonSettings *settings = nullptr;
+    BackgroundScheduler *scheduler = nullptr;
+    QString backupDir;                   // exports; empty: DocumentsLocation
 };
 
 // The QML-facing API. Owns the core objects and keeps AppListModel in sync
@@ -86,6 +89,14 @@ public:
     // All details of one app for the details page.
     Q_INVOKABLE QVariantMap appDetails(const QString &id) const;
 
+    // Writes a backup to the documents folder: {ok, path, error}.
+    Q_INVOKABLE QVariantMap exportBackup(bool includeTokens);
+    // Adds apps from a backup file (path or file:// URL): {ok, added, skipped, error}.
+    Q_INVOKABLE QVariantMap importBackup(const QString &path, bool withSettings);
+
+    // Enables or disables the systemd timer to match the settings.
+    Q_INVOKABLE void syncBackgroundSchedule();
+
 signals:
     void checkingChanged();
     void addFinished(bool ok, const QString &idOrError);
@@ -93,6 +104,8 @@ signals:
     void operationFinished(const QString &id, bool ok, const QString &message);
     // Emitted after an id changed (temporary id -> RPM name).
     void appIdChanged(const QString &oldId, const QString &newId);
+    // Changing the background schedule failed.
+    void backgroundError(const QString &message);
 
 private:
     AppListModel::Entry makeEntry(const App &app) const;
@@ -116,6 +129,8 @@ private:
     ProcessRunner *m_runner;
     PackageBackend *m_forcedBackend;
     HarpoonSettings *m_settings;
+    BackgroundScheduler *m_scheduler;
+    QString m_backupDir;
     std::unique_ptr<RpmInspector> m_inspector;
     Downloader m_downloader;
     std::unique_ptr<AppChecker> m_checker;

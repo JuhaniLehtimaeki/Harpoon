@@ -1,5 +1,7 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
+import Sailfish.Pickers 1.0
+import "../components"
 
 Page {
     id: page
@@ -7,6 +9,30 @@ Page {
     readonly property var _intervals: [1, 3, 6, 12, 24, 48]
 
     allowedOrientations: Orientation.All
+
+    Banner { id: banner }
+
+    Component {
+        id: backupPicker
+
+        FilePickerPage {
+            title: qsTr("Choose a Harpoon backup")
+            nameFilters: ["*.json"]
+            onSelectedContentPropertiesChanged: {
+                if (!selectedContentProperties || !selectedContentProperties.filePath) {
+                    return
+                }
+                var result = harpoon.importBackup(selectedContentProperties.filePath, false)
+                if (result.ok) {
+                    banner.show(result.skipped.length > 0
+                                ? qsTr("Imported %n app(s); %1 already tracked", "", result.added).arg(result.skipped.length)
+                                : qsTr("Imported %n app(s)", "", result.added))
+                } else {
+                    banner.show(result.error)
+                }
+            }
+        }
+    }
 
     SilicaFlickable {
         anchors.fill: parent
@@ -16,6 +42,18 @@ Page {
             MenuItem {
                 text: qsTr("About Harpoon")
                 onClicked: pageStack.push(Qt.resolvedUrl("AboutPage.qml"))
+            }
+            MenuItem {
+                text: qsTr("Import backup")
+                onClicked: pageStack.push(backupPicker)
+            }
+            MenuItem {
+                visible: harpoon.apps.count > 0
+                text: qsTr("Export backup")
+                onClicked: {
+                    var result = harpoon.exportBackup(false)
+                    banner.show(result.ok ? qsTr("Saved %1").arg(result.path) : result.error)
+                }
             }
         }
 

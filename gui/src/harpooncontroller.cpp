@@ -1,11 +1,15 @@
 #include "harpooncontroller.h"
 
 #include "app/appinstaller.h"
+#include "app/backup.h"
 #include "net/networktransport.h"
 #include "pkg/installhandlerbackend.h"
 #include "pkg/packagekitbackend.h"
 
+#include <QDir>
+#include <QFile>
 #include <QJsonObject>
+#include <QUrl>
 #include <QStandardPaths>
 #include <QVariantList>
 
@@ -40,6 +44,9 @@ HarpoonController::HarpoonController(ControllerEnvironment env, QObject *parent)
     , m_runner(env.runner)
     , m_forcedBackend(env.backend)
     , m_settings(env.settings)
+    , m_scheduler(env.scheduler)
+    , m_backupDir(env.backupDir.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
+                                          : env.backupDir)
 {
     if (!m_transport) {
         m_ownTransport.reset(new NetworkTransport());
@@ -51,8 +58,20 @@ HarpoonController::HarpoonController(ControllerEnvironment env, QObject *parent)
     }
     if (!m_settings)
         m_settings = new HarpoonSettings(QString(), this);
+    if (!m_scheduler)
+        m_scheduler = new BackgroundScheduler(QDBusConnection::sessionBus(), QString(), this);
     m_inspector.reset(new RpmInspector(*m_runner));
     connect(m_settings, &HarpoonSettings::tokensChanged, this, [this]() { m_checker.reset(); });
+
+    // Re-apply the schedule only when its inputs change.
+    auto schedule = std::make_shared<QPair<bool, int>>(m_settings->backgroundChecks(), m_settings->checkIntervalHours());
+    connect(m_settings, &HarpoonSettings::changed, this, [this, schedule]() {
+        const QPair<bool, int> now(m_settings->backgroundChecks(), m_settings->checkIntervalHours());
+        if (now != *schedule) {
+            *schedule = now;
+            syncBackgroundSchedule();
+        }
+    });
 }
 
 HarpoonController::~HarpoonController() = default;
@@ -361,6 +380,61 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
         {QStringLiteral("stage"), e->stage},
         {QStringLiteral("progress"), e->progress},
     };
+}
+
+} // namespace Harpoon
+
+namespace Harpoon {
+
+void HarpoonController::syncBackgroundSchedule()
+{
+    m_scheduler->apply(m_settings->backgroundChecks(), m_settings->checkIntervalHours(), [this](const Error &e) {
+        if (!e.ok())
+            emit backgroundError(e.message);
+    });
+}
+
+QVariantMap HarpoonController::exportBackup(bool includeTokens)
+{
+    Backup backup;
+    for (const AppListModel::Entry &e : m_model.entries())
+        backup.apps << e.app;
+    backup.settings = m_settings->exportable(includeTokens);
+
+    QDir().mkpath(m_backupDir);
+    const QString path = m_backupDir + QStringLiteral("/harpoon-backup-")
+                         + QDate::currentDate().toString(Qt::ISODate) + QStringLiteral(".json");
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(backup.toJson()) < 0)
+        return {{QStringLiteral("ok"), false},
+                {QStringLiteral("error"), tr("Cannot write %1: %2").arg(path, file.errorString())}};
+    if (includeTokens)
+        file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    return {{QStringLiteral("ok"), true}, {QStringLiteral("path"), path}, {QStringLiteral("count"), backup.apps.size()}};
+}
+
+QVariantMap HarpoonController::importBackup(const QString &pathOrUrl, bool withSettings)
+{
+    const QString path = pathOrUrl.startsWith(QLatin1String("file:")) ? QUrl(pathOrUrl).toLocalFile() : pathOrUrl;
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return {{QStringLiteral("ok"), false},
+                {QStringLiteral("error"), tr("Cannot read %1: %2").arg(path, file.errorString())}};
+    const auto backup = Backup::fromJson(file.readAll());
+    if (!backup.ok())
+        return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), backup.error.message}};
+
+    QList<App> existing;
+    for (const AppListModel::Entry &e : m_model.entries())
+        existing << e.app;
+    const ImportResult merged = mergeBackupApps(existing, backup.value.apps);
+    for (const App &app : merged.added)
+        storeAndShow(app);
+    if (withSettings)
+        m_settings->restore(backup.value.settings);
+    return {{QStringLiteral("ok"), true},
+            {QStringLiteral("added"), merged.added.size()},
+            {QStringLiteral("skipped"), merged.skipped}};
 }
 
 } // namespace Harpoon

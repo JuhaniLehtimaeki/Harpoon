@@ -155,6 +155,11 @@ void PackageKitBackend::runNext()
 
 void PackageKitBackend::runTransaction(const QString &method, const QList<QVariant> &args, TransactionDone done)
 {
+    if (!m_bus.isConnected()) {
+        // Without a bus a pending call never reports back.
+        done({Error::make(Error::Install, QStringLiteral("No D-Bus system bus: %1").arg(m_bus.lastError().message())), {}});
+        return;
+    }
     QDBusMessage create = QDBusMessage::createMethodCall(m_service, QStringLiteral("/org/freedesktop/PackageKit"),
                                                          QStringLiteral("org.freedesktop.PackageKit"),
                                                          QStringLiteral("CreateTransaction"));

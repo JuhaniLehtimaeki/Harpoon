@@ -1,6 +1,5 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
-import Nemo.Notifications 1.0
 import harbour.harpoon 1.0
 import "../components"
 
@@ -13,18 +12,7 @@ Page {
     // Refresh apps that have not been checked within the last hour.
     Component.onCompleted: harpoon.checkStale(60)
 
-    Notification {
-        id: banner
-
-        function show(text) {
-            previewSummary = text
-            publish()
-        }
-
-        appName: qsTr("Harpoon")
-        isTransient: true
-        urgency: Notification.Low
-    }
+    Banner { id: banner }
 
     Connections {
         target: harpoon
@@ -38,6 +26,7 @@ Page {
                 banner.show(qsTr("Could not add app: %1").arg(idOrError))
             }
         }
+        onBackgroundError: banner.show(qsTr("Background checks: %1").arg(message))
     }
 
     SilicaListView {

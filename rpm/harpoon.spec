@@ -10,6 +10,7 @@ Requires:   sailfishsilica-qt5 >= 0.10.9
 Requires:   nemo-qml-plugin-notifications-qt5
 Requires:   rpm
 Requires:   PackageKit
+Requires:   systemd
 BuildRequires:  cmake
 BuildRequires:  pkgconfig(sailfishapp) >= 1.0.2
 BuildRequires:  pkgconfig(Qt5Core)
@@ -52,3 +53,5 @@ desktop-file-install --delete-original \
 %{_datadir}/icons/hicolor/*/apps/harpoon.png
 %{_datadir}/mapplauncherd/privileges.d/harpoon
 %{_datadir}/dbus-1/services/io.github.juhanilehtimaeki.harpoon.service
+%{_prefix}/lib/systemd/user/harpoon-check.service
+%{_prefix}/lib/systemd/user/harpoon-check.timer

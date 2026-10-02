@@ -90,6 +90,8 @@ void registerStubs()
     qmlRegisterUncreatableType<EnterKey>(silica, 1, 0, "EnterKey", QStringLiteral("attached only"));
     qmlRegisterType(QUrl::fromLocalFile(kStubDir + QStringLiteral("/Notification.qml")), "Nemo.Notifications", 1, 0,
                     "Notification");
+    qmlRegisterType(QUrl::fromLocalFile(kStubDir + QStringLiteral("/FilePickerPage.qml")), "Sailfish.Pickers", 1, 0,
+                    "FilePickerPage");
 
     // Same registrations as gui/src/harpoon.cpp.
     const char *uri = "harbour.harpoon";
@@ -140,6 +142,7 @@ class TestQmlSmoke : public QObject
     FakeTransport m_transport;
     FakeRpmDb m_db;
     std::unique_ptr<HarpoonSettings> m_settings;
+    std::unique_ptr<BackgroundScheduler> m_scheduler;
     std::unique_ptr<HarpoonController> m_controller;
     HarpoonDBus m_dbus;
     std::unique_ptr<QQuickView> m_view;
@@ -214,6 +217,8 @@ private slots:
         QVERIFY(store.save(delta).ok());
 
         m_settings.reset(new HarpoonSettings(m_dir.filePath(QStringLiteral("config/harpoon.conf"))));
+        m_scheduler.reset(new BackgroundScheduler(QDBusConnection(QStringLiteral("none")),
+                                                  m_dir.filePath(QStringLiteral("xdg-config"))));
         ControllerEnvironment env;
         env.dataDir = store.directory();
         env.cacheDir = m_dir.filePath(QStringLiteral("cache"));
@@ -222,6 +227,8 @@ private slots:
         env.transport = &m_transport;
         env.runner = &m_db;
         env.settings = m_settings.get();
+        env.scheduler = m_scheduler.get();
+        env.backupDir = m_dir.filePath(QStringLiteral("documents"));
         m_controller.reset(new HarpoonController(env));
         m_controller->reload();
         QCOMPARE(m_controller->apps()->count(), 4);
@@ -333,6 +340,46 @@ private slots:
                                         [](const QString &m) { return m.contains(QLatin1String("harpoon.png")); }),
                          g_messages.end());
         expectClean("AboutPage");
+        popToList();
+    }
+
+    void backupFromSettingsPage()
+    {
+        QObject *settingsPage = push(QStringLiteral("SettingsPage.qml"));
+        QVERIFY(settingsPage);
+        expectClean("SettingsPage");
+        QObject *banner = nullptr;
+        QObject *importItem = nullptr;
+        QObject *exportItem = nullptr;
+        for (QObject *o : settingsPage->findChildren<QObject *>()) {
+            if (o->property("publishCount").isValid())
+                banner = o;
+            if (o->property("text").toString() == QLatin1String("Import backup"))
+                importItem = o;
+            if (o->property("text").toString() == QLatin1String("Export backup"))
+                exportItem = o;
+        }
+        QVERIFY(banner && importItem && exportItem);
+
+        QVERIFY(QMetaObject::invokeMethod(exportItem, "clicked"));
+        expectClean("Export backup");
+        QCOMPARE(banner->property("publishCount").toInt(), 1);
+        QVERIFY(banner->property("previewSummary").toString().startsWith(QLatin1String("Saved ")));
+        const QString exported = banner->property("previewSummary").toString().mid(6);
+        QVERIFY(QFile::exists(exported));
+
+        QVERIFY(QMetaObject::invokeMethod(importItem, "clicked"));
+        expectClean("opening the file picker");
+        QObject *picker = currentPage();
+        QVERIFY(picker && picker->property("nameFilters").isValid());
+        picker->setProperty("selectedContentProperties", QVariantMap{{QStringLiteral("filePath"), exported}});
+        expectClean("picking a backup");
+        QCOMPARE(banner->property("publishCount").toInt(), 2);
+        // Every app in the backup is already tracked.
+        QVERIFY(banner->property("previewSummary").toString().contains(QLatin1String("already tracked")));
+
+        emit m_controller->backgroundError(QStringLiteral("systemd is not reachable"));
+        expectClean("background error");
         popToList();
     }
 

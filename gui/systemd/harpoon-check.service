@@ -1,0 +1,7 @@
+[Unit]
+Description=Harpoon: check apps for new releases
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/harpoon-cli check --notify --quiet
+Nice=10

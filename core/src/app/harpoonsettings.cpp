@@ -1,4 +1,4 @@
-#include "harpoonsettings.h"
+#include "app/harpoonsettings.h"
 
 #include <QDir>
 #include <QFile>
@@ -120,6 +120,38 @@ QVariantMap HarpoonSettings::tokens() const
         out.insert(key, m_settings->value(key));
     m_settings->endGroup();
     return out;
+}
+
+} // namespace Harpoon
+
+namespace Harpoon {
+
+QVariantMap HarpoonSettings::exportable(bool includeTokens) const
+{
+    QVariantMap out{
+        {QStringLiteral("installBackend"), installBackend()},
+        {QStringLiteral("backgroundChecks"), backgroundChecks()},
+        {QStringLiteral("checkIntervalHours"), checkIntervalHours()},
+        {QStringLiteral("notifyUpdates"), notifyUpdates()},
+    };
+    if (includeTokens)
+        out.insert(QStringLiteral("tokens"), tokens());
+    return out;
+}
+
+void HarpoonSettings::restore(const QVariantMap &values)
+{
+    if (values.contains(QStringLiteral("installBackend")))
+        setInstallBackend(values.value(QStringLiteral("installBackend")).toString());
+    if (values.contains(QStringLiteral("backgroundChecks")))
+        setBackgroundChecks(values.value(QStringLiteral("backgroundChecks")).toBool());
+    if (values.contains(QStringLiteral("checkIntervalHours")))
+        setCheckIntervalHours(values.value(QStringLiteral("checkIntervalHours")).toInt());
+    if (values.contains(QStringLiteral("notifyUpdates")))
+        setNotifyUpdates(values.value(QStringLiteral("notifyUpdates")).toBool());
+    const QVariantMap tokens = values.value(QStringLiteral("tokens")).toMap();
+    for (auto it = tokens.constBegin(); it != tokens.constEnd(); ++it)
+        setToken(it.key(), it.value().toString());
 }
 
 } // namespace Harpoon

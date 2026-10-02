@@ -1,0 +1,11 @@
+[Unit]
+Description=Harpoon: periodic check for new releases
+
+[Timer]
+OnBootSec=15min
+# Harpoon writes a drop-in that overrides this from its settings.
+OnUnitActiveSec=6h
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

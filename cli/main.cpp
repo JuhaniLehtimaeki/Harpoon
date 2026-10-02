@@ -7,6 +7,10 @@
 #include "app/appchecker.h"
 #include "app/appinstaller.h"
 #include "app/appstore.h"
+#include "app/backgroundscheduler.h"
+#include "app/backup.h"
+#include "app/harpoonsettings.h"
+#include "app/updatenotifications.h"
 #include "app/updatestatus.h"
 #include "model/identity.h"
 #include "net/networktransport.h"
@@ -16,6 +20,7 @@
 
 #include <QCoreApplication>
 #include <QEventLoop>
+#include <QFile>
 #include <QStandardPaths>
 #include <QTextStream>
 
@@ -47,7 +52,9 @@ const char *kUsage =
     "                         for self-hosted servers. --force saves even if the first check fails.\n"
     "  list                   Show tracked apps and their update state.\n"
     "  show <app>             Show details and the latest changelog.\n"
-    "  check [app]...         Check for updates (all apps when none given).\n"
+    "  check [app]... [--notify] [--quiet]\n"
+    "                         Check for updates (all apps when none given). --notify posts a\n"
+    "                         notification for releases not announced before.\n"
     "  install <app> [--reinstall] [--downgrade] [--backend packagekit|handler]\n"
     "                         Install the latest release.\n"
     "  upgrade [--backend B]  Check all apps, then install every available update.\n"
@@ -55,9 +62,16 @@ const char *kUsage =
     "  ack <app>              Mark the latest release of a track-only app as seen.\n"
     "  remove <app> [--uninstall]\n"
     "                         Stop tracking; --uninstall also removes the package.\n"
+    "  export <file> [--include-tokens]\n"
+    "                         Write a backup of tracked apps and settings.\n"
+    "  import <file> [--with-settings]\n"
+    "                         Add the apps from a backup (already tracked ones are skipped).\n"
+    "  background on|off [--hours N]\n"
+    "                         Enable or disable the periodic background check.\n"
     "\n"
     "<app> is an app id (RPM name) or a unique name.\n"
-    "Environment: HARPOON_DATA_DIR, HARPOON_CACHE_DIR, HARPOON_TOKEN_<SOURCE> (e.g. HARPOON_TOKEN_GITHUB).\n";
+    "Tokens come from the app's settings; HARPOON_TOKEN_<SOURCE> (e.g. HARPOON_TOKEN_GITHUB) overrides.\n"
+    "Environment: HARPOON_DATA_DIR, HARPOON_CACHE_DIR, HARPOON_CONFIG_DIR.\n";
 
 struct Args
 {
@@ -130,7 +144,7 @@ public:
         }
         const QString command = argv.first();
         const Args args = parseArgs(argv.mid(1), {QStringLiteral("--source"), QStringLiteral("--set"),
-                                                  QStringLiteral("--backend")});
+                                                  QStringLiteral("--backend"), QStringLiteral("--hours")});
         int rc;
         if (command == QLatin1String("add"))
             rc = add(args);
@@ -150,6 +164,12 @@ public:
             rc = ack(args);
         else if (command == QLatin1String("remove"))
             rc = remove(args);
+        else if (command == QLatin1String("export"))
+            rc = exportBackup(args);
+        else if (command == QLatin1String("import"))
+            rc = importBackup(args);
+        else if (command == QLatin1String("background"))
+            rc = background(args);
         else {
             err() << "Unknown command: " << command << "\n\n" << kUsage;
             rc = 1;
@@ -171,9 +191,10 @@ private:
         if (!m_checker) {
             m_checker.reset(new AppChecker(m_registry, m_transport, m_device));
             for (const QString &id : m_registry.ids()) {
-                const QByteArray token = qgetenv("HARPOON_TOKEN_" + id.toUpper().toLatin1());
+                const QByteArray env = qgetenv("HARPOON_TOKEN_" + id.toUpper().toLatin1());
+                const QString token = !env.isEmpty() ? QString::fromUtf8(env) : m_settings.token(id);
                 if (!token.isEmpty())
-                    m_checker->setSourceConfig(id, {{QStringLiteral("token"), QString::fromUtf8(token)}});
+                    m_checker->setSourceConfig(id, {{QStringLiteral("token"), token}});
             }
         }
         return *m_checker;
@@ -332,7 +353,9 @@ private:
                 apps << a.value;
             }
         }
+        const bool quiet = args.has("--quiet");
         int failures = 0;
+        QList<App> checked;
         await<bool>([&](std::function<void(const bool &)> done) {
             checker().checkAll(
                 apps,
@@ -342,11 +365,97 @@ private:
                     const Error saved = m_store.save(updated);
                     if (!saved.ok())
                         err() << "Warning: " << saved.message << "\n";
-                    printStatusLine(updated);
+                    checked << updated;
+                    if (!quiet || !e.ok())
+                        printStatusLine(updated);
                 },
                 [done]() { done(true); });
         });
+        if (args.has("--notify") && m_settings.notifyUpdates())
+            notifyUpdates();
         return failures == 0 ? 0 : 3;
+    }
+
+    // Notifies about releases not announced before, across all apps.
+    void notifyUpdates()
+    {
+        QList<AppWithStatus> all;
+        for (const App &app : m_store.loadAll())
+            all << AppWithStatus{app, updateStatusFor(app, installedOf(app))};
+        const UpdateNotificationPlan plan = planUpdateNotification(all);
+        if (!plan.shouldNotify)
+            return;
+        Notifier notifier;
+        const auto sent = notifier.notify(plan.request);
+        if (!sent.ok()) {
+            err() << "Warning: " << sent.error.message << "\n";
+            return;
+        }
+        for (const App &app : plan.appsToMark)
+            m_store.save(app);
+    }
+
+    int exportBackup(const Args &args)
+    {
+        if (args.positional.size() != 1)
+            return fail(QStringLiteral("export takes a file name"));
+        Backup backup;
+        backup.apps = m_store.loadAll();
+        backup.settings = m_settings.exportable(args.has("--include-tokens"));
+        QFile file(args.positional.first());
+        if (!file.open(QIODevice::WriteOnly) || file.write(backup.toJson()) < 0)
+            return fail(QStringLiteral("Cannot write %1: %2").arg(file.fileName(), file.errorString()));
+        if (args.has("--include-tokens"))
+            file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+        out() << "Exported " << backup.apps.size() << " app(s) to " << file.fileName() << "\n";
+        return 0;
+    }
+
+    int importBackup(const Args &args)
+    {
+        if (args.positional.size() != 1)
+            return fail(QStringLiteral("import takes a file name"));
+        QFile file(args.positional.first());
+        if (!file.open(QIODevice::ReadOnly))
+            return fail(QStringLiteral("Cannot read %1: %2").arg(file.fileName(), file.errorString()));
+        const auto backup = Backup::fromJson(file.readAll());
+        if (!backup.ok())
+            return fail(backup.error.message);
+        const ImportResult merged = mergeBackupApps(m_store.loadAll(), backup.value.apps);
+        for (const App &app : merged.added) {
+            const Error saved = m_store.save(app);
+            if (!saved.ok())
+                return fail(saved.message);
+        }
+        if (args.has("--with-settings"))
+            m_settings.restore(backup.value.settings);
+        out() << "Imported " << merged.added.size() << " app(s)";
+        if (!merged.skipped.isEmpty())
+            out() << "; already tracked: " << merged.skipped.join(QStringLiteral(", "));
+        out() << "\n";
+        return 0;
+    }
+
+    int background(const Args &args)
+    {
+        if (args.positional.size() != 1 || (args.positional.first() != QLatin1String("on")
+                                            && args.positional.first() != QLatin1String("off")))
+            return fail(QStringLiteral("background takes on or off"));
+        const bool enabled = args.positional.first() == QLatin1String("on");
+        if (args.has("--hours"))
+            m_settings.setCheckIntervalHours(args.value("--hours").toInt());
+        m_settings.setBackgroundChecks(enabled);
+        BackgroundScheduler scheduler;
+        const Error e = await<Error>([&](std::function<void(const Error &)> done) {
+            scheduler.apply(enabled, m_settings.checkIntervalHours(), done);
+        });
+        if (!e.ok())
+            return fail(e.message);
+        out() << "Background checks " << (enabled ? "on" : "off");
+        if (enabled)
+            out() << ", every " << m_settings.checkIntervalHours() << " h";
+        out() << "\n";
+        return 0;
     }
 
     PackageBackend *backend(const QString &name)
@@ -497,6 +606,7 @@ private:
     }
 
     SourceRegistry m_registry;
+    HarpoonSettings m_settings;
     AppStore m_store;
     DeviceInfo m_device;
     SystemProcessRunner m_runner;

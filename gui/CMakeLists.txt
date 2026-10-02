@@ -3,8 +3,6 @@
 add_library(harpoon-ui STATIC
     src/applistmodel.h
     src/applistmodel.cpp
-    src/harpoonsettings.h
-    src/harpoonsettings.cpp
     src/harpooncontroller.h
     src/harpooncontroller.cpp
     src/harpoondbus.h

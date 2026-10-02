@@ -54,6 +54,7 @@ struct App
 
     InstallReceipt receipt;
     QString acknowledgedVersion; // track-only apps: latest version the user has seen
+    QString notifiedVersion;     // latest version a background notification announced
 
     QJsonObject toJson() const;
     static Result<App> fromJson(const QJsonObject &json);

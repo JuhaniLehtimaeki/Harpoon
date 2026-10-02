@@ -38,6 +38,11 @@ public:
     Q_INVOKABLE void setToken(const QString &sourceId, const QString &token);
     QVariantMap tokens() const;
 
+    // Settings for a backup; tokens only when includeTokens.
+    QVariantMap exportable(bool includeTokens) const;
+    // Restores what exportable() produced. Unknown keys are ignored.
+    void restore(const QVariantMap &values);
+
     QString filePath() const;
     static QString defaultFilePath();
 

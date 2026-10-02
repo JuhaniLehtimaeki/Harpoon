@@ -65,6 +65,7 @@ class TestController : public QObject
     std::unique_ptr<FakeRpmDb> m_db;
     std::unique_ptr<RecordingBackend> m_backend;
     std::unique_ptr<HarpoonSettings> m_settings;
+    std::unique_ptr<BackgroundScheduler> m_scheduler;
     std::unique_ptr<HarpoonController> m_controller;
 
     void makeController()
@@ -78,6 +79,8 @@ class TestController : public QObject
         env.runner = m_db.get();
         env.backend = m_backend.get();
         env.settings = m_settings.get();
+        env.scheduler = m_scheduler.get();
+        env.backupDir = m_dir->filePath(QStringLiteral("documents"));
         m_controller.reset(new HarpoonController(env));
         m_controller->reload();
     }
@@ -101,6 +104,9 @@ private slots:
         m_db.reset(new FakeRpmDb);
         m_backend.reset(new RecordingBackend(*m_db));
         m_settings.reset(new HarpoonSettings(m_dir->filePath(QStringLiteral("config/harpoon.conf"))));
+        // No bus: systemd calls fail fast and nothing touches ~/.config.
+        m_scheduler.reset(new BackgroundScheduler(QDBusConnection(QStringLiteral("none")),
+                                                  m_dir->filePath(QStringLiteral("xdg-config"))));
         m_transport->respondFixture(
             QStringLiteral("https://api.github.com/repos/sailfishos-chum/sailfishos-chum-gui/releases?per_page=100"),
             QStringLiteral("github/chum-gui-releases.json"));
@@ -283,6 +289,50 @@ private slots:
         QCOMPARE(m_controller->apps()->count(), 0);
         makeController();
         QCOMPARE(m_controller->apps()->count(), 0);
+    }
+
+    void backupExportImport()
+    {
+        m_settings->setToken(QStringLiteral("GitHub"), QStringLiteral("secret"));
+        QVERIFY(addApp(QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui"),
+                       {{QStringLiteral("includePrereleases"), true}}));
+        const QVariantMap exported = m_controller->exportBackup(false);
+        QVERIFY2(exported.value(QStringLiteral("ok")).toBool(), qPrintable(exported.value(QStringLiteral("error")).toString()));
+        const QString path = exported.value(QStringLiteral("path")).toString();
+        QVERIFY(path.startsWith(m_dir->filePath(QStringLiteral("documents"))));
+        QVERIFY(!readFile(path).contains("secret")); // tokens only on request
+
+        // Import into an empty installation.
+        QTemporaryDir other;
+        HarpoonSettings otherSettings(other.filePath(QStringLiteral("harpoon.conf")));
+        ControllerEnvironment env;
+        env.dataDir = other.filePath(QStringLiteral("apps"));
+        env.cacheDir = other.filePath(QStringLiteral("cache"));
+        env.device.arch = QStringLiteral("aarch64");
+        env.transport = m_transport.get();
+        env.runner = m_db.get();
+        env.backend = m_backend.get();
+        env.settings = &otherSettings;
+        env.scheduler = m_scheduler.get();
+        HarpoonController fresh(env);
+        fresh.reload();
+        QVariantMap imported = fresh.importBackup(QUrl::fromLocalFile(path).toString(), true);
+        QVERIFY2(imported.value(QStringLiteral("ok")).toBool(), qPrintable(imported.value(QStringLiteral("error")).toString()));
+        QCOMPARE(imported.value(QStringLiteral("added")).toInt(), 1);
+        QCOMPARE(fresh.apps()->count(), 1);
+        const QString id = fresh.apps()->data(fresh.apps()->index(0), AppListModel::IdRole).toString();
+        QVERIFY(fresh.appDetails(id).value(QStringLiteral("settings")).toMap().value(QStringLiteral("includePrereleases")).toBool());
+        QVERIFY(otherSettings.token(QStringLiteral("GitHub")).isEmpty());
+
+        // A second import adds nothing.
+        imported = fresh.importBackup(path, false);
+        QCOMPARE(imported.value(QStringLiteral("added")).toInt(), 0);
+        QCOMPARE(imported.value(QStringLiteral("skipped")).toStringList().size(), 1);
+
+        // With tokens, and a broken file.
+        const QVariantMap withTokens = m_controller->exportBackup(true);
+        QVERIFY(readFile(withTokens.value(QStringLiteral("path")).toString()).contains("secret"));
+        QVERIFY(!fresh.importBackup(m_dir->filePath(QStringLiteral("nothing.json")), false).value(QStringLiteral("ok")).toBool());
     }
 
     void sourcesListed()

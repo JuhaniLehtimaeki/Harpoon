@@ -345,6 +345,18 @@ private slots:
         QVERIFY(!e.ok());
     }
 
+    void noBusFailsFast()
+    {
+        PackageKitBackend pk(QDBusConnection(QStringLiteral("none")));
+        QCOMPARE(int(waitFor([&](PackageBackend::Done d) {
+                         pk.installFiles({QStringLiteral("/tmp/a.rpm")}, InstallOptions(), d);
+                     }).kind),
+                 int(Error::Install));
+        InstallHandlerBackend handler(QDBusConnection(QStringLiteral("none")));
+        QCOMPARE(int(waitFor([&](PackageBackend::Done d) { handler.removePackage(QStringLiteral("x"), d); }).kind),
+                 int(Error::Install));
+    }
+
     void installHandler()
     {
         InstallHandlerBackend backend(client());
