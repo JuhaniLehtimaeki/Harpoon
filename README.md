@@ -50,6 +50,7 @@ ctest --test-dir build --output-on-failure
 ```sh
 sfdk build      # uses rpm/harpoon.spec; builds the app (harpoon) and harpoon-cli
 ```
+Releases and publishing on SailfishOS:Chum: [docs/packaging.md](docs/packaging.md).
 
 ## Licence
 GPL-3.0-or-later, see [LICENSE](LICENSE). Parts of the core are ported from

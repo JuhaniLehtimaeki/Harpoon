@@ -1,0 +1,13 @@
+<!-- OBS source service for the Harpoon package in your OBS home project.
+     tar_git checks out the tag and makes harpoon-<version>.tar.bz2 from rpm/harpoon.spec.
+     Copy this to the OBS package as "_service" and set "revision" to the release tag. -->
+<services>
+  <service name="tar_git">
+    <param name="url">https://github.com/JuhaniLehtimaeki/Harpoon.git</param>
+    <param name="branch">main</param>
+    <param name="revision">0.1.0</param>
+    <param name="token"/>
+    <param name="debian">N</param>
+    <param name="dumb">N</param>
+  </service>
+</services>

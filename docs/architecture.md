@@ -3,7 +3,7 @@
 Harpoon is an Obtainium-style updater for SailfishOS. It tracks apps published as RPM
 release assets on code forges, then downloads and installs them.
 
-Status: **Phases 1–3 implemented; awaiting device validation** (`docs/device-testing.md`). This builds on the research in `docs/research/01-03`.
+Status: **Phases 1–5 implemented; awaiting device validation** (`docs/device-testing.md`). This builds on the research in `docs/research/01-03`.
 
 ## Decisions (Oct 2026)
 | # | Question | Decision |
@@ -362,3 +362,21 @@ direct `.rpm` links and rpm-md repositories.
 
 **Settings:** moved into core, so the CLI and the background check share the app's settings
 file, tokens included.
+
+## Phase 5 status
+- **rpm-md repository source** (`RpmMdRepo`):
+  - Reads `repomd.xml`, then `primary.xml(.gz)`, and checks the primary file's checksum.
+  - Produces one release per EVR, newest first. See `docs/sources.md`.
+- **GitHub build attestation** (`sources/githubattestation`):
+  - The per-app setting `githubBuildVerificationMode` takes `off`, `audit` or `enforce`.
+  - Before installing, each downloaded file's sha256 is looked up at
+    `{api}/attestations/sha256:{digest}`. An in-toto statement must name that exact digest.
+  - `audit` turns a problem into a warning; `enforce` refuses to install.
+  - The result is stored in the install receipt and shown on the app page.
+  - The Sigstore signature is not verified locally: Harpoon trusts GitHub's API over TLS, as
+    ObtainX does.
+- **Chum packaging:**
+  - Chum metadata in the spec.
+  - A `%prep` that works both in place (`sfdk`) and from a `tar_git` tarball (OBS).
+  - `rpm/_service.example`, `rpm/harpoon.changes` and `docs/packaging.md`.
+  - A full `rpmbuild` from a tarball was tested on desktop with a stand-in libsailfishapp.

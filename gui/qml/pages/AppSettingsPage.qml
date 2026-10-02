@@ -181,6 +181,23 @@ Page {
                 description: qsTr("Accept a release whose RPM is not named %1").arg(page.appId)
             }
 
+            SectionHeader {
+                visible: details.effectiveSourceId === "GitHub"
+                text: qsTr("Security")
+            }
+
+            SettingChoice {
+                visible: details.effectiveSourceId === "GitHub"
+                appId: page.appId; key: "githubBuildVerificationMode"; values: page._values
+                label: qsTr("Check build provenance")
+                description: qsTr("Uses GitHub artifact attestations to confirm the package was built by the repository's own workflow")
+                options: [
+                    { value: "off", text: qsTr("Off") },
+                    { value: "audit", text: qsTr("Warn if missing") },
+                    { value: "enforce", text: qsTr("Refuse to install if missing") }
+                ]
+            }
+
             SectionHeader { text: qsTr("Version") }
 
             SettingChoice {

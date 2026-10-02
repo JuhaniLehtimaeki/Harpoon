@@ -1,4 +1,5 @@
 Name:       harpoon
+# The version must match a git tag (see docs/packaging.md).
 Summary:    Install and update apps from GitHub, Codeberg and other forges
 Version:    0.1.0
 Release:    1
@@ -6,6 +7,7 @@ Release:    1
 License:    GPLv3+
 URL:        https://github.com/JuhaniLehtimaeki/Harpoon
 Source0:    %{name}-%{version}.tar.bz2
+Group:      Software Management/Package Manager
 Requires:   sailfishsilica-qt5 >= 0.10.9
 Requires:   nemo-qml-plugin-notifications-qt5
 Requires:   rpm
@@ -24,8 +26,33 @@ BuildRequires:  desktop-file-utils
 
 %description
 Harpoon tracks apps that publish RPM packages as release assets on code forges
-(GitHub, Codeberg, Forgejo, Gitea) and installs updates straight from the source.
-It also contains the command line tool harpoon-cli.
+(GitHub, Codeberg, Forgejo, Gitea, GitLab and others) and installs updates
+straight from the source. It also contains the command line tool harpoon-cli.
+
+# Metadata for SailfishOS:Chum, see
+# https://github.com/sailfishos-chum/main/blob/main/Metadata.md
+%if 0%{?_chum}
+Title: Harpoon
+Type: desktop-application
+DeveloperName: Juhani Lehtimäki
+Categories:
+ - System
+ - PackageManager
+ - Utility
+Custom:
+  Repo: %{url}
+PackageIcon: %{url}/raw/main/gui/icons/harpoon.svg
+Links:
+  Homepage: %{url}
+  Help: %{url}/blob/main/README.md
+  Bugtracker: %{url}/issues
+%endif
+
+%prep
+# OBS (Chum) unpacks the tarball made by tar_git; sfdk builds in place.
+%if %(test -e %{SOURCE0} && echo 1 || echo 0)
+%setup -q -n %{name}-%{version}
+%endif
 
 %build
 mkdir -p build

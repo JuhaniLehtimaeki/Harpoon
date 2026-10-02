@@ -198,39 +198,59 @@ void AppInstaller::verifyAndInstall(std::shared_ptr<InstallJob> job)
                             .arg(installed.value.vendor, main.vendor);
     }
 
+    QStringList sha256s;
+    for (const QString &file : job->files)
+        sha256s << Downloader::sha256OfFile(file);
+
+    auto install = [this, job, main, abort, sha256s](QStringList warnings, const QString &verification) {
+        if (job->progress)
+            job->progress(QStringLiteral("Installing %1").arg(main.nevra()), 0, -1);
+
+        m_backend.installFiles(job->files, job->options,
+                               [this, job, main, warnings, abort, sha256s, verification](const Error &error) {
+            if (!error.ok()) {
+                abort(Result<InstallResult>::failure(error));
+                return;
+            }
+            const auto now = m_inspector.installedPackage(main.name);
+            if (!now.ok() || now.value.name.isEmpty() || compareEvr(now.value.evr, main.evr) != 0) {
+                abort(fail(Error::Install, QStringLiteral("The package manager reported success, but %1 %2 is not installed")
+                                               .arg(main.name, main.evr.toString())));
+                return;
+            }
+
+            InstallResult result;
+            result.installed = now.value;
+            result.warnings = warnings;
+            result.app = job->app;
+            result.app.id = main.name;
+            result.app.temporaryId = false;
+            result.app.receipt.version = job->app.latestVersion;
+            result.app.receipt.tag = job->app.latestTag;
+            result.app.receipt.evr = now.value.evr.toString();
+            result.app.receipt.verification = verification;
+            result.app.receipt.assetNames.clear();
+            for (int i = 0; i < job->files.size(); ++i)
+                result.app.receipt.assetNames << job->app.latestAssets.at(i).name;
+            result.app.receipt.sha256s = sha256s;
+            result.app.receipt.installedAt = QDateTime::currentDateTimeUtc();
+            cleanUp(job->files);
+            job->done(Result<InstallResult>::success(result));
+        });
+    };
+
+    if (!m_verify) {
+        install(warnings, QString());
+        return;
+    }
     if (job->progress)
-        job->progress(QStringLiteral("Installing %1").arg(main.nevra()), 0, -1);
-
-    m_backend.installFiles(job->files, job->options, [this, job, main, warnings, abort](const Error &error) {
-        if (!error.ok()) {
-            abort(Result<InstallResult>::failure(error));
+        job->progress(QStringLiteral("Verifying %1").arg(main.nevra()), 0, -1);
+    m_verify(job->app, job->files, sha256s, [install, warnings, abort](const Verification &v) {
+        if (!v.error.ok()) {
+            abort(Result<InstallResult>::failure(v.error));
             return;
         }
-        const auto now = m_inspector.installedPackage(main.name);
-        if (!now.ok() || now.value.name.isEmpty() || compareEvr(now.value.evr, main.evr) != 0) {
-            abort(fail(Error::Install, QStringLiteral("The package manager reported success, but %1 %2 is not installed")
-                                           .arg(main.name, main.evr.toString())));
-            return;
-        }
-
-        InstallResult result;
-        result.installed = now.value;
-        result.warnings = warnings;
-        result.app = job->app;
-        result.app.id = main.name;
-        result.app.temporaryId = false;
-        result.app.receipt.version = job->app.latestVersion;
-        result.app.receipt.tag = job->app.latestTag;
-        result.app.receipt.evr = now.value.evr.toString();
-        result.app.receipt.assetNames.clear();
-        result.app.receipt.sha256s.clear();
-        for (int i = 0; i < job->files.size(); ++i) {
-            result.app.receipt.assetNames << job->app.latestAssets.at(i).name;
-            result.app.receipt.sha256s << Downloader::sha256OfFile(job->files.at(i));
-        }
-        result.app.receipt.installedAt = QDateTime::currentDateTimeUtc();
-        cleanUp(job->files);
-        job->done(Result<InstallResult>::success(result));
+        install(warnings + v.warnings, v.status);
     });
 }
 

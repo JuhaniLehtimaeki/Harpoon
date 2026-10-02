@@ -146,11 +146,13 @@ class TestAppInstaller : public QObject
         return result;
     }
 
-    Result<InstallResult> install(const App &app, const InstallOptions &options = InstallOptions())
+    Result<InstallResult> install(const App &app, const InstallOptions &options = InstallOptions(),
+                                  AppInstaller::Verifier verifier = nullptr)
     {
         Downloader downloader;
         RpmInspector inspector(m_db);
         AppInstaller installer(downloader, inspector, *m_backend, m_downloads->path(), m_device);
+        installer.setVerifier(verifier);
         Result<InstallResult> result;
         bool done = false;
         installer.install(app, options, nullptr, [&](const Result<InstallResult> &r) {
@@ -346,6 +348,40 @@ private slots:
         serveRelease(QStringLiteral("v2.0"), {QStringLiteral("tool-2.0-aarch64")});
         m_backend->pretendSuccessOnly = true;
         QCOMPARE(int(install(checkedApp()).error.kind), int(Error::Install));
+    }
+
+    void verifierCanBlockOrWarn()
+    {
+        serveRelease(QStringLiteral("v2.0"), {QStringLiteral("tool-2.0-aarch64")});
+        const App app = checkedApp();
+        QStringList seenSha;
+        auto blocking = [&](const App &, const QStringList &files, const QStringList &sha256s,
+                            std::function<void(const AppInstaller::Verification &)> done) {
+            QCOMPARE(files.size(), 1);
+            QVERIFY(QFile::exists(files.first())); // checked before install, while the file exists
+            seenSha = sha256s;
+            AppInstaller::Verification v;
+            v.error = Error::make(Error::Verification, QStringLiteral("no attestation"));
+            done(v);
+        };
+        const auto blocked = install(app, InstallOptions(), blocking);
+        QCOMPARE(int(blocked.error.kind), int(Error::Verification));
+        QVERIFY(m_backend->installs.isEmpty());
+        QCOMPARE(seenSha.size(), 1);
+        QCOMPARE(seenSha.first().size(), 64);
+
+        auto warning = [](const App &, const QStringList &, const QStringList &,
+                          std::function<void(const AppInstaller::Verification &)> done) {
+            AppInstaller::Verification v;
+            v.warnings << QStringLiteral("Build provenance not confirmed");
+            v.status = QStringLiteral("attestation:missing");
+            done(v);
+        };
+        const auto warned = install(app, InstallOptions(), warning);
+        QVERIFY2(warned.ok(), qPrintable(warned.error.message));
+        QVERIFY(warned.value.warnings.contains(QStringLiteral("Build provenance not confirmed")));
+        QCOMPARE(warned.value.app.receipt.verification, QStringLiteral("attestation:missing"));
+        QCOMPARE(warned.value.app.receipt.sha256s, seenSha);
     }
 
     void trackOnlyCannotInstall()

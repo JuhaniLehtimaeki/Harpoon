@@ -23,6 +23,7 @@ struct Error
         InvalidSetting,  // e.g. a regex setting does not compile
         Download,        // download failed or was incomplete
         Checksum,        // downloaded file does not match the published sha256
+        Verification,    // build provenance could not be confirmed (enforce mode)
         Package,         // rpm could not read a package or the database
         WrongArch,       // package is for another architecture
         IdChanged,       // package name differs from the tracked app id

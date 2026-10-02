@@ -23,6 +23,8 @@ add_library(harpoon-core STATIC
     src/sources/source.cpp
     src/sources/githubsource.h
     src/sources/githubsource.cpp
+    src/sources/githubattestation.h
+    src/sources/githubattestation.cpp
     src/sources/forgejosource.h
     src/sources/forgejosource.cpp
     src/sources/sourceutil.h

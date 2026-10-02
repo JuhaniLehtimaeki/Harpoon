@@ -485,6 +485,7 @@ private:
     {
         AppInstaller installer(m_downloader, m_inspector, b, downloadDir(), m_device);
         installer.setDownloadPreparer(checker().downloadPreparer(app));
+        installer.setVerifier(checker().verifier(app));
         QString lastStage;
         const auto result = await<Result<InstallResult>>([&](std::function<void(const Result<InstallResult> &)> done) {
             installer.install(

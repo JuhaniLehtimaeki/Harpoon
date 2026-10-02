@@ -246,6 +246,7 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
 
     auto *installer = new AppInstaller(m_downloader, *m_inspector, backend(), m_cacheDir, m_device, this);
     installer->setDownloadPreparer(checker().downloadPreparer(app));
+    installer->setVerifier(checker().verifier(app));
     InstallOptions options;
     options.allowReinstall = reinstall;
     options.allowDowngrade = downgrade;
@@ -380,6 +381,7 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
         {QStringLiteral("acknowledgedVersion"), a.acknowledgedVersion},
         {QStringLiteral("receiptEvr"), a.receipt.evr},
         {QStringLiteral("receiptInstalledAt"), a.receipt.installedAt},
+        {QStringLiteral("receiptVerification"), a.receipt.verification},
         {QStringLiteral("settings"), a.settings.values()},
         {QStringLiteral("busy"), e->busy},
         {QStringLiteral("stage"), e->stage},

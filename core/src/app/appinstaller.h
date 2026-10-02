@@ -37,12 +37,23 @@ public:
     using Done = std::function<void(const Result<InstallResult> &)>;
     // Adjusts each asset download (credentials, headers); see Source::prepareDownload.
     using DownloadPreparer = std::function<void(const Asset &, DownloadRequest &)>;
+    // Checks downloaded files before they are installed. Reports a blocking
+    // error, warnings, and a short status recorded in the install receipt.
+    struct Verification
+    {
+        Error error;
+        QStringList warnings;
+        QString status;
+    };
+    using Verifier = std::function<void(const App &, const QStringList &files, const QStringList &sha256s,
+                                        std::function<void(const Verification &)>)>;
 
     AppInstaller(Downloader &downloader, RpmInspector &inspector, PackageBackend &backend,
                  const QString &downloadDir, const DeviceInfo &device, QObject *parent = nullptr);
 
     void install(const App &app, const InstallOptions &options, Progress progress, Done done);
     void setDownloadPreparer(DownloadPreparer preparer) { m_prepareDownload = std::move(preparer); }
+    void setVerifier(Verifier verifier) { m_verify = std::move(verifier); }
     void uninstall(const App &app, std::function<void(const Error &)> done);
 
     // Picks the package that represents the app among a release's RPMs:
@@ -60,6 +71,7 @@ private:
     QString m_downloadDir;
     DeviceInfo m_device;
     DownloadPreparer m_prepareDownload;
+    Verifier m_verify;
 };
 
 } // namespace Harpoon

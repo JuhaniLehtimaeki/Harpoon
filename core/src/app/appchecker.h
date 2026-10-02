@@ -1,6 +1,7 @@
 #pragma once
 
 #include "app/app.h"
+#include "app/appinstaller.h"
 #include "net/httptransport.h"
 #include "pipeline/deviceinfo.h"
 #include "sources/sourceregistry.h"
@@ -34,6 +35,9 @@ public:
     // A preparer that downloads the app's assets the way its source needs
     // (tokens, headers). Null when the source cannot be resolved.
     std::function<void(const Asset &, DownloadRequest &)> downloadPreparer(const App &app) const;
+    // Build-provenance verification for GitHub apps whose
+    // githubBuildVerificationMode is "audit" or "enforce"; null otherwise.
+    AppInstaller::Verifier verifier(const App &app) const;
     // Checks all apps, calling perApp for each and allDone at the end.
     void checkAll(const QList<App> &apps, AppDone perApp, std::function<void()> allDone);
 

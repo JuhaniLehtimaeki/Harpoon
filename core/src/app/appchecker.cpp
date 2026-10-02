@@ -1,6 +1,8 @@
 #include "app/appchecker.h"
 
 #include "pipeline/releasepipeline.h"
+#include "sources/githubattestation.h"
+#include "sources/githubsource.h"
 
 #include <memory>
 
@@ -67,6 +69,64 @@ std::function<void(const Asset &, DownloadRequest &)> AppChecker::downloadPrepar
     const AppSettings settings = app.settings;
     return [source, settings](const Asset &asset, DownloadRequest &request) {
         source->prepareDownload(asset, settings, request);
+    };
+}
+
+AppInstaller::Verifier AppChecker::verifier(const App &app) const
+{
+    const QString mode = app.settings.getString(Keys::githubBuildVerificationMode, QStringLiteral("off"));
+    if (mode != QLatin1String("audit") && mode != QLatin1String("enforce"))
+        return nullptr;
+    const auto match = m_registry.match(app.url, app.sourceId);
+    if (!match.ok() || match.value.source->id() != QLatin1String("GitHub"))
+        return nullptr;
+    const auto *github = static_cast<const GitHubSource *>(match.value.source.get());
+    const QString apiBase = github->apiBaseUrl(match.value.standardUrl);
+    const QString token = m_sourceConfig.value(github->id()).value(QStringLiteral("token")).toString().trimmed();
+    const bool enforce = mode == QLatin1String("enforce");
+    HttpTransport *transport = &m_transport;
+
+    return [transport, apiBase, token, enforce](const App &, const QStringList &files, const QStringList &sha256s,
+                                                std::function<void(const AppInstaller::Verification &)> done) {
+        struct State
+        {
+            int remaining;
+            AttestationStatus worst = AttestationStatus::Verified;
+            QStringList problems;
+        };
+        auto state = std::make_shared<State>();
+        state->remaining = sha256s.size();
+        auto finish = [state, enforce, done]() {
+            AppInstaller::Verification v;
+            v.status = QStringLiteral("attestation:") + attestationStatusName(state->worst);
+            if (state->worst != AttestationStatus::Verified) {
+                const QString message = QStringLiteral("Build provenance not confirmed: %1")
+                                            .arg(state->problems.join(QStringLiteral("; ")));
+                if (enforce)
+                    v.error = Error::make(Error::Verification, message);
+                else
+                    v.warnings << message;
+            }
+            done(v);
+        };
+        if (sha256s.isEmpty()) {
+            finish();
+            return;
+        }
+        for (int i = 0; i < sha256s.size(); ++i) {
+            const QString name = files.value(i).section(QLatin1Char('/'), -1);
+            checkGitHubAttestation(*transport, apiBase, token, sha256s.at(i),
+                                   [state, name, finish](const AttestationResult &r) {
+                                       if (r.status != AttestationStatus::Verified) {
+                                           // Error outranks Missing.
+                                           if (state->worst != AttestationStatus::Error)
+                                               state->worst = r.status;
+                                           state->problems << QStringLiteral("%1: %2").arg(name, r.message);
+                                       }
+                                       if (--state->remaining == 0)
+                                           finish();
+                                   });
+        }
     };
 }
 

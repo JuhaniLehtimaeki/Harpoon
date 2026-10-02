@@ -1,0 +1,5 @@
+* Fri Oct 02 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.1.0-1
+- First release: track apps on GitHub, Codeberg/Forgejo/Gitea, GitLab,
+  SourceHut, SourceForge, Jenkins, web pages, direct links and rpm-md
+  repositories; install and update them through PackageKit or the system
+  installer; background checks with notifications; backups.

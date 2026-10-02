@@ -20,6 +20,7 @@ struct InstallReceipt
     QString evr;           // RPM EVR of the main package
     QStringList assetNames;
     QStringList sha256s;
+    QString verification;  // e.g. "attestation:verified"; empty when not checked
     QDateTime installedAt;
 
     bool isValid() const { return !evr.isEmpty(); }

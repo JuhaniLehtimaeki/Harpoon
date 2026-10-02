@@ -18,6 +18,7 @@ inline const char *useLatestAssetDateAsReleaseDate = "useLatestAssetDateAsReleas
 inline const char *trackOnly = "trackOnly";
 // Installation
 inline const char *allowIdChange = "allowIdChange";         // accept a different RPM name than the tracked id
+inline const char *githubBuildVerificationMode = "githubBuildVerificationMode"; // off|audit|enforce
 // Version string
 inline const char *versionSource = "versionSource";         // tag|title|assetName|date
 inline const char *versionExtractionRegEx = "versionExtractionRegEx";

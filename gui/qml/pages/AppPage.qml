@@ -165,6 +165,14 @@ Page {
                 value: page.formatDate(details.receiptInstalledAt, Formatter.DateMedium)
             }
 
+            DetailItem {
+                visible: details.receiptVerification !== undefined && details.receiptVerification.length > 0
+                label: qsTr("Build provenance")
+                value: details.receiptVerification === "attestation:verified" ? qsTr("Verified by GitHub attestation")
+                       : details.receiptVerification === "attestation:missing" ? qsTr("No attestation")
+                       : qsTr("Could not check")
+            }
+
             SectionHeader { text: qsTr("Source") }
 
             DetailItem {
