@@ -36,6 +36,21 @@ if(SAILFISHAPP_FOUND)
     find_package(Qt5 5.6 REQUIRED COMPONENTS Qml Quick)
     add_executable(harpoon src/harpoon.cpp)
     target_link_libraries(harpoon PRIVATE harpoon-ui harpoon-qr Qt5::Qml Qt5::Quick PkgConfig::SAILFISHAPP)
+    # The surface starts itself from Q_COREAPP_STARTUP_FUNCTION, so it is compiled
+    # straight into the executable (a static library could drop it) and main() is
+    # unchanged. 3rdparty/harbour-inspect is a byte-identical copy of sailfish-mcp's
+    # harbour-inspect/ and is not kept in git.
+    if(HARPOON_INSPECT_SURFACE)
+        set(HARPOON_INSPECT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/harbour-inspect)
+        if(NOT EXISTS ${HARPOON_INSPECT_DIR}/inspectsurface.cpp)
+            message(FATAL_ERROR "HARPOON_INSPECT_SURFACE needs sailfish-mcp's harbour-inspect/ copied to ${HARPOON_INSPECT_DIR}")
+        endif()
+        message(WARNING "inspect surface: ENABLED -- do not ship this build")
+        target_sources(harpoon PRIVATE ${HARPOON_INSPECT_DIR}/inspectsurface.h ${HARPOON_INSPECT_DIR}/inspectsurface.cpp)
+        target_include_directories(harpoon PRIVATE ${HARPOON_INSPECT_DIR})
+        target_compile_definitions(harpoon PRIVATE INSPECT_SURFACE QT_MESSAGELOGCONTEXT)
+        target_link_libraries(harpoon PRIVATE Qt5::Network)
+    endif()
     install(TARGETS harpoon RUNTIME DESTINATION bin)
     install(DIRECTORY qml DESTINATION share/harpoon)
     install(FILES harpoon.desktop DESTINATION share/applications)

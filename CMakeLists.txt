@@ -22,6 +22,10 @@ if(HARPOON_BUILD_TESTS)
     enable_testing()
 endif()
 option(HARPOON_BUILD_TOOLS "Build developer tools (harpoon-probe)" ON)
+# Debug builds only: compiles sailfish-mcp's inspect surface into the app so an
+# agent can read and drive its UI on a phone. Never set for a package
+# (rpm/harpoon.spec does not set it).
+option(HARPOON_INSPECT_SURFACE "Build in the sailfish-mcp inspect surface (debug only)" OFF)
 
 add_subdirectory(core)
 add_subdirectory(cli)

@@ -3,3 +3,5 @@ CMakeLists.txt.user*
 *.swp
 /.claude/worktrees/
 /LICENSE.zxing-cpp
+/RPMS/
+/3rdparty/harbour-inspect/
