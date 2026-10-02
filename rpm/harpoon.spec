@@ -74,7 +74,8 @@ make %{?_smp_mflags}
 
 %install
 cd build
-make install DESTDIR=%{buildroot}
+# install/strip: the SailfishOS build does not strip the binaries itself.
+make install/strip DESTDIR=%{buildroot}
 desktop-file-install --delete-original \
     --dir %{buildroot}%{_datadir}/applications \
     %{buildroot}%{_datadir}/applications/*.desktop
