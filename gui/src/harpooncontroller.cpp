@@ -5,6 +5,7 @@
 #include "app/backup.h"
 #include "app/installedmatch.h"
 #include "app/appidentity.h"
+#include "app/appservice.h"
 #include "net/networktransport.h"
 #include "pkg/installhandlerbackend.h"
 #include "pkg/packagekitbackend.h"
@@ -21,14 +22,6 @@ namespace Harpoon {
 
 namespace {
 
-QString defaultCacheDir()
-{
-    const QByteArray env = qgetenv("HARPOON_CACHE_DIR");
-    return (!env.isEmpty() ? QString::fromLocal8Bit(env)
-                           : QStandardPaths::writableLocation(QStandardPaths::CacheLocation))
-           + QStringLiteral("/downloads");
-}
-
 QVariantMap assetToVariant(const Asset &a)
 {
     return {{QStringLiteral("name"), a.name},
@@ -41,7 +34,7 @@ QVariantMap assetToVariant(const Asset &a)
 
 HarpoonController::HarpoonController(ControllerEnvironment env, QObject *parent)
     : QObject(parent)
-    , m_cacheDir(env.cacheDir.isEmpty() ? defaultCacheDir() : env.cacheDir)
+    , m_cacheDir(env.cacheDir.isEmpty() ? defaultDownloadDirectory() : env.cacheDir)
     , m_applicationsDir(env.applicationsDir.isEmpty() ? QStringLiteral("/usr/share/applications") : env.applicationsDir)
     , m_iconsDir(env.iconsDir.isEmpty() ? QStringLiteral("/usr/share/icons/hicolor") : env.iconsDir)
     , m_device(env.device.arch.isEmpty() ? DeviceInfo::detect() : env.device)
@@ -138,11 +131,7 @@ AppChecker &HarpoonController::checker()
 
 QHash<QString, QVariantMap> HarpoonController::tokenConfigs() const
 {
-    QHash<QString, QVariantMap> configs;
-    const QVariantMap tokens = m_settings->tokens();
-    for (auto it = tokens.constBegin(); it != tokens.constEnd(); ++it)
-        configs.insert(it.key(), {{QStringLiteral("token"), it.value()}});
-    return configs;
+    return sourceConfigs(*m_settings, m_registry.ids(), false);
 }
 
 PackageBackend &HarpoonController::backend()
@@ -454,12 +443,11 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
             for (const QString &w : result.value.warnings)
                 message += QLatin1Char('\n') + w;
 
-            App merged = current->app;
-            merged.receipt = result.value.app.receipt;
             const QString newId = result.value.app.id;
             const AppListModel::Entry *other = newId != id ? m_model.entry(newId) : nullptr;
-            if (other || (newId != id && m_store.contains(newId))) {
-                // Another tracked app already is this package: never overwrite it.
+            const bool idTaken = other || (newId != id && m_store.contains(newId));
+            const App merged = recordAfterInstall(current->app, result.value, idTaken);
+            if (idTaken) {
                 message += QLatin1Char('\n')
                            + tr("This package is also tracked as \"%1\"; remove one of the two.")
                                  .arg(other ? other->app.name : newId);
@@ -467,8 +455,6 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
                 emit operationFinished(id, true, message);
                 return;
             }
-            merged.id = newId;
-            merged.temporaryId = false;
             storeAndShow(merged, id);
             emit operationFinished(newId, true, message);
         });

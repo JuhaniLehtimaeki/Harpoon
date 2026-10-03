@@ -8,6 +8,7 @@
 #include "app/appchecker.h"
 #include "app/appinstaller.h"
 #include "app/appstore.h"
+#include "app/appservice.h"
 #include "app/autoupdate.h"
 #include "app/backgroundscheduler.h"
 #include "app/backup.h"
@@ -214,15 +215,7 @@ private:
     {
         if (!m_checker) {
             m_checker.reset(new AppChecker(m_registry, m_transport, m_device));
-            // Stored tokens are keyed "GitHub" or "Forgejo@git.example.org".
-            const QVariantMap tokens = m_settings.tokens();
-            for (auto it = tokens.constBegin(); it != tokens.constEnd(); ++it)
-                m_checker->setSourceConfig(it.key(), {{QStringLiteral("token"), it.value()}});
-            for (const QString &id : m_registry.ids()) {
-                const QByteArray env = qgetenv("HARPOON_TOKEN_" + id.toUpper().toLatin1());
-                if (!env.isEmpty())
-                    m_checker->setSourceConfig(id, {{QStringLiteral("token"), QString::fromUtf8(env)}});
-            }
+            m_checker->setSourceConfigs(sourceConfigs(m_settings, m_registry.ids(), true));
         }
         return *m_checker;
     }
@@ -628,13 +621,7 @@ private:
         return nullptr;
     }
 
-    QString downloadDir() const
-    {
-        const QByteArray env = qgetenv("HARPOON_CACHE_DIR");
-        return (!env.isEmpty() ? QString::fromLocal8Bit(env)
-                               : QStandardPaths::writableLocation(QStandardPaths::CacheLocation))
-               + QStringLiteral("/downloads");
-    }
+    QString downloadDir() const { return defaultDownloadDirectory(); }
 
     int installApp(const App &app, const InstallOptions &options, PackageBackend &b, Error *error = nullptr)
     {
@@ -667,17 +654,13 @@ private:
         for (const QString &w : result.value.warnings)
             err() << "Warning: " << w << "\n";
         const QString newId = result.value.app.id;
-        Error saved;
-        if (newId != app.id && m_store.contains(newId)) {
-            // Another tracked app already is this package: never overwrite it.
-            App kept = result.value.app;
-            kept.id = app.id;
-            kept.temporaryId = app.temporaryId;
-            saved = m_store.save(kept);
+        const bool idTaken = newId != app.id && m_store.contains(newId);
+        // The record as it is now: the app may have changed it meanwhile.
+        const auto current = m_store.load(app.id);
+        const App record = recordAfterInstall(current.ok() ? current.value : app, result.value, idTaken);
+        if (idTaken)
             err() << "Warning: this package is also tracked as " << newId << "; remove one of the two\n";
-        } else {
-            saved = m_store.replace(app.id, result.value.app);
-        }
+        const Error saved = idTaken ? m_store.save(record) : m_store.replace(app.id, record);
         if (!saved.ok())
             err() << "Warning: " << saved.message << "\n";
         out() << "Installed " << result.value.installed.nevra() << "\n";
