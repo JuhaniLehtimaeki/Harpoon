@@ -14,10 +14,19 @@ TextField {
         }
     }
 
+    // The stored value, unless the user is typing: re-syncing then would
+    // throw away the edit.
+    function _sync() {
+        if (!activeFocus) {
+            text = values && values[key] !== undefined ? String(values[key]) : ""
+        }
+    }
+
     width: parent.width
     placeholderText: label
     inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
-    text: values && values[key] !== undefined ? String(values[key]) : ""
+    onValuesChanged: _sync()
+    Component.onCompleted: _sync()
     onActiveFocusChanged: if (!activeFocus) _save()
     EnterKey.iconSource: "image://theme/icon-m-enter-close"
     EnterKey.onClicked: focus = false

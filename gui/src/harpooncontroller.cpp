@@ -159,14 +159,18 @@ PackageBackend &HarpoonController::backend()
     return *m_packageKit;
 }
 
-AppListModel::Entry HarpoonController::makeEntry(const App &app) const
+AppListModel::Entry HarpoonController::makeEntry(const App &app, const RpmInfo *installed) const
 {
     AppListModel::Entry e;
     e.app = app;
     if (!app.temporaryId) {
-        const auto installed = m_inspector->installedPackage(app.id);
-        if (installed.ok())
-            e.installed = installed.value;
+        if (installed) {
+            e.installed = *installed;
+        } else {
+            const auto info = m_inspector->installedPackage(app.id);
+            if (info.ok())
+                e.installed = info.value;
+        }
     }
     e.status = updateStatusFor(app, e.installed);
     // A name the user chose wins; otherwise the installed app's own name,
@@ -182,10 +186,24 @@ AppListModel::Entry HarpoonController::makeEntry(const App &app) const
 
 void HarpoonController::reload()
 {
+    const QList<App> apps = m_store.loadAll();
+    QStringList ids;
+    for (const App &app : apps)
+        if (!app.temporaryId)
+            ids << app.id;
+    // One rpm call for all apps; launching one per app is slow on a phone.
+    const auto installed = m_inspector->installedPackages(ids);
+    const QHash<QString, RpmInfo> known = installed.ok() ? installed.value : QHash<QString, RpmInfo>();
     QList<AppListModel::Entry> entries;
-    for (const App &app : m_store.loadAll())
-        entries << makeEntry(app);
+    for (const App &app : apps) {
+        const RpmInfo info = known.value(app.id); // empty when not installed
+        entries << makeEntry(app, installed.ok() ? &info : nullptr);
+    }
     m_model.setEntries(entries);
+    if (!m_loaded) {
+        m_loaded = true;
+        emit loadedChanged();
+    }
 }
 
 void HarpoonController::refresh()
@@ -398,8 +416,12 @@ void HarpoonController::checkStale(int maxAgeMinutes)
 void HarpoonController::install(const QString &id, bool reinstall, bool downgrade)
 {
     const AppListModel::Entry *e = m_model.entry(id);
-    if (!e || e->busy)
+    if (!e)
         return;
+    if (e->busy) {
+        emit operationFinished(id, false, tr("%1 is busy: %2").arg(e->app.name, e->stage));
+        return;
+    }
     const App app = e->app;
     m_model.setBusy(id, true, tr("Preparing"));
 
@@ -412,7 +434,7 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
     installer->install(
         app, options,
         [this, id](const QString &stage, qint64 done, qint64 total) {
-            m_model.setBusy(id, true, stage, total > 0 ? qreal(done) / qreal(total) : -1);
+            m_model.setBusy(id, true, localizedStage(stage), total > 0 ? qreal(done) / qreal(total) : -1);
         },
         [this, id, installer](const Result<InstallResult> &result) {
             installer->deleteLater();
@@ -452,6 +474,21 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
         });
 }
 
+QString HarpoonController::localizedStage(const QString &stage) const
+{
+    // AppInstaller reports its stages in English (it is also used by the CLI).
+    const auto rest = [&stage](const char *prefix) { return stage.mid(int(qstrlen(prefix))); };
+    if (stage.startsWith(QLatin1String("Downloading ")))
+        return tr("Downloading %1").arg(rest("Downloading "));
+    if (stage.startsWith(QLatin1String("Verifying ")))
+        return tr("Verifying %1").arg(rest("Verifying "));
+    if (stage.startsWith(QLatin1String("Installing ")))
+        return tr("Installing %1").arg(rest("Installing "));
+    if (stage == QLatin1String("Checking packages"))
+        return tr("Checking packages");
+    return stage;
+}
+
 void HarpoonController::updateAll()
 {
     for (const AppListModel::Entry &e : m_model.entries())
@@ -462,8 +499,12 @@ void HarpoonController::updateAll()
 void HarpoonController::uninstall(const QString &id)
 {
     const AppListModel::Entry *e = m_model.entry(id);
-    if (!e || e->busy)
+    if (!e)
         return;
+    if (e->busy) {
+        emit operationFinished(id, false, tr("%1 is busy: %2").arg(e->app.name, e->stage));
+        return;
+    }
     const App app = e->app;
     m_model.setBusy(id, true, tr("Uninstalling"));
     auto *installer = new AppInstaller(m_downloader, *m_inspector, backend(), m_cacheDir, m_device, this);

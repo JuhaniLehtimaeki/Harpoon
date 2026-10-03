@@ -90,6 +90,31 @@ Result<QList<RpmInfo>> RpmInspector::queryInstalled(const QString &name) const
     return Result<QList<RpmInfo>>::success(infos);
 }
 
+Result<QHash<QString, RpmInfo>> RpmInspector::installedPackages(const QStringList &names) const
+{
+    QStringList valid;
+    for (const QString &name : names)
+        if (isValidRpmName(name) && !valid.contains(name))
+            valid << name;
+    QHash<QString, RpmInfo> out;
+    if (valid.isEmpty())
+        return Result<QHash<QString, RpmInfo>>::success(out);
+    const ProcessResult r = m_runner.run(QStringLiteral("rpm"), QStringList{QStringLiteral("-q"), QStringLiteral("--qf"),
+                                                                            queryFormat(), QStringLiteral("--")}
+                                                                    + valid);
+    if (!r.started)
+        return Result<QHash<QString, RpmInfo>>::failure(Error::make(Error::Package, QStringLiteral("Could not run rpm")));
+    // Exit code 1 only says some were not installed; the lines say which were.
+    for (const RpmInfo &info : parse(r.standardOutput)) {
+        if (!valid.contains(info.name))
+            continue;
+        const auto it = out.constFind(info.name);
+        if (it == out.constEnd() || compareEvr(info.evr, it->evr) > 0)
+            out.insert(info.name, info);
+    }
+    return Result<QHash<QString, RpmInfo>>::success(out);
+}
+
 Result<RpmInfo> RpmInspector::installedPackage(const QString &name) const
 {
     const auto all = queryInstalled(name);

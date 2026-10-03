@@ -40,22 +40,31 @@ int main(int argc, char *argv[])
                                                   QStringLiteral("Provided as the harpoon context property"));
 
     HarpoonController controller;
-    controller.reload();
-    // Make the systemd timer match the settings (also enables it on first run).
-    controller.syncBackgroundSchedule();
 
     HarpoonDBus dbus;
     if (!dbus.registerOnSessionBus())
         qWarning("Harpoon: could not register %s on the session bus", qPrintable(HarpoonDBus::serviceName()));
 
+    // Declared before the view so it outlives it (QML may still use it while
+    // the view is torn down).
+    QrDecoder qrDecoder;
     QScopedPointer<QQuickView> view(SailfishApp::createView());
     view->rootContext()->setContextProperty(QStringLiteral("harpoon"), &controller);
     view->rootContext()->setContextProperty(QStringLiteral("harpoonDBus"), &dbus);
-    QrDecoder qrDecoder;
     view->rootContext()->setContextProperty(QStringLiteral("qrDecoder"), &qrDecoder);
     view->engine()->addImageProvider(QStringLiteral("harpoonqr"), new Harpoon::QrImageProvider);
     view->setSource(SailfishApp::pathToMainQml());
     view->show();
+
+    // Read the apps once the window is up: asking rpm about them takes a
+    // moment, and the launcher animation should not wait for it.
+    QTimer::singleShot(0, &controller, [&controller]() {
+        controller.reload();
+        // Refresh apps that have not been checked within the last hour.
+        controller.checkStale(60);
+        // Make the systemd timer match the settings (also enables it on first run).
+        controller.syncBackgroundSchedule();
+    });
 
     // Started to open a link (harpoon:// passed on the command line).
     QStringList links;

@@ -30,6 +30,8 @@ BuildRequires:  pkgconfig(zlib)
 BuildRequires:  pkgconfig(openssl)
 BuildRequires:  qt5-qttools-linguist
 BuildRequires:  desktop-file-utils
+Requires(post): desktop-file-utils
+Requires(postun): desktop-file-utils
 
 %description
 Harpoon tracks apps that publish RPM packages as release assets on code forges
@@ -79,6 +81,13 @@ make install/strip DESTDIR=%{buildroot}
 desktop-file-install --delete-original \
     --dir %{buildroot}%{_datadir}/applications \
     %{buildroot}%{_datadir}/applications/*.desktop
+
+%post
+# harpoon.desktop handles harpoon:// links (MimeType=x-scheme-handler/harpoon).
+update-desktop-database -q %{_datadir}/applications || :
+
+%postun
+update-desktop-database -q %{_datadir}/applications || :
 
 %files
 %defattr(-,root,root,-)

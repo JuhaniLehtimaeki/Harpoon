@@ -4,6 +4,7 @@
 #include "pkg/processrunner.h"
 #include "version/rpmversion.h"
 
+#include <QHash>
 #include <QList>
 
 namespace Harpoon {
@@ -41,6 +42,9 @@ public:
 
     // Highest installed EVR of a package, or a null name when not installed.
     Result<RpmInfo> installedPackage(const QString &name) const;
+    // installedPackage() for many names with one rpm call; names that are not
+    // installed (or not valid names) are absent from the result.
+    Result<QHash<QString, RpmInfo>> installedPackages(const QStringList &names) const;
 
     // Parses lines produced with queryFormat().
     static QList<RpmInfo> parse(const QByteArray &output);

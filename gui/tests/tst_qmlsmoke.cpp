@@ -296,7 +296,9 @@ private slots:
         expectClean("loading harpoon.qml");
         QCOMPARE(eval(QStringLiteral("pageStack.currentPage.objectName")).toString(), QStringLiteral("appListPage"));
         QVERIFY(eval(QStringLiteral("coverItem !== null")).toBool());
-        // The list page refreshes stale apps on start (gamma was never checked).
+        // As harpoon.cpp does after loading: refresh stale apps (gamma was
+        // never checked) while the list is showing.
+        m_controller->checkStale(60);
         QTRY_VERIFY(!m_controller->checking());
         expectClean("after the startup check");
     }

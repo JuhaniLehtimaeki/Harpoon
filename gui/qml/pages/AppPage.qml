@@ -25,8 +25,11 @@ Page {
 
     Connections {
         target: harpoon.apps
-        onDataChanged: page.refresh()
-        onLayoutChanged: page.refresh()
+        onAppChanged: {
+            if (id === page.appId) {
+                page.refresh()
+            }
+        }
         onModelReset: page.refresh()
     }
 

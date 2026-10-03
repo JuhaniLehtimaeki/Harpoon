@@ -9,9 +9,6 @@ Page {
     objectName: "appListPage"
     allowedOrientations: Orientation.All
 
-    // Refresh apps that have not been checked within the last hour.
-    Component.onCompleted: harpoon.checkStale(60)
-
     Banner { id: banner }
 
     Connections {
@@ -189,7 +186,7 @@ Page {
         }
 
         ViewPlaceholder {
-            enabled: listView.count === 0
+            enabled: listView.count === 0 && harpoon.loaded
             text: qsTr("No apps yet")
             hintText: qsTr("Pull down to add an app from GitHub, Codeberg or another forge")
         }

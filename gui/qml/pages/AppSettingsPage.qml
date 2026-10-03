@@ -22,9 +22,16 @@ Page {
         }
     }
 
+    // After a first install the app gets its package name as its id.
+    onAppIdChanged: details = harpoon.appDetails(appId)
+
     Connections {
         target: harpoon.apps
-        onDataChanged: {
+        // Only this app's record; progress of an install is not a change.
+        onAppChanged: {
+            if (id !== page.appId || busyOnly) {
+                return
+            }
             var before = JSON.stringify(page._values)
             page.details = harpoon.appDetails(page.appId)
             if (JSON.stringify(page._values) !== before) {
@@ -53,9 +60,11 @@ Page {
                 // Empty means automatic: the installed app's own name, or one
                 // made from the repository name.
                 placeholderText: details.name || qsTr("Name")
-                text: details.customName || ""
                 EnterKey.iconSource: "image://theme/icon-m-enter-close"
                 EnterKey.onClicked: focus = false
+                // Not a binding: an update of the record must not replace
+                // what is being typed.
+                Component.onCompleted: text = details.customName || ""
                 onActiveFocusChanged: {
                     if (!activeFocus && text.trim() !== (details.customName || "")) {
                         harpoon.setAppName(appId, text)

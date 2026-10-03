@@ -164,6 +164,7 @@ void AppListModel::upsert(const Entry &entry, const QString &oldId)
         m_entries.insert(at, entry);
         endInsertRows();
         emit countChanged();
+        emit appChanged(entry.app.id, false);
     } else {
         // Busy state is owned by setBusy(); a record update must not clear it.
         Entry merged = entry;
@@ -172,6 +173,7 @@ void AppListModel::upsert(const Entry &entry, const QString &oldId)
         merged.progress = m_entries.at(row).progress;
         m_entries[row] = merged;
         emit dataChanged(index(row), index(row));
+        emit appChanged(merged.app.id, false);
         resort();
     }
     if (updatesCount() != previousUpdates || failedCount() != previousFailed)
@@ -199,10 +201,19 @@ void AppListModel::setBusy(const QString &id, bool busy, const QString &stage, q
     if (row < 0)
         return;
     Entry &e = m_entries[row];
+    const QString newStage = busy ? stage : QString();
+    const qreal newProgress = busy ? progress : -1;
+    // Downloads report every chunk; a change below 1% is not worth a repaint
+    // of every page showing the app.
+    if (e.busy == busy && e.stage == newStage
+        && (qFuzzyCompare(e.progress + 2, newProgress + 2) || (newProgress >= 0 && e.progress >= 0
+                                                               && qAbs(newProgress - e.progress) < 0.01 && newProgress < 1)))
+        return;
     e.busy = busy;
-    e.stage = busy ? stage : QString();
-    e.progress = busy ? progress : -1;
+    e.stage = newStage;
+    e.progress = newProgress;
     emit dataChanged(index(row), index(row), {BusyRole, StageRole, ProgressRole});
+    emit appChanged(id, true);
 }
 
 } // namespace Harpoon

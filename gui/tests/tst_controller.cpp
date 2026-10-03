@@ -604,6 +604,46 @@ private slots:
         QCOMPARE(m_controller->apps()->count(), 0);
     }
 
+    void reloadAsksRpmOnce()
+    {
+        AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
+        for (int i = 0; i < 5; ++i) {
+            App app = App::fromUrl(QStringLiteral("https://github.com/me/app%1").arg(i));
+            app.id = QStringLiteral("harbour-app%1").arg(i);
+            app.temporaryId = false;
+            QVERIFY(store.save(app).ok());
+        }
+        m_db->calls = 0;
+        m_controller->reload();
+        QCOMPARE(m_controller->apps()->count(), 5);
+        QCOMPARE(m_db->calls, 1);
+        QVERIFY(m_controller->loaded());
+    }
+
+    void progressIsThrottledAndBusyIsReported()
+    {
+        QString id;
+        QVERIFY(addApp(QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui"), {}, &id));
+        AppListModel *model = m_controller->apps();
+        QSignalSpy changed(model, &AppListModel::appChanged);
+        QSignalSpy data(model, &AppListModel::dataChanged);
+        model->setBusy(id, true, QStringLiteral("Downloading"), 0.100);
+        model->setBusy(id, true, QStringLiteral("Downloading"), 0.104); // < 1%: no repaint
+        model->setBusy(id, true, QStringLiteral("Downloading"), 0.120);
+        QCOMPARE(data.count(), 2);
+        QCOMPARE(changed.count(), 2);
+        QCOMPARE(changed.first().at(0).toString(), id);
+        QVERIFY(changed.first().at(1).toBool()); // busy state only
+
+        // Asking a busy app to install says so instead of doing nothing.
+        QSignalSpy finished(m_controller.get(), &HarpoonController::operationFinished);
+        m_controller->install(id);
+        QCOMPARE(finished.count(), 1);
+        QVERIFY(!finished.first().at(1).toBool());
+        QVERIFY(finished.first().at(2).toString().contains(QLatin1String("busy")));
+        model->setBusy(id, false);
+    }
+
     void sourcesListed()
     {
         const QVariantList sources = m_controller->sources();

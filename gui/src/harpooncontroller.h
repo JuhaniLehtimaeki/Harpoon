@@ -48,6 +48,8 @@ class HarpoonController : public QObject
     Q_PROPERTY(Harpoon::AppListModel *apps READ apps CONSTANT)
     Q_PROPERTY(Harpoon::HarpoonSettings *settings READ settings CONSTANT)
     Q_PROPERTY(bool checking READ checking NOTIFY checkingChanged)
+    // False until the apps have been read for the first time.
+    Q_PROPERTY(bool loaded READ loaded NOTIFY loadedChanged)
     Q_PROPERTY(QString deviceArch READ deviceArch CONSTANT)
     Q_PROPERTY(QString osVersion READ osVersion CONSTANT)
     Q_PROPERTY(QVariantList sources READ sources CONSTANT)
@@ -70,6 +72,7 @@ public:
     QDateTime lastCheckAll() const { return m_lastCheckAll; }
 
     // Reloads records from disk and re-reads installed versions.
+    bool loaded() const { return m_loaded; }
     Q_INVOKABLE void reload();
     // Takes in what changed on disk since (the background job checks,
     // installs and renames apps), leaving apps that are busy here alone.
@@ -116,6 +119,7 @@ public:
 
 signals:
     void checkingChanged();
+    void loadedChanged();
     void addFinished(bool ok, const QString &idOrError);
     // An install, uninstall or check finished. message is user-presentable.
     void operationFinished(const QString &id, bool ok, const QString &message);
@@ -126,7 +130,10 @@ signals:
     void tokenTargetsChanged();
 
 private:
-    AppListModel::Entry makeEntry(const App &app) const;
+    // installed: what rpm reports for the app's package, when already known
+    // (reload() asks rpm about every app at once).
+    AppListModel::Entry makeEntry(const App &app, const RpmInfo *installed = nullptr) const;
+    QString localizedStage(const QString &stage) const;
     void storeAndShow(const App &app, const QString &oldId = QString());
     bool adoptInstalled(App &app) const;
     PackageBackend &backend();
@@ -135,6 +142,7 @@ private:
     void beginCheck();
     void endCheck();
 
+    bool m_loaded = false;
     QString m_cacheDir;
     QString m_applicationsDir;
     QString m_iconsDir;

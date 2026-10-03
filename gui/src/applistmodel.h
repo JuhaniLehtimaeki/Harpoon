@@ -78,6 +78,10 @@ public:
 signals:
     void countChanged();
     void updatesCountChanged();
+    // One app's record or busy state changed (pages showing one app listen
+    // to this instead of every row's dataChanged). busyOnly: only the
+    // busy state, stage or progress.
+    void appChanged(const QString &id, bool busyOnly);
 
 private:
     static bool lessThan(const Entry &a, const Entry &b);
