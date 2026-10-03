@@ -6,6 +6,7 @@ Item {
     property var source
     property int fillMode
     property bool autoOrientation
+    property int orientation
     property url testImage
     Rectangle { anchors.fill: parent; color: "white" }
     Image { anchors.fill: parent; source: parent.testImage; fillMode: Image.PreserveAspectFit }

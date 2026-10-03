@@ -116,7 +116,12 @@ Page {
                     anchors.fill: parent
                     source: camera
                     fillMode: VideoOutput.PreserveAspectCrop
-                    autoOrientation: true
+                    // Sailfish's camera backend already turns the image
+                    // upright for the device, so only the page's own
+                    // rotation would be added here, and the page is
+                    // portrait only. autoOrientation would add the sensor's
+                    // rotation a second time: a sideways preview.
+                    orientation: 0
                     visible: camera.availability === Camera.Available
                 }
 
