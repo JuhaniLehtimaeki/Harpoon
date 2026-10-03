@@ -71,6 +71,9 @@ public:
 
     // Reloads records from disk and re-reads installed versions.
     Q_INVOKABLE void reload();
+    // Takes in what changed on disk since (the background job checks,
+    // installs and renames apps), leaving apps that are busy here alone.
+    Q_INVOKABLE void refresh();
 
     // Parses a scanned QR code or opened link (harpoon://add?... or a plain
     // http(s) URL): {ok, url, sourceId, packageName, error}.

@@ -10,6 +10,7 @@
 #include "pkg/packagekitbackend.h"
 
 #include <QDir>
+#include <QSet>
 #include <QFile>
 #include <QJsonObject>
 #include <QUrl>
@@ -187,11 +188,54 @@ void HarpoonController::reload()
     m_model.setEntries(entries);
 }
 
+void HarpoonController::refresh()
+{
+    QSet<QString> onDisk;
+    for (const App &app : m_store.loadAll()) {
+        onDisk.insert(app.id);
+        const AppListModel::Entry *e = m_model.entry(app.id);
+        if (e && e->busy)
+            continue; // its own operation writes it when it ends
+        if (e) {
+            if (e->app.toJson() != app.toJson())
+                m_model.upsert(makeEntry(app));
+            continue;
+        }
+        // New, or renamed from a temporary id by the background job.
+        QString oldId;
+        for (const AppListModel::Entry &other : m_model.entries())
+            if (other.app.temporaryId && !other.busy && other.app.url.compare(app.url, Qt::CaseInsensitive) == 0)
+                oldId = other.app.id;
+        m_model.upsert(makeEntry(app), oldId);
+        if (!oldId.isEmpty()) {
+            onDisk.insert(oldId); // now this entry; nothing to remove
+            emit appIdChanged(oldId, app.id);
+        }
+    }
+    QStringList gone;
+    for (const AppListModel::Entry &e : m_model.entries())
+        if (!onDisk.contains(e.app.id) && !e.busy)
+            gone << e.app.id;
+    for (const QString &id : gone)
+        m_model.remove(id);
+}
+
 void HarpoonController::storeAndShow(const App &app, const QString &oldId)
 {
+    const QString diskId = oldId.isEmpty() ? app.id : oldId;
+    if (m_model.entry(diskId) && !m_store.contains(diskId)) {
+        // Renamed or removed by the background job since we loaded it:
+        // writing our copy back would recreate a stale record.
+        refresh();
+        emit operationFinished(app.id, false, tr("The app was changed in the background; try again."));
+        return;
+    }
     const Error saved = oldId.isEmpty() || oldId == app.id ? m_store.save(app) : m_store.replace(oldId, app);
-    if (!saved.ok())
+    if (!saved.ok()) {
+        // Do not show what was not stored.
         emit operationFinished(app.id, false, saved.message);
+        return;
+    }
     m_model.upsert(makeEntry(app), oldId);
     if (!oldId.isEmpty() && oldId != app.id)
         emit appIdChanged(oldId, app.id);
@@ -324,17 +368,7 @@ void HarpoonController::check(const QString &id)
             return;
         // Take only what the check owns; settings or the name may have been
         // edited meanwhile.
-        App merged = current->app;
-        merged.latestVersion = checked.latestVersion;
-        merged.latestTag = checked.latestTag;
-        merged.latestTitle = checked.latestTitle;
-        merged.latestDate = checked.latestDate;
-        merged.changelog = checked.changelog;
-        merged.releasePageUrl = checked.releasePageUrl;
-        merged.latestPrerelease = checked.latestPrerelease;
-        merged.latestAssets = checked.latestAssets;
-        merged.lastCheck = checked.lastCheck;
-        merged.lastError = checked.lastError;
+        App merged = applyCheckResult(current->app, checked);
         // Installed some other way since it was added: follow that package.
         adoptInstalled(merged);
         storeAndShow(merged, id);

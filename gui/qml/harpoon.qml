@@ -33,6 +33,17 @@ ApplicationWindow {
     cover: Qt.resolvedUrl("cover/CoverPage.qml")
     allowedOrientations: defaultAllowedOrientations
 
+    // The background job may have checked, updated or renamed apps while
+    // Harpoon was in the background.
+    Connections {
+        target: Qt.application
+        onStateChanged: {
+            if (Qt.application.state === Qt.ApplicationActive) {
+                harpoon.refresh()
+            }
+        }
+    }
+
     Connections {
         target: harpoonDBus
         onActivateRequested: window.activate()

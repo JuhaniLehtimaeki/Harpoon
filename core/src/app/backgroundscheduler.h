@@ -34,10 +34,21 @@ public:
     static QByteArray dropInContent(int intervalHours);
 
 private:
+    struct Request
+    {
+        bool enabled;
+        int intervalHours;
+        std::function<void(const Error &)> done;
+    };
+    void run(const Request &request);
     void call(const QString &method, const QList<QVariant> &args, std::function<void(const Error &)> next);
 
     QDBusConnection m_bus;
     QString m_configDir;
+    bool m_running = false;
+    // Requests made while one runs; each runs after the one before, so the
+    // last setting is what systemd ends up with.
+    QList<Request> m_queue;
 };
 
 } // namespace Harpoon

@@ -17,6 +17,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
+#include <QLockFile>
 #include <QtTest>
 
 using namespace Harpoon;
@@ -322,6 +323,22 @@ private slots:
         installer.uninstall(r.value.app, [&](const Error &err) { e = err; });
         QVERIFY(e.ok());
         QCOMPARE(m_backend->removals, (QStringList{"tool", "tool-data"}));
+    }
+
+    void oneInstallPerAppAtATime()
+    {
+        serveRelease(QStringLiteral("v2.0"), {QStringLiteral("tool-2.0-aarch64")});
+        const App app = checkedApp();
+        // Another process (the background job) is installing this app.
+        QLockFile other(m_downloads->path() + QLatin1Char('/') + App::temporaryIdFor(app.url) + QStringLiteral(".lock"));
+        QVERIFY(other.tryLock(0));
+        QCOMPARE(int(install(app).error.kind), int(Error::Busy));
+        other.unlock();
+        QVERIFY(install(app).ok());
+        // Released again once the install reported: the next one is not blocked.
+        InstallOptions again;
+        again.allowReinstall = true;
+        QVERIFY(install(app, again).error.kind != Error::Busy);
     }
 
     void unrelatedPackagesRefused()

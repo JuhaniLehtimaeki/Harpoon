@@ -14,6 +14,12 @@
 
 namespace Harpoon {
 
+// Applies the fields an update check owns (latest*, lastCheck, lastError)
+// from `checked` onto `current`, the record as it is now. Settings, the name
+// and the receipt may have changed while the check ran (in this process or
+// another one) and are kept.
+App applyCheckResult(App current, const App &checked);
+
 // Runs update checks: resolves each app's source, fetches the latest release
 // and writes the result into the app record (latest*, lastCheck, lastError).
 // A failed check keeps the previous latest* fields and sets lastError.

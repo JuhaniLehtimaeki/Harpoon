@@ -265,6 +265,23 @@ private slots:
                                                 "DisableUnitFiles harpoon-check.timer false"}));
     }
 
+    void schedulerSerializesRequests()
+    {
+        // On, then off at once: systemd must see the whole "on" sequence
+        // before the "off" one, so the timer ends up off.
+        QTemporaryDir config;
+        BackgroundScheduler scheduler(client(), config.path());
+        m_systemd->calls.clear();
+        int finished = 0;
+        scheduler.apply(true, 6, [&](const Error &) { ++finished; });
+        scheduler.apply(false, 6, [&](const Error &) { ++finished; });
+        QTRY_COMPARE(finished, 2);
+        QCOMPARE(m_systemd->calls,
+                 (QStringList{"Reload", "EnableUnitFiles harpoon-check.timer false true",
+                              "RestartUnit harpoon-check.timer replace", "Reload",
+                              "StopUnit harpoon-check.timer replace", "DisableUnitFiles harpoon-check.timer false"}));
+    }
+
     void schedulerReportsFailures()
     {
         QTemporaryDir config;

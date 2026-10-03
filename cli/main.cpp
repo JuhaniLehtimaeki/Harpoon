@@ -439,7 +439,13 @@ private:
                 [&](const App &result, const Error &e) {
                     if (!e.ok())
                         ++failures;
-                    App updated = result;
+                    // The app may have changed on disk while the check ran
+                    // (the app installed or renamed it): merge into the
+                    // current record, and leave records that are gone alone.
+                    const auto current = m_store.load(result.id);
+                    if (!current.ok())
+                        return;
+                    App updated = applyCheckResult(current.value, result);
                     const QString oldId = updated.id;
                     const Error saved = adoptInstalled(updated) ? m_store.replace(oldId, updated)
                                                                 : m_store.save(updated);
@@ -526,8 +532,14 @@ private:
             err() << "Warning: " << sent.error.message << "\n";
             return;
         }
-        for (const App &app : plan.appsToMark)
-            m_store.save(app);
+        for (const App &app : plan.appsToMark) {
+            // Only the announcement is ours to record.
+            auto current = m_store.load(app.id);
+            if (!current.ok())
+                continue;
+            current.value.notifiedVersion = app.notifiedVersion;
+            m_store.save(current.value);
+        }
     }
 
     int exportBackup(const Args &args)

@@ -1,8 +1,10 @@
 #include "app/appinstaller.h"
 
 #include <QCryptographicHash>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QLockFile>
 #include <QSet>
 #include <QUrl>
 
@@ -80,11 +82,27 @@ void AppInstaller::install(const App &app, const InstallOptions &options, Progre
         done(fail(Error::NoAsset, QStringLiteral("No installable package known for %1; check for updates first").arg(app.name)));
         return;
     }
+    QDir().mkpath(m_downloadDir);
+    // Held for the whole install: the app and the background job must not
+    // install the same app at once (they share the download files).
+    // Keyed by URL: the id may change from a temporary one during the install.
+    auto lock = std::make_shared<QLockFile>(m_downloadDir + QLatin1Char('/') + App::temporaryIdFor(app.url)
+                                            + QStringLiteral(".lock"));
+    lock->setStaleLockTime(0); // installs take long; a dead owner is still detected
+    if (!lock->tryLock(0)) {
+        done(fail(Error::Busy, QStringLiteral("%1 is already being installed").arg(app.name)));
+        return;
+    }
     auto job = std::make_shared<InstallJob>();
     job->app = app;
     job->options = options;
     job->progress = std::move(progress);
-    job->done = std::move(done);
+    // Unlock as soon as there is a result, not when the last copy of the job
+    // goes away (callbacks may keep it alive a little longer).
+    job->done = [lock, done](const Result<InstallResult> &result) {
+        lock->unlock();
+        done(result);
+    };
     downloadNext(job);
 }
 

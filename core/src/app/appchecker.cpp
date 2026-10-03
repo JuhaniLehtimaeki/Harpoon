@@ -10,6 +10,21 @@
 
 namespace Harpoon {
 
+App applyCheckResult(App current, const App &checked)
+{
+    current.latestVersion = checked.latestVersion;
+    current.latestTag = checked.latestTag;
+    current.latestTitle = checked.latestTitle;
+    current.latestDate = checked.latestDate;
+    current.changelog = checked.changelog;
+    current.releasePageUrl = checked.releasePageUrl;
+    current.latestPrerelease = checked.latestPrerelease;
+    current.latestAssets = checked.latestAssets;
+    current.lastCheck = checked.lastCheck;
+    current.lastError = checked.lastError;
+    return current;
+}
+
 AppChecker::AppChecker(const SourceRegistry &registry, HttpTransport &transport, const DeviceInfo &device,
                        QObject *parent)
     : QObject(parent), m_registry(registry), m_transport(transport), m_device(device)

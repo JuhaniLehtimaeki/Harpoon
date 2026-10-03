@@ -573,6 +573,37 @@ private slots:
         QCOMPARE(model->data(model->index(model->indexOf(id)), AppListModel::NameRole).toString(), QStringLiteral("Chum"));
     }
 
+    void backgroundChangesAreTakenIn()
+    {
+        QString tmpId;
+        QVERIFY(addApp(QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui"), {}, &tmpId));
+        // The background job installs it and renames the record on disk.
+        AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
+        App renamed = store.load(tmpId).value;
+        renamed.id = QStringLiteral("sailfishos-chum-gui");
+        renamed.temporaryId = false;
+        renamed.receipt.evr = QStringLiteral("0.6.13-1");
+        QVERIFY(store.replace(tmpId, renamed).ok());
+
+        // Editing the stale copy must not recreate the old record...
+        QSignalSpy finished(m_controller.get(), &HarpoonController::operationFinished);
+        QSignalSpy idChanged(m_controller.get(), &HarpoonController::appIdChanged);
+        m_controller->setAppSetting(tmpId, QStringLiteral("includePrereleases"), true);
+        QVERIFY(!store.contains(tmpId));
+        QCOMPARE(finished.count(), 1);
+        QVERIFY(!finished.first().at(1).toBool());
+        // ...and the app follows the record on disk.
+        QCOMPARE(idChanged.count(), 1);
+        QCOMPARE(idChanged.first().at(1).toString(), QStringLiteral("sailfishos-chum-gui"));
+        QVERIFY(m_controller->apps()->indexOf(QStringLiteral("sailfishos-chum-gui")) >= 0);
+        QCOMPARE(m_controller->apps()->count(), 1);
+
+        // Removed in the background: gone after a refresh.
+        QVERIFY(store.remove(QStringLiteral("sailfishos-chum-gui")).ok());
+        m_controller->refresh();
+        QCOMPARE(m_controller->apps()->count(), 0);
+    }
+
     void sourcesListed()
     {
         const QVariantList sources = m_controller->sources();

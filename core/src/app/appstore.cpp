@@ -1,5 +1,7 @@
 #include "app/appstore.h"
 
+#include <algorithm>
+
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -54,7 +56,19 @@ QList<App> AppStore::loadAll(QStringList *errors) const
         }
         apps << app.value;
     }
-    return apps;
+    // replace() writes the new record before removing the old one; after a
+    // crash in between, the temporary record is the stale one.
+    QList<App> kept;
+    for (const App &app : apps) {
+        const bool superseded = app.temporaryId && std::any_of(apps.begin(), apps.end(), [&app](const App &other) {
+            return !other.temporaryId && other.url.compare(app.url, Qt::CaseInsensitive) == 0;
+        });
+        if (superseded)
+            QFile::remove(pathFor(app.id));
+        else
+            kept << app;
+    }
+    return kept;
 }
 
 Result<App> AppStore::load(const QString &id) const

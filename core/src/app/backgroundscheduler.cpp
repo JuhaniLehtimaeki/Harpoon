@@ -6,6 +6,7 @@
 #include <QFileInfo>
 #include <QSaveFile>
 #include <QStandardPaths>
+#include <QTimer>
 
 namespace Harpoon {
 
@@ -71,7 +72,24 @@ void BackgroundScheduler::call(const QString &method, const QList<QVariant> &arg
 
 void BackgroundScheduler::apply(bool enabled, int intervalHours, std::function<void(const Error &)> done)
 {
-    auto finish = [done](const Error &e) {
+    m_queue.append(Request{enabled, intervalHours, std::move(done)});
+    if (!m_running)
+        run(m_queue.takeFirst());
+}
+
+void BackgroundScheduler::run(const Request &request)
+{
+    m_running = true;
+    const bool enabled = request.enabled;
+    const int intervalHours = request.intervalHours;
+    const auto done = request.done;
+    auto finish = [this, done](const Error &e) {
+        m_running = false;
+        if (!m_queue.isEmpty())
+            QTimer::singleShot(0, this, [this]() {
+                if (!m_running && !m_queue.isEmpty())
+                    run(m_queue.takeFirst());
+            });
         if (done)
             done(e);
     };
