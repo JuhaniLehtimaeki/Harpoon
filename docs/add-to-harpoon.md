@@ -1,5 +1,9 @@
 # Let people add your app to Harpoon with a QR code
 
+If you publish your app as RPM packages in your releases on GitHub, Codeberg, GitLab or
+another supported site, Harpoon users can already install and update it: nothing needs to
+be set up. A QR code only makes adding your app quicker.
+
 Harpoon users can add an app by scanning a QR code on its web page or README, instead of
 typing the repository URL on the phone. Harpoon's scanner reads two kinds of codes.
 
