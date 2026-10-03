@@ -321,6 +321,40 @@ private slots:
         QVERIFY(imported.notifiedVersion.isEmpty());
         QVERIFY(imported.lastError.isEmpty());
         QVERIFY(imported.settings.getBool(Keys::includePrereleases));
+        // The backup's id is not trusted; the package name is found again.
+        QVERIFY(imported.temporaryId);
+        QCOMPARE(imported.id, App::temporaryIdFor(imported.url));
+    }
+
+    void backupsWithoutSecrets()
+    {
+        App a = appWith(QStringLiteral("web"), QStringLiteral("1.0"));
+        a.settings.set(Keys::requestHeader, QStringLiteral("Cookie: secret"));
+        QVariantMap hop{{QStringLiteral("customLinkFilterRegex"), QStringLiteral("x")},
+                        {QString::fromLatin1(Keys::requestHeader), QStringLiteral("Authorization: Bearer hop")}};
+        QVariantMap values = a.settings.values();
+        values.insert(QString::fromLatin1(Keys::intermediateLink), QVariantList{hop});
+        a.settings = AppSettings(values);
+        const QByteArray json = Backup::create({a}, QVariantMap(), false).toJson();
+        QVERIFY(!json.contains("secret"));
+        QVERIFY(!json.contains("Bearer hop"));
+        QVERIFY(json.contains("customLinkFilterRegex")); // the rest of the hop stays
+        QVERIFY(Backup::create({a}, QVariantMap(), true).toJson().contains("Bearer hop"));
+    }
+
+    void crafedIdsAreRejected()
+    {
+        App a = appWith(QStringLiteral("evil"), QStringLiteral("1.0"));
+        a.temporaryId = false;
+        a.id = QStringLiteral("--eval=%(touch /tmp/x)");
+        QCOMPARE(int(App::fromJson(a.toJson()).error.kind), int(Error::Storage));
+        a.id = QStringLiteral("../../etc/passwd");
+        QVERIFY(!App::fromJson(a.toJson()).ok());
+        a.temporaryId = true;
+        a.id = QStringLiteral("tmp-../../x");
+        QVERIFY(!App::fromJson(a.toJson()).ok());
+        a.id = App::temporaryIdFor(a.url);
+        QVERIFY(App::fromJson(a.toJson()).ok());
     }
 
     void backupRejectsOtherFiles()

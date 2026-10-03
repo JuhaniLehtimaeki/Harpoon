@@ -72,6 +72,38 @@ private slots:
         QVERIFY(r.ok());
         QVERIFY(r.value.name.isEmpty());
     }
+
+    void namesNeverBecomeOptions()
+    {
+        // rpm expands %(...) in option arguments: a crafted package name or
+        // asset file name must never reach its command line.
+        QVERIFY(isValidRpmName(QStringLiteral("harbour-foilauth")));
+        QVERIFY(isValidRpmName(QStringLiteral("libstdc++")));
+        QVERIFY(!isValidRpmName(QStringLiteral("--eval=%(touch /tmp/x)")));
+        QVERIFY(!isValidRpmName(QStringLiteral("-q")));
+        QVERIFY(!isValidRpmName(QStringLiteral("a b")));
+        QVERIFY(!isValidRpmName(QStringLiteral("../x")));
+        QVERIFY(!isValidRpmName(QString()));
+
+        struct Recorder : ProcessRunner {
+            QList<QStringList> calls;
+            ProcessResult run(const QString &, const QStringList &arguments, int) override
+            {
+                calls << arguments;
+                ProcessResult r;
+                r.started = true;
+                r.exitCode = 1;
+                return r;
+            }
+        } recorder;
+        RpmInspector inspector(recorder);
+        QVERIFY(inspector.installedPackage(QStringLiteral("--eval=%(touch /tmp/x)")).value.name.isEmpty());
+        QVERIFY(recorder.calls.isEmpty()); // never ran rpm
+        inspector.installedPackage(QStringLiteral("harbour-x"));
+        QCOMPARE(recorder.calls.size(), 1);
+        QCOMPARE(recorder.calls.first().mid(recorder.calls.first().size() - 2),
+                 (QStringList{QStringLiteral("--"), QStringLiteral("harbour-x")}));
+    }
 };
 
 QTEST_GUILESS_MAIN(TestRpmInspector)

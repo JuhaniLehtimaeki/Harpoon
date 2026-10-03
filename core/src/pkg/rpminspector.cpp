@@ -1,6 +1,7 @@
 #include "pkg/rpminspector.h"
 
 #include <QFileInfo>
+#include <QRegularExpression>
 
 namespace Harpoon {
 
@@ -48,13 +49,19 @@ QList<RpmInfo> RpmInspector::parse(const QByteArray &output)
     return out;
 }
 
+bool isValidRpmName(const QString &name)
+{
+    static const QRegularExpression pattern(QStringLiteral("^[A-Za-z0-9_+][A-Za-z0-9._+-]{0,127}$"));
+    return pattern.match(name).hasMatch();
+}
+
 Result<RpmInfo> RpmInspector::inspectFile(const QString &path) const
 {
     if (!QFileInfo(path).isFile())
         return Result<RpmInfo>::failure(Error::make(Error::Package, QStringLiteral("File not found: %1").arg(path)));
     const ProcessResult r = m_runner.run(QStringLiteral("rpm"),
                                          {QStringLiteral("-qp"), QStringLiteral("--nosignature"),
-                                          QStringLiteral("--qf"), queryFormat(), path});
+                                          QStringLiteral("--qf"), queryFormat(), QStringLiteral("--"), path});
     if (!r.started)
         return Result<RpmInfo>::failure(Error::make(Error::Package, QStringLiteral("Could not run rpm")));
     const QList<RpmInfo> infos = parse(r.standardOutput);
@@ -67,8 +74,12 @@ Result<RpmInfo> RpmInspector::inspectFile(const QString &path) const
 
 Result<QList<RpmInfo>> RpmInspector::queryInstalled(const QString &name) const
 {
+    // Not a package name: nothing can be installed under it, and it must not
+    // be passed to rpm (where "--eval=%(...)" would run a command).
+    if (!isValidRpmName(name))
+        return Result<QList<RpmInfo>>::success(QList<RpmInfo>());
     const ProcessResult r = m_runner.run(QStringLiteral("rpm"), {QStringLiteral("-q"), QStringLiteral("--qf"),
-                                                                 queryFormat(), name});
+                                                                 queryFormat(), QStringLiteral("--"), name});
     if (!r.started)
         return Result<QList<RpmInfo>>::failure(Error::make(Error::Package, QStringLiteral("Could not run rpm")));
     // Exit code 1 with no output lines means "not installed".

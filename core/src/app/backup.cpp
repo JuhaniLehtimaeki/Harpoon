@@ -29,8 +29,20 @@ Backup Backup::create(const QList<App> &apps, const QVariantMap &settings, bool 
     backup.settings = settings;
     for (App app : apps) {
         if (!includeSecrets) {
+            // Request headers carry cookies and tokens, also those of each
+            // intermediate page.
             QVariantMap values = app.settings.values();
             values.remove(QString::fromLatin1(Keys::requestHeader));
+            const QString hopsKey = QString::fromLatin1(Keys::intermediateLink);
+            if (values.contains(hopsKey)) {
+                QVariantList hops = values.value(hopsKey).toList();
+                for (QVariant &hop : hops) {
+                    QVariantMap map = hop.toMap();
+                    map.remove(QString::fromLatin1(Keys::requestHeader));
+                    hop = map;
+                }
+                values.insert(hopsKey, hops);
+            }
             app.settings = AppSettings(values);
         }
         backup.apps << app;
@@ -87,6 +99,11 @@ ImportResult mergeBackupApps(const QList<App> &existing, const QList<App> &fromB
         ids.insert(a.id);
     }
     for (App app : fromBackup) {
+        // A backup's id is not trusted: it would let a shared file make
+        // Harpoon install over, or uninstall, any package under any name.
+        // The real package name is found again by checking or installing.
+        app.id = App::temporaryIdFor(app.url);
+        app.temporaryId = true;
         if (urls.contains(app.url.toLower()) || ids.contains(app.id)) {
             result.skipped << app.name;
             continue;

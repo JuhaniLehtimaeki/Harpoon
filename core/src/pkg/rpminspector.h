@@ -19,6 +19,11 @@ struct RpmInfo
     QString nevra() const { return name + QLatin1Char('-') + evr.toString() + QLatin1Char('.') + arch; }
 };
 
+// Whether a string is a plausible RPM package name (letters, digits and
+// "._+-", not starting with "-" or "."). Anything else must never reach rpm's
+// command line: rpm expands macros such as %(cmd) in option arguments.
+bool isValidRpmName(const QString &name);
+
 // Reads RPM headers with the rpm command line tool. Works unprivileged and
 // inside the sandbox. PackageKit's GetDetailsLocal is not supported by the
 // SailfishOS zypp backend, which is why Storeman does the same.

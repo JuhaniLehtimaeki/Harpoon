@@ -75,6 +75,8 @@ bool AppStore::contains(const QString &id) const
 
 Error AppStore::save(const App &app) const
 {
+    if (!App::isValidId(app.id, app.temporaryId))
+        return Error::make(Error::Storage, QStringLiteral("Invalid app id: %1").arg(app.id.left(80)));
     if (!QDir().mkpath(m_dir))
         return Error::make(Error::Storage, QStringLiteral("Cannot create %1").arg(m_dir));
     QSaveFile f(pathFor(app.id));

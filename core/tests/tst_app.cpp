@@ -90,11 +90,13 @@ private slots:
         QCOMPARE(store.loadAll().size(), 1);
         QCOMPARE(store.loadAll().first().id, QStringLiteral("harbour-b"));
 
-        // Ids cannot escape the directory.
+        // Ids that are not package names are refused (they would escape the
+        // directory, or reach rpm's command line).
         App evil = a;
         evil.id = QStringLiteral("../../etc/passwd");
-        QVERIFY(store.save(evil).ok());
-        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("apps/_._.._etc_passwd.json"))));
+        QVERIFY(!store.save(evil).ok());
+        evil.id = QStringLiteral("--eval=%(id)");
+        QVERIFY(!store.save(evil).ok());
         QCOMPARE(QDir(dir.path()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot), QStringList{"apps"});
 
         // Corrupt files are reported, not fatal.
@@ -103,7 +105,7 @@ private slots:
         junk.write("{not json");
         junk.close();
         QStringList errors;
-        QCOMPARE(store.loadAll(&errors).size(), 2);
+        QCOMPARE(store.loadAll(&errors).size(), 1);
         QCOMPARE(errors.size(), 1);
 
         QVERIFY(store.remove(QStringLiteral("harbour-b")).ok());

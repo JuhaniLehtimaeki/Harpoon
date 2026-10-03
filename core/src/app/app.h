@@ -62,6 +62,9 @@ struct App
 
     // "tmp-" + 12 hex digits derived from the URL.
     static QString temporaryIdFor(const QString &url);
+    // A temporary id is "tmp-" + 12 hex digits; any other id is an RPM
+    // package name. Ids are file names in the store and arguments to rpm.
+    static bool isValidId(const QString &id, bool temporary);
     // Default name/author from a forge URL: https://host/owner/repo.
     static App fromUrl(const QString &standardUrl, const QString &sourceId = QString());
 };

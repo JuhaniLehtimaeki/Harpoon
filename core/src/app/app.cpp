@@ -1,7 +1,10 @@
 #include "app/app.h"
 
+#include "pkg/rpminspector.h"
+
 #include <QCryptographicHash>
 #include <QJsonArray>
+#include <QRegularExpression>
 #include <QUrl>
 
 namespace Harpoon {
@@ -127,6 +130,11 @@ Result<App> App::fromJson(const QJsonObject &o)
     if (app.id.isEmpty() || app.url.isEmpty())
         return Result<App>::failure(Error::make(Error::Storage, QStringLiteral("App record lacks id or url")));
     app.temporaryId = o.value(QStringLiteral("temporaryId")).toBool();
+    // The id is a file name in the store and an argument to rpm: a record
+    // (or backup) must not smuggle anything else in.
+    if (!isValidId(app.id, app.temporaryId))
+        return Result<App>::failure(
+            Error::make(Error::Storage, QStringLiteral("App record has an invalid id: %1").arg(app.id.left(80))));
     app.sourceId = o.value(QStringLiteral("sourceId")).toString();
     app.name = o.value(QStringLiteral("name")).toString();
     app.author = o.value(QStringLiteral("author")).toString();
@@ -158,6 +166,12 @@ Result<App> App::fromJson(const QJsonObject &o)
     app.acknowledgedVersion = o.value(QStringLiteral("acknowledgedVersion")).toString();
     app.notifiedVersion = o.value(QStringLiteral("notifiedVersion")).toString();
     return Result<App>::success(app);
+}
+
+bool App::isValidId(const QString &id, bool temporary)
+{
+    static const QRegularExpression temporaryPattern(QStringLiteral("^tmp-[0-9a-f]{12}$"));
+    return temporary ? temporaryPattern.match(id).hasMatch() : isValidRpmName(id);
 }
 
 QString App::temporaryIdFor(const QString &url)

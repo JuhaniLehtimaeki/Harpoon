@@ -1,5 +1,7 @@
 #include "app/installedmatch.h"
 
+#include "pkg/rpminspector.h"
+
 #include <QFileInfo>
 #include <QRegularExpression>
 
@@ -9,7 +11,7 @@ QString rpmNameFromFileName(const QString &fileName)
 {
     static const QRegularExpression nevra(QStringLiteral("^(.+)-[^-]+-[^-]+\\.[A-Za-z0-9_]+\\.rpm$"));
     const auto m = nevra.match(QFileInfo(fileName).fileName());
-    return m.hasMatch() ? m.captured(1) : QString();
+    return m.hasMatch() && isValidRpmName(m.captured(1)) ? m.captured(1) : QString();
 }
 
 bool adoptInstalledPackage(App &app, const std::function<bool(const QString &)> &isInstalled,
