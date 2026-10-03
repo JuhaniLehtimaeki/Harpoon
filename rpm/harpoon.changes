@@ -1,3 +1,14 @@
+* Sat Oct 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.4.0-1
+- The app list looks finished with only a few apps: a status header that
+  says where things stand ("All caught up", "2 updates ready"), when apps
+  were last checked, an "Add another app" row, a tip card, and the sea
+  along the bottom.
+- Adding an app: one-tap github.com, codeberg.org and codefloe.com
+  shortcuts, and "Paste link" when a link is on the clipboard.
+- A failed add brings the form back as it was, with the error, so a typo
+  is fixed instead of retyped; "Add it anyway" adds an app that has no
+  release yet.
+
 * Sat Oct 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.3.0-1
 - A fresh look: artwork of a harpoon over the sea in the colours of your
   ambience, a bobbing harpoon when the list is empty, an "updates ready"
