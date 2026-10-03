@@ -139,6 +139,21 @@ Page {
                 text: qsTr("Optional. A token raises GitHub's limit of 60 checks per hour and allows private repositories. Self-hosted servers get their own field once you track an app on them. Tokens are stored unencrypted in Harpoon's private settings file.")
             }
 
+            // A fine-grained token with no permissions is enough for public
+            // repositories; it only raises the rate limit.
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                wrapMode: Text.Wrap
+                textFormat: Text.StyledText
+                font.pixelSize: Theme.fontSizeExtraSmall
+                color: Theme.secondaryHighlightColor
+                linkColor: Theme.highlightColor
+                text: "<a href=\"https://github.com/settings/personal-access-tokens/new\">"
+                      + qsTr("Create a GitHub token") + "</a>"
+                onLinkActivated: Qt.openUrlExternally(link)
+            }
+
             Item {
                 width: 1
                 height: Theme.paddingMedium

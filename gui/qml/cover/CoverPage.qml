@@ -5,6 +5,22 @@ import Sailfish.Silica 1.0
 CoverBackground {
     readonly property int _updates: harpoon.apps.updatesCount
 
+    // A faint harpoon in the corner, as Sailfish covers usually carry.
+    Image {
+        visible: harpoon.apps.count > 0
+        anchors {
+            right: parent.right
+            bottom: parent.bottom
+            rightMargin: -Theme.paddingLarge
+            bottomMargin: Theme.itemSizeLarge
+        }
+        width: parent.width * 0.6
+        height: width
+        sourceSize { width: width; height: height }
+        source: "/usr/share/icons/hicolor/172x172/apps/harpoon.png"
+        opacity: Theme.opacityFaint
+    }
+
     Column {
         anchors {
             top: parent.top

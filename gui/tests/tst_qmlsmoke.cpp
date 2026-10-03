@@ -325,6 +325,8 @@ private slots:
         expectClean("AppSettingsPage");
         QCOMPARE(settingsPage->property("_isWebPage").toBool(), appId == QLatin1String("webapp"));
         QCOMPARE(settingsPage->property("_isRepo").toBool(), appId == QLatin1String("repoapp"));
+        settingsPage->setProperty("_advanced", true);
+        expectClean("advanced settings");
         popToList();
         expectClean("popping back");
     }
@@ -351,6 +353,10 @@ private slots:
         QVERIFY(currentPage()->property("_changed").toBool());
         popToList();
         expectClean("leaving settings");
+        // An advanced setting in use shows the advanced settings right away.
+        QObject *again = push(QStringLiteral("AppSettingsPage.qml"), QStringLiteral("{ appId: 'harbour-alpha' }"));
+        QVERIFY(again->property("_advanced").toBool());
+        popToList();
     }
 
     void addDialog()

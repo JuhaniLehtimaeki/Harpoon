@@ -9,4 +9,5 @@ QtObject {
     property real fontSizeLarge: 34; property real fontSizeExtraLarge: 40; property real fontSizeHuge: 60
     property color primaryColor: "white"; property color secondaryColor: "gray"
     property color highlightColor: "cyan"; property color secondaryHighlightColor: "teal"; property color errorColor: "red"
+    property real opacityFaint: 0.2; property real opacityLow: 0.4; property real opacityHigh: 0.6; property real opacityOverlay: 0.8
 }

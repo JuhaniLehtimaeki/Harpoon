@@ -36,3 +36,7 @@ target_link_libraries(tst_qr PRIVATE harpoon-qr harpoon-core Qt5::Test)
 target_compile_definitions(tst_qr PRIVATE HARPOON_GUI_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 add_test(NAME tst_qr COMMAND tst_qr)
 set_tests_properties(tst_qr PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+add_executable(tst_releasenotes tst_releasenotes.cpp)
+target_link_libraries(tst_releasenotes PRIVATE harpoon-ui Qt5::Test)
+add_test(NAME tst_releasenotes COMMAND tst_releasenotes)

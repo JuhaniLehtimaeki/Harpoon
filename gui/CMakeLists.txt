@@ -7,6 +7,8 @@ add_library(harpoon-ui STATIC
     src/harpooncontroller.cpp
     src/harpoondbus.h
     src/harpoondbus.cpp
+    src/releasenotes.h
+    src/releasenotes.cpp
 )
 target_include_directories(harpoon-ui PUBLIC src)
 target_link_libraries(harpoon-ui PUBLIC harpoon-core)

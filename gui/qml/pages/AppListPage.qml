@@ -188,7 +188,7 @@ Page {
         ViewPlaceholder {
             enabled: listView.count === 0 && harpoon.loaded
             text: qsTr("No apps yet")
-            hintText: qsTr("Pull down to add an app from GitHub, Codeberg or another forge")
+            hintText: qsTr("Pull down to add an app by its link or QR code, from GitHub, Codeberg or another forge")
         }
 
         VerticalScrollDecorator { }

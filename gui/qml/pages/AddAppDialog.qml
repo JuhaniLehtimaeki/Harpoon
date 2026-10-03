@@ -87,7 +87,8 @@ Dialog {
                 id: urlField
 
                 width: parent.width
-                focus: true
+                // No keyboard over a form already filled from a QR code or link.
+                focus: dialog.initialUrl.length === 0
                 label: qsTr("Repository URL")
                 placeholderText: qsTr("Repository URL")
                 inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText

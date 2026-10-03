@@ -9,6 +9,14 @@ Page {
     property string appId
     // Refreshed whenever the model changes, so the page follows checks and installs.
     property var details: harpoon.appDetails(appId)
+    readonly property real _downloadSize: {
+        var total = 0
+        var assets = details.assets || []
+        for (var i = 0; i < assets.length; ++i) {
+            total += assets[i].size > 0 ? assets[i].size : 0
+        }
+        return total
+    }
     readonly property bool _installed: details.installedVersion !== undefined && details.installedVersion.length > 0
 
     function refresh() {
@@ -90,27 +98,55 @@ Page {
                 description: details.author || ""
             }
 
-            StateLabel {
-                // A failed first check has nothing to summarise; the error says it.
-                visible: !(appState === AppListModel.NotChecked && details.lastError !== undefined
-                           && details.lastError.length > 0)
+            // The app's own launcher icon next to where it stands.
+            Item {
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
-                font.pixelSize: Theme.fontSizeSmall
-                appState: details.state !== undefined ? details.state : AppListModel.NotChecked
-                installedVersion: details.installedVersion || ""
-                latestVersion: details.latestVersion || ""
-                trackOnly: details.trackOnly === true
-            }
+                height: Math.max(appIcon.height, statusColumn.height)
 
-            Label {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                visible: details.lastError !== undefined && details.lastError.length > 0
-                wrapMode: Text.Wrap
-                text: details.lastError || ""
-                font.pixelSize: Theme.fontSizeSmall
-                color: Theme.errorColor
+                Image {
+                    id: appIcon
+
+                    property bool _failed
+
+                    width: Theme.iconSizeLarge
+                    height: Theme.iconSizeLarge
+                    sourceSize { width: width; height: height }
+                    source: details.icon && !_failed ? details.icon
+                                                     : "image://theme/icon-m-file-rpm?" + Theme.highlightColor
+                    onStatusChanged: if (status === Image.Error) _failed = true
+                }
+
+                Column {
+                    id: statusColumn
+
+                    anchors {
+                        left: appIcon.right
+                        leftMargin: Theme.paddingLarge
+                        right: parent.right
+                        verticalCenter: appIcon.verticalCenter
+                    }
+
+                    StateLabel {
+                        // A failed first check has nothing to summarise; the error says it.
+                        visible: !(appState === AppListModel.NotChecked && details.lastError !== undefined
+                                   && details.lastError.length > 0)
+                        width: parent.width
+                        appState: details.state !== undefined ? details.state : AppListModel.NotChecked
+                        installedVersion: details.installedVersion || ""
+                        latestVersion: details.latestVersion || ""
+                        trackOnly: details.trackOnly === true
+                    }
+
+                    Label {
+                        width: parent.width
+                        visible: details.lastError !== undefined && details.lastError.length > 0
+                        wrapMode: Text.Wrap
+                        text: details.lastError || ""
+                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.errorColor
+                    }
+                }
             }
 
             ProgressBar {
@@ -158,6 +194,11 @@ Page {
                 visible: details.prerelease === true
                 label: qsTr("Channel")
                 value: qsTr("Prerelease")
+            }
+            DetailItem {
+                visible: page._downloadSize > 0
+                label: qsTr("Download size")
+                value: Format.formatFileSize(page._downloadSize)
             }
             Repeater {
                 model: details.assets || []
@@ -218,16 +259,19 @@ Page {
                 text: qsTr("Release notes")
             }
 
+            // Markdown from the forge, shown as styled text with working links.
             Label {
                 id: changelogLabel
 
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
                 wrapMode: Text.Wrap
-                textFormat: Text.PlainText
+                textFormat: Text.StyledText
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.highlightColor
-                text: (details.changelog || "").trim()
+                linkColor: Theme.primaryColor
+                text: details.changelogText || ""
+                onLinkActivated: Qt.openUrlExternally(link)
             }
         }
 

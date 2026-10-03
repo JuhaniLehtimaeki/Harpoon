@@ -6,6 +6,7 @@
 #include "app/installedmatch.h"
 #include "app/appidentity.h"
 #include "app/appservice.h"
+#include "releasenotes.h"
 #include "net/networktransport.h"
 #include "pkg/installhandlerbackend.h"
 #include "pkg/packagekitbackend.h"
@@ -572,6 +573,7 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
         // The stored name: the automatic one unless the user renamed the app.
         {QStringLiteral("customName"), a.name != App::fromUrl(a.url).name ? a.name : QString()},
         {QStringLiteral("icon"), e->iconPath},
+        {QStringLiteral("changelogText"), releaseNotesToStyledText(a.changelog)},
         {QStringLiteral("author"), a.author},
         {QStringLiteral("url"), a.url},
         {QStringLiteral("sourceId"), a.sourceId},
