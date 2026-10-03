@@ -1,3 +1,8 @@
+* Sat Oct 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.4.2-1
+- The three layers of the animated sea each drift at their own, slower
+  pace, so the waves have depth without drawing the eye.
+- The "No builds yet" notice on an app's page no longer touches the waves.
+
 * Sat Oct 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.4.1-1
 - Apps whose repository has no builds yet can be added: Harpoon shows
   them as waiting for builds, explains why, and offers them as soon as
