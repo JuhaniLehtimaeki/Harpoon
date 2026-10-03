@@ -8,6 +8,36 @@ from the source.
 - App developers: [let users add your app with a QR code](docs/add-to-harpoon.md)
 - Research: [docs/research](docs/research)
 
+## Installing
+Harpoon needs SailfishOS 5.0 or later. It is not in the Jolla Store, which does not allow
+apps that install other apps.
+
+1. In **Settings → Untrusted software**, allow untrusted software.
+2. On the phone, open the [latest release](https://github.com/JuhaniLehtimaeki/Harpoon/releases/latest)
+   and download the package for your system:
+
+   | SailfishOS (Settings → About product) | Package |
+   |---|---|
+   | 5.1 or later | `harpoon-…sfos5.1.aarch64.rpm` |
+   | 5.0 | `harpoon-…sfos5.0.aarch64.rpm` |
+
+   `aarch64` fits most phones (Xperia 10 II and newer, Jolla C2). Older 32-bit phones need
+   `armv7hl`, and Intel tablets and the emulator need `i486`. In a terminal, `uname -m` tells
+   (`armv7l` means `armv7hl`).
+3. Open the download (from the browser's downloads, or **Settings → Transfers**) and confirm
+   the installation. From a terminal: `devel-su pkcon install-local harpoon-*.rpm`.
+4. Open Harpoon and add `https://github.com/JuhaniLehtimaeki/Harpoon`. Harpoon recognises
+   itself as installed and from then on updates itself, picking the right package for the
+   phone.
+
+For the strictest check of Harpoon's own updates, set the app's **Check build provenance**
+to "Refuse unless verified", the workflow to `release.yml` and the refs to `refs/tags/.*`:
+every release package is signed by this repository's release workflow.
+
+**Get updates from one place only.** Harpoon installed this way updates itself. If you
+later install it from another repository (such as SailfishOS:Chum), stop tracking it in
+Harpoon, so that two sources do not replace each other's package.
+
 ## Status
 The core library and the `harpoon-cli` command-line tool are implemented and tested on
 desktop Linux. They cover:
@@ -17,8 +47,8 @@ desktop Linux. They cover:
 - RPM inspection;
 - installing through PackageKit or the system installation handler.
 
-A Silica UI (`gui/`) sits on top of it. Nothing has been tested on a device yet; see
-[docs/device-testing.md](docs/device-testing.md).
+A Silica UI (`gui/`) sits on top of it. It has been tested on a phone with SailfishOS 5.1;
+see [docs/device-testing.md](docs/device-testing.md).
 
 ## Using harpoon-cli (on the phone)
 ```sh

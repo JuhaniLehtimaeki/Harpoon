@@ -49,6 +49,33 @@ private slots:
         QVERIFY(!isInstallableRpm("app-1.0.tar.gz"));
     }
 
+    // Harpoon's own release: one package per architecture and OpenSSL
+    // generation, plus checksums (.github/workflows/release.yml).
+    void harpoonsOwnRelease_data()
+    {
+        QTest::addColumn<QString>("arch");
+        QTest::addColumn<QString>("os");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("5.0 aarch64") << "aarch64" << "5.0.0.62" << "harpoon-0.2.0-1.sfos5.0.aarch64.rpm";
+        QTest::newRow("5.1 aarch64") << "aarch64" << "5.1.0.11" << "harpoon-0.2.0-1.sfos5.1.aarch64.rpm";
+        QTest::newRow("5.2 armv7hl") << "armv7hl" << "5.2.0.15" << "harpoon-0.2.0-1.sfos5.1.armv7hl.rpm";
+        QTest::newRow("5.0 i486") << "i486" << "5.0.0.43" << "harpoon-0.2.0-1.sfos5.0.i486.rpm";
+    }
+
+    void harpoonsOwnRelease()
+    {
+        QFETCH(QString, arch);
+        QFETCH(QString, os);
+        QFETCH(QString, expected);
+        QStringList files{QStringLiteral("SHA256SUMS")};
+        for (const char *tag : {"sfos5.0", "sfos5.1"})
+            for (const char *a : {"aarch64", "armv7hl", "i486"})
+                files << QStringLiteral("harpoon-0.2.0-1.%1.%2.rpm").arg(QLatin1String(tag), QLatin1String(a));
+        const auto r = filterAssets(assets(files), AppSettings(), device(arch, os));
+        QVERIFY(r.ok());
+        QCOMPARE(names(r.value), QStringList{expected});
+    }
+
     void arch()
     {
         QCOMPARE(rpmArchOf("app-1.0-1.aarch64.rpm"), QStringLiteral("aarch64"));

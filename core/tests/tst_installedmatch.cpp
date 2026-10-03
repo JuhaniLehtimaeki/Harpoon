@@ -29,6 +29,7 @@ private slots:
         QTest::newRow("aarch64") << "harbour-foilauth-1.1.20-1.aarch64.rpm" << "harbour-foilauth";
         QTest::newRow("dashes in name") << "sailfish-browser-plugin-x-2.0-3.armv7hl.rpm" << "sailfish-browser-plugin-x";
         QTest::newRow("path") << "/cache/0123456789ab-harbour-dwd-1.1.1-1.noarch.rpm" << "0123456789ab-harbour-dwd";
+        QTest::newRow("release with a tag") << "harpoon-0.2.0-1.sfos5.1.aarch64.rpm" << "harpoon";
         QTest::newRow("not nevra") << "app.rpm" << "";
         QTest::newRow("not rpm") << "harbour-dwd-1.1.1-1.noarch.zip" << "";
     }

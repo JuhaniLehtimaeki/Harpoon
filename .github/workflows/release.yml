@@ -1,0 +1,144 @@
+name: Release
+
+# Pushing a version tag (for example 0.2.0) builds the SailfishOS packages
+# and publishes them as a GitHub release. Running the workflow by hand builds
+# the packages for testing without publishing anything.
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: SailfishOS ${{ matrix.target.tag }} ${{ matrix.arch }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # One package per OpenSSL generation: SailfishOS 5.0 ships OpenSSL 1.1,
+        # 5.1 and later ship OpenSSL 3. The tag ends up in the file name, where
+        # Harpoon's own asset filter picks the newest one not newer than the
+        # phone (preferSfosVersionTag), and in the release, so that after a
+        # system upgrade the matching package counts as an update.
+        target:
+          - { release: 5.0.0.43, tag: sfos5.0 }
+          - { release: 5.1.0.11, tag: sfos5.1 }
+        arch: [aarch64, armv7hl, i486]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the version
+        if: github.ref_type == 'tag'
+        run: |
+          version=$(sed -n 's/^Version:[[:space:]]*//p' rpm/harpoon.spec)
+          if [ "$version" != "${GITHUB_REF_NAME%%-*}" ]; then
+            echo "::error::rpm/harpoon.spec has Version $version, but the tag is $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+      # The SDK image needs about 12 GB once unpacked.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Tag the release with the SailfishOS version
+        run: sed -i 's/^\(Release:[[:space:]]*[^[:space:]]*\)$/\1.${{ matrix.target.tag }}/' rpm/harpoon.spec
+
+      - name: Build
+        run: |
+          mkdir -p RPMS && chmod 777 RPMS
+          docker run --rm --privileged \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            coderus/sailfishos-platform-sdk-${{ matrix.arch }}:${{ matrix.target.release }} \
+            /bin/bash -ec '
+              mkdir -p ~/build
+              cp -r /workspace/. ~/build/
+              cd ~/build
+              rm -rf RPMS
+              mb2 -t SailfishOS-${{ matrix.target.release }}-${{ matrix.arch }} build
+              for f in RPMS/*.rpm; do
+                case "$f" in *-debuginfo-*|*-debugsource-*) ;; *) cp "$f" /workspace/RPMS/ ;; esac
+              done'
+          ls -l RPMS
+
+      - name: Check the package
+        run: |
+          sudo apt-get install -y --no-install-recommends rpm > /dev/null
+          for f in RPMS/*.rpm; do
+            rpm -qp --qf '%{NAME} %{VERSION}-%{RELEASE} %{ARCH}\n' "$f"
+            case "$f" in *.${{ matrix.target.tag }}.${{ matrix.arch }}.rpm) ;; *) echo "::error::unexpected file name $f"; exit 1 ;; esac
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: harpoon-${{ matrix.target.tag }}-${{ matrix.arch }}
+          path: RPMS/*.rpm
+          if-no-files-found: error
+
+  publish:
+    name: Publish the release
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write      # create the release
+      id-token: write      # sign the build attestation
+      attestations: write  # store it, so Harpoon can verify its own updates
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: RPMS
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          cd RPMS
+          sha256sum *.rpm > SHA256SUMS
+          cat SHA256SUMS
+
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: RPMS/*.rpm
+
+      - name: Release notes
+        run: |
+          {
+            # The newest entry of rpm/harpoon.changes, without its header line.
+            awk 'NR > 1 && /^\*/ { exit } NR > 1' rpm/harpoon.changes
+            echo
+            echo '## Installing'
+            echo
+            echo 'Pick the package for your SailfishOS version and phone:'
+            echo
+            echo '| SailfishOS | Phone | Package |'
+            echo '|---|---|---|'
+            echo '| 5.1 or later | 64-bit ARM (Xperia 10 II and newer, most current phones) | `*.sfos5.1.aarch64.rpm` |'
+            echo '| 5.1 or later | 32-bit ARM | `*.sfos5.1.armv7hl.rpm` |'
+            echo '| 5.1 or later | Intel tablets, emulator | `*.sfos5.1.i486.rpm` |'
+            echo '| 5.0 | same as above | `*.sfos5.0.<arch>.rpm` |'
+            echo
+            echo 'See the [README](https://github.com/${{ github.repository }}#installing) for step-by-step instructions.'
+            echo 'The packages are signed with a GitHub build attestation; `SHA256SUMS` lists their checksums.'
+          } > notes.md
+          cat notes.md
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=
+          case "$GITHUB_REF_NAME" in *-*) prerelease=--prerelease ;; esac
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" RPMS/*.rpm RPMS/SHA256SUMS --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" RPMS/*.rpm RPMS/SHA256SUMS \
+              --title "Harpoon $GITHUB_REF_NAME" --notes-file notes.md --verify-tag $prerelease
+          fi

@@ -17,8 +17,28 @@ sfdk deploy --sdk               # or copy the RPM and: devel-su pkcon install-lo
 ## Releasing
 
 1. Update `Version:` in `rpm/harpoon.spec`, `project(... VERSION ...)` in `CMakeLists.txt`,
-   and add an entry to `rpm/harpoon.changes`.
-2. Tag the commit with the bare version, for example `0.1.0`, and push the tag.
+   and add an entry to `rpm/harpoon.changes` (its newest entry becomes the release notes).
+2. Tag the commit with the bare version, for example `0.2.0`, and push the tag. A tag with a
+   suffix, such as `0.3.0-rc1`, makes a prerelease.
+
+`.github/workflows/release.yml` then:
+- checks that the tag matches the spec's version;
+- builds the package in the Sailfish SDK (the `coderus/sailfishos-platform-sdk-<arch>`
+  Docker images, with `mb2`) for aarch64, armv7hl and i486, once per OpenSSL generation:
+  against SailfishOS 5.0.0.43 (OpenSSL 1.1) and 5.1.0.11 (OpenSSL 3, also used by 5.2).
+  The release field gets the target's tag, for example `harpoon-0.2.0-1.sfos5.1.aarch64.rpm`.
+  Harpoon's asset filter takes the newest `sfosX.Y` tag that is not newer than the phone;
+  after a system upgrade from 5.0, the `sfos5.1` package counts as an update;
+- signs the packages with a GitHub build attestation (which Harpoon verifies when it
+  updates itself);
+- publishes a GitHub release with the packages, `SHA256SUMS`, and notes from
+  `rpm/harpoon.changes`.
+
+Running the workflow by hand (Actions → Release → Run workflow) builds the packages as
+workflow artifacts without publishing anything; use it to test a build before tagging.
+
+When a new SailfishOS release changes the platform's ABI again, add a row to the
+workflow's `target` matrix.
 
 ## Publishing on SailfishOS:Chum
 

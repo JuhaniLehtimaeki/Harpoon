@@ -1,3 +1,20 @@
+* Sat Oct 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.2.0-1
+- Release notes are shown formatted, with working links; the app page
+  shows the app's icon and download size; app settings show the
+  essentials first, with the rest behind "Show advanced settings".
+- Build provenance: Sigstore bundles logged to Rekor v2 (with RFC 3161
+  timestamps) are verified on the phone, and an app can require that its
+  builds were signed by a given workflow or from given branches or tags.
+- Correctness and security fixes from a code review: multi-package apps
+  are tracked and removed as a whole, installs of one app never overlap
+  with the background job, rpm is never handed an option-like name,
+  downloads are size-limited, and redirects to other hosts drop
+  credentials.
+- Faster: one rpm call at start, and rpm no longer blocks the UI when an
+  app changes.
+- Release packages for SailfishOS 5.0 (sfos5.0) and 5.1 or later
+  (sfos5.1), for aarch64, armv7hl and i486.
+
 * Sat Oct 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.1.2-1
 - Fixes from the second device test: the background check now fires on
   its own (the drop-in no longer clears the startup triggers), the
