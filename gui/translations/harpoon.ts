@@ -392,304 +392,329 @@
 <context>
     <name>AppSettingsPage</name>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="70"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="71"/>
         <source>App settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="76"/>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="79"/>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="241"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="77"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="80"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="269"/>
         <source>Name</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="94"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="95"/>
         <source>Repository</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="94"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="95"/>
         <source>Web page</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="100"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="101"/>
         <source>Package name</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="106"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="107"/>
         <source>Link filter (regular expression)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="109"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="110"/>
         <source>Updates</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="153"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="154"/>
+        <source>Signed only by the workflow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="155"/>
+        <source>Any workflow, or for example release.yml</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="159"/>
+        <source>Signed only from refs matching</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="160"/>
+        <source>Any branch or tag, or for example refs/tags/.*</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="168"/>
+        <source>Limits accepted builds to the release workflow, or to tags, so a build from a test branch or another workflow of the repository is not accepted. The ref is a regular expression.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="181"/>
         <source>Show advanced settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="171"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="199"/>
         <source>Choosing releases and packages, and reading versions. Most apps need none of it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="183"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="211"/>
         <source>Links</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="187"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="215"/>
         <source>Match the link text instead of the address</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="191"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="219"/>
         <source>Also find addresses outside links</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="195"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="223"/>
         <source>Keep the page&apos;s order of links</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="199"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="227"/>
         <source>Take the first link instead of the last</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="203"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="231"/>
         <source>Sort by file name only</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="207"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="235"/>
         <source>Extract the version from the whole page</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="211"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="239"/>
         <source>Without a version, detect changes by</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="213"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="241"/>
         <source>Server ETag</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="214"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="242"/>
         <source>Link address</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="223"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="251"/>
         <source>Multi-page link chains and request headers can be set with harpoon-cli.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="227"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="255"/>
         <source>Releases</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="113"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="114"/>
         <source>Include prereleases</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="231"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="259"/>
         <source>Fall back to older releases</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="232"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="260"/>
         <source>Use the newest release that has a package for this device</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="117"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="118"/>
         <source>Track only</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="118"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="119"/>
         <source>Only notify about new releases; nothing is installed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="236"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="264"/>
         <source>Order releases by</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="238"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="266"/>
         <source>Publish date</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="239"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="267"/>
         <source>Version, else date</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="240"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="268"/>
         <source>Version, else name</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="242"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="270"/>
         <source>As listed by the forge</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="247"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="275"/>
         <source>Date releases by their newest package</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="251"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="279"/>
         <source>Release title filter (regular expression)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="255"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="283"/>
         <source>Release notes filter (regular expression)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="258"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="286"/>
         <source>Packages</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="262"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="290"/>
         <source>Package filter (regular expression)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="266"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="294"/>
         <source>Invert package filter</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="270"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="298"/>
         <source>Pick packages for this device</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="271"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="299"/>
         <source>Keep only %1 packages, or noarch if there are none</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="275"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="303"/>
         <source>Prefer packages for this SailfishOS version</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="276"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="304"/>
         <source>Uses tags such as sfos5.0 in package names</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="123"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="124"/>
         <source>Exclude from automatic updates</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="124"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="125"/>
         <source>Always ask before updating this app</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="280"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="308"/>
         <source>Allow a different package name</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="282"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="310"/>
         <source>Accept a release whose RPM has a different name from the first one installed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="283"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="311"/>
         <source>Accept a release whose RPM is not named %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="129"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="130"/>
         <source>Security</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="135"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="136"/>
         <source>Check build provenance</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="136"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="137"/>
         <source>Uses GitHub artifact attestations to confirm the package was built by the repository&apos;s own workflow. &quot;Refuse unless verified&quot; needs a signature Harpoon can check itself, which private repositories do not have.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="140"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="141"/>
         <source>Refuse unless verified</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="138"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="139"/>
         <source>Off</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="139"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="140"/>
         <source>Warn if missing</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="286"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="314"/>
         <source>Version</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="290"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="318"/>
         <source>Version comes from</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="292"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="320"/>
         <source>Release tag</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="293"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="321"/>
         <source>Release title</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="294"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="322"/>
         <source>Package file name</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="295"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="323"/>
         <source>Release date</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="300"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="328"/>
         <source>Version extraction (regular expression)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppSettingsPage.qml" line="304"/>
+        <location filename="../qml/pages/AppSettingsPage.qml" line="332"/>
         <source>Match group, for example $1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -750,79 +775,79 @@
 <context>
     <name>Harpoon::HarpoonController</name>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="238"/>
+        <location filename="../src/harpooncontroller.cpp" line="262"/>
         <source>The app was changed in the background; try again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="260"/>
+        <location filename="../src/harpooncontroller.cpp" line="284"/>
         <source>Unknown source type: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="303"/>
+        <location filename="../src/harpooncontroller.cpp" line="327"/>
         <source>Already tracked as %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="369"/>
+        <location filename="../src/harpooncontroller.cpp" line="411"/>
         <source>Checking</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="412"/>
-        <location filename="../src/harpooncontroller.cpp" line="492"/>
+        <location filename="../src/harpooncontroller.cpp" line="456"/>
+        <location filename="../src/harpooncontroller.cpp" line="536"/>
         <source>%1 is busy: %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="416"/>
+        <location filename="../src/harpooncontroller.cpp" line="460"/>
         <source>Preparing</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="440"/>
-        <location filename="../src/harpooncontroller.cpp" line="443"/>
+        <location filename="../src/harpooncontroller.cpp" line="484"/>
+        <location filename="../src/harpooncontroller.cpp" line="487"/>
         <source>Installed %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="453"/>
+        <location filename="../src/harpooncontroller.cpp" line="497"/>
         <source>This package is also tracked as &quot;%1&quot;; remove one of the two.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="469"/>
+        <location filename="../src/harpooncontroller.cpp" line="513"/>
         <source>Downloading %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="471"/>
+        <location filename="../src/harpooncontroller.cpp" line="515"/>
         <source>Verifying %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="473"/>
+        <location filename="../src/harpooncontroller.cpp" line="517"/>
         <source>Installing %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="475"/>
+        <location filename="../src/harpooncontroller.cpp" line="519"/>
         <source>Checking packages</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="496"/>
+        <location filename="../src/harpooncontroller.cpp" line="540"/>
         <source>Uninstalling</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="503"/>
+        <location filename="../src/harpooncontroller.cpp" line="550"/>
         <source>Uninstalled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="641"/>
+        <location filename="../src/harpooncontroller.cpp" line="688"/>
         <source>Cannot read %1: %2</source>
         <translation type="unfinished"></translation>
     </message>

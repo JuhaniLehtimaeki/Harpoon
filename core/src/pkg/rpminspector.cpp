@@ -90,22 +90,30 @@ Result<QList<RpmInfo>> RpmInspector::queryInstalled(const QString &name) const
     return Result<QList<RpmInfo>>::success(infos);
 }
 
-Result<QHash<QString, RpmInfo>> RpmInspector::installedPackages(const QStringList &names) const
+namespace {
+
+QStringList validNames(const QStringList &names)
 {
     QStringList valid;
     for (const QString &name : names)
         if (isValidRpmName(name) && !valid.contains(name))
             valid << name;
-    QHash<QString, RpmInfo> out;
-    if (valid.isEmpty())
-        return Result<QHash<QString, RpmInfo>>::success(out);
-    const ProcessResult r = m_runner.run(QStringLiteral("rpm"), QStringList{QStringLiteral("-q"), QStringLiteral("--qf"),
-                                                                            queryFormat(), QStringLiteral("--")}
-                                                                    + valid);
+    return valid;
+}
+
+QStringList batchQuery(const QStringList &valid)
+{
+    return QStringList{QStringLiteral("-q"), QStringLiteral("--qf"), RpmInspector::queryFormat(), QStringLiteral("--")}
+           + valid;
+}
+
+Result<QHash<QString, RpmInfo>> batchResult(const ProcessResult &r, const QStringList &valid)
+{
     if (!r.started)
         return Result<QHash<QString, RpmInfo>>::failure(Error::make(Error::Package, QStringLiteral("Could not run rpm")));
     // Exit code 1 only says some were not installed; the lines say which were.
-    for (const RpmInfo &info : parse(r.standardOutput)) {
+    QHash<QString, RpmInfo> out;
+    for (const RpmInfo &info : RpmInspector::parse(r.standardOutput)) {
         if (!valid.contains(info.name))
             continue;
         const auto it = out.constFind(info.name);
@@ -113,6 +121,28 @@ Result<QHash<QString, RpmInfo>> RpmInspector::installedPackages(const QStringLis
             out.insert(info.name, info);
     }
     return Result<QHash<QString, RpmInfo>>::success(out);
+}
+
+} // namespace
+
+Result<QHash<QString, RpmInfo>> RpmInspector::installedPackages(const QStringList &names) const
+{
+    const QStringList valid = validNames(names);
+    if (valid.isEmpty())
+        return Result<QHash<QString, RpmInfo>>::success(QHash<QString, RpmInfo>());
+    return batchResult(m_runner.run(QStringLiteral("rpm"), batchQuery(valid)), valid);
+}
+
+void RpmInspector::installedPackagesAsync(QObject *context, const QStringList &names,
+                                          std::function<void(const Result<QHash<QString, RpmInfo>> &)> done) const
+{
+    const QStringList valid = validNames(names);
+    if (valid.isEmpty()) {
+        done(Result<QHash<QString, RpmInfo>>::success(QHash<QString, RpmInfo>()));
+        return;
+    }
+    m_runner.runAsync(context, QStringLiteral("rpm"), batchQuery(valid),
+                      [valid, done](const ProcessResult &r) { done(batchResult(r, valid)); });
 }
 
 Result<RpmInfo> RpmInspector::installedPackage(const QString &name) const

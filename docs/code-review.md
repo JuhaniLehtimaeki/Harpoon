@@ -35,9 +35,11 @@ below was checked against the code before it was fixed, and each fix has a test 
 - Logic the app and the command-line tool both need (download folder, token configuration,
   merging check results, the record after an install) is shared in core instead of copied.
 
-## Left as is
-- Rekor v2 entries (no signed entry timestamp) are rejected: verification fails safe until
-  support is added.
-- Any workflow and branch of the repository may sign an accepted attestation, as with
-  `gh attestation verify --repo`.
-- Single-app updates still query rpm synchronously (one quick call).
+## Left as is, then fixed
+- Rekor v2 entries are verified: inclusion proof up to a signed checkpoint, and RFC 3161
+  timestamps from a trusted timestamp authority for the time.
+- An app can restrict which workflow and which branch or tag may sign its builds
+  (`attestationWorkflow`, `attestationRefRegEx`; in the app's Security settings).
+- Re-reading one app's installed package no longer blocks the UI: rpm runs in the
+  background and the page updates when it answers (stale answers are dropped). Adopting an
+  already installed package after a check asks rpm once, also without blocking.

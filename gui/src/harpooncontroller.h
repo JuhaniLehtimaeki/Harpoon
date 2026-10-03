@@ -13,9 +13,12 @@
 #include "pkg/rpminspector.h"
 #include "sources/sourceregistry.h"
 
+#include <QHash>
 #include <QObject>
+#include <QSet>
 #include <QVariantMap>
 
+#include <functional>
 #include <memory>
 
 namespace Harpoon {
@@ -130,12 +133,18 @@ signals:
     void tokenTargetsChanged();
 
 private:
-    // installed: what rpm reports for the app's package, when already known
-    // (reload() asks rpm about every app at once).
-    AppListModel::Entry makeEntry(const App &app, const RpmInfo *installed = nullptr) const;
+    // installed: what rpm reports for the app's package (empty: not installed).
+    AppListModel::Entry makeEntry(const App &app, const RpmInfo &installed) const;
+    // Puts the app in the model. Without installed, it shows what was known
+    // and asks rpm in the background (queryInstalled()).
+    void show(const App &app, const QString &oldId = QString(), const RpmInfo *installed = nullptr);
+    void queryInstalled(const QString &id);
     QString localizedStage(const QString &stage) const;
-    void storeAndShow(const App &app, const QString &oldId = QString());
-    bool adoptInstalled(App &app) const;
+    void storeAndShow(const App &app, const QString &oldId = QString(), const RpmInfo *installed = nullptr);
+    // Which of the packages in a temporary-id app's release are installed
+    // (empty for other apps), asked without blocking.
+    void installedCandidates(const App &app, std::function<void(const QSet<QString> &)> done);
+    bool adoptInstalled(App &app, const QSet<QString> &installed) const;
     PackageBackend &backend();
     QHash<QString, QVariantMap> tokenConfigs() const;
     AppChecker &checker();
@@ -165,6 +174,7 @@ private:
     Downloader m_downloader;
     std::unique_ptr<AppChecker> m_checker;
     int m_checksRunning = 0;
+    QHash<QString, int> m_installedQueries; // id -> generation of the latest rpm query
     QDateTime m_lastCheckAll;
 };
 

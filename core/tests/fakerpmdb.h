@@ -4,6 +4,9 @@
 #include "pkg/rpminspector.h"
 
 #include <QHash>
+#include <QList>
+
+#include <functional>
 
 // ProcessRunner that runs `rpm -qp` for real (reads package files) but answers
 // `rpm -q` from an in-memory "installed" database the test controls.
@@ -13,6 +16,23 @@ public:
     QHash<QString, Harpoon::RpmInfo> installed;
     int calls = 0;   // rpm -q runs
     int queries = 0; // package names asked about
+    // When set, runAsync() answers (as of the call) only when deliver() is
+    // called, in any order; otherwise it answers at once.
+    bool deferAsync = false;
+    QList<std::function<void()>> pending;
+
+    void runAsync(QObject *context, const QString &program, const QStringList &arguments,
+                  std::function<void(const Harpoon::ProcessResult &)> done, int timeoutMs) override
+    {
+        if (!deferAsync) {
+            ProcessRunner::runAsync(context, program, arguments, done, timeoutMs);
+            return;
+        }
+        const Harpoon::ProcessResult result = run(program, arguments, timeoutMs);
+        pending << [done, result]() { done(result); };
+    }
+
+    void deliver(int index = 0) { pending.takeAt(index)(); }
 
     Harpoon::ProcessResult run(const QString &program, const QStringList &arguments, int timeoutMs) override
     {

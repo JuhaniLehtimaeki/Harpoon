@@ -350,6 +350,12 @@ private slots:
         m_controller->setAppSetting(QStringLiteral("harbour-alpha"), QStringLiteral("includePrereleases"), true);
         m_controller->setAppSetting(QStringLiteral("harbour-alpha"), QStringLiteral("sortMethodChoice"), QStringLiteral("name"));
         expectClean("settings changed");
+        // The signer rules appear once provenance is checked.
+        m_controller->setAppSetting(QStringLiteral("harbour-alpha"), QStringLiteral("githubBuildVerificationMode"),
+                                    QStringLiteral("audit"));
+        m_controller->setAppSetting(QStringLiteral("harbour-alpha"), QStringLiteral("attestationRefRegEx"),
+                                    QStringLiteral("refs/tags/.*"));
+        expectClean("signer rules");
         QVERIFY(currentPage()->property("_changed").toBool());
         popToList();
         expectClean("leaving settings");

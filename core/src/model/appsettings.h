@@ -19,6 +19,8 @@ inline const char *trackOnly = "trackOnly";
 // Installation
 inline const char *allowIdChange = "allowIdChange";         // accept a different RPM name than the tracked id
 inline const char *githubBuildVerificationMode = "githubBuildVerificationMode"; // off|audit|enforce
+inline const char *attestationWorkflow = "attestationWorkflow";     // workflow that must have signed (see SignerPolicy)
+inline const char *attestationRefRegEx = "attestationRefRegEx";     // ref it must have run on, e.g. refs/tags/.*
 inline const char *excludeFromAutoUpdate = "excludeFromAutoUpdate"; // never update in the background
 // Version string
 inline const char *versionSource = "versionSource";         // tag|title|assetName|date

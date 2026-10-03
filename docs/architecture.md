@@ -443,9 +443,21 @@ An independent review found these problems; all are fixed and covered by tests.
     verification always wins over one that could not be verified.
   - The identity is the certificate's source repository extension only; the SAN can name a
     reusable workflow in another repository. URLs are compared in a canonical form.
-  - Not checked: certificate transparency SCTs, and Rekor v2 entries (no signed entry
-    timestamp). A bundle that cannot be verified is an error, never a silent pass.
-  - Tests use real bundles from the GitHub CLI's test data.
+  - **Rekor v2** entries (`hashedrekord`/`dsse` 0.0.2) have no signed entry timestamp. They
+    need their inclusion proof up to a checkpoint signed by the log, plus an RFC 3161
+    timestamp from a timestamp authority in the trusted root for the time of signing.
+    Every RFC 3161 timestamp in a bundle must verify, also next to a v1 entry, and the
+    Fulcio certificate must be valid at each verified time.
+  - **Signer rules** (per app, optional): `attestationWorkflow` names the workflow that must
+    have signed (`release.yml`, `.github/workflows/release.yml`, or a reusable workflow's
+    full URL), and `attestationRefRegEx` is a regular expression the whole source ref must
+    match (for example `refs/tags/.*`). They are read from the certificate's Fulcio
+    extensions (build config URI, build signer URI, source repository ref). For bundles
+    that cannot be verified here, a claim that breaks the rules still counts as a failure.
+  - Not checked: certificate transparency SCTs. A bundle that cannot be verified is an
+    error, never a silent pass.
+  - Tests use real bundles from the GitHub CLI's test data and Sigstore's conformance suite
+    (`sigstore/sigstore-conformance`, Apache-2.0) for Rekor v2, timestamps and checkpoints.
 - **Automatic updates** (opt-in, `HarpoonSettings::autoUpdate`):
   - The timer's service runs `harpoon-autoupdate` through `invoker`, so privileges.d gives
     it the privileged group. If `invoker` fails, it falls back to `harpoon-cli check`.

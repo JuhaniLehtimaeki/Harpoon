@@ -620,6 +620,46 @@ private slots:
         QVERIFY(m_controller->loaded());
     }
 
+    void installedStateIsAskedWithoutBlocking()
+    {
+        AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
+        App app = App::fromUrl(QStringLiteral("https://github.com/me/tool"));
+        app.id = QStringLiteral("harbour-tool");
+        app.temporaryId = false;
+        QVERIFY(store.save(app).ok());
+        RpmInfo v1;
+        v1.name = app.id;
+        v1.evr = parseEvr(QStringLiteral("1.0-1"));
+        v1.arch = QStringLiteral("noarch");
+        m_db->installed.insert(app.id, v1);
+        m_controller->reload();
+        AppListModel *model = m_controller->apps();
+        QCOMPARE(model->entry(app.id)->installed.evr.version, QStringLiteral("1.0"));
+
+        // A record change shows at once with what was known; rpm answers later.
+        m_db->deferAsync = true;
+        RpmInfo v2 = v1;
+        v2.evr = parseEvr(QStringLiteral("2.0-1"));
+        m_db->installed.insert(app.id, v2);
+        m_controller->setAppSetting(app.id, QStringLiteral("includePrereleases"), true);
+        QCOMPARE(m_db->pending.size(), 1);
+        QVERIFY(model->entry(app.id)->app.settings.getBool("includePrereleases"));
+        QCOMPARE(model->entry(app.id)->installed.evr.version, QStringLiteral("1.0"));
+        m_db->deliver();
+        QCOMPARE(model->entry(app.id)->installed.evr.version, QStringLiteral("2.0"));
+
+        // Answers arriving out of order: only the latest query counts.
+        m_controller->setAppSetting(app.id, QStringLiteral("includePrereleases"), false); // asks: 2.0
+        m_db->installed.remove(app.id);
+        m_controller->setAppSetting(app.id, QStringLiteral("trackOnly"), true); // asks: not installed
+        QCOMPARE(m_db->pending.size(), 2);
+        m_db->deliver(1);
+        QVERIFY(model->entry(app.id)->installed.name.isEmpty());
+        m_db->deliver(0);
+        QVERIFY(model->entry(app.id)->installed.name.isEmpty());
+        m_db->deferAsync = false;
+    }
+
     void progressIsThrottledAndBusyIsReported()
     {
         QString id;

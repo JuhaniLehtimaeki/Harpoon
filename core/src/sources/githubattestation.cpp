@@ -41,7 +41,8 @@ QString attestationStatusName(AttestationStatus status)
 }
 
 AttestationResult parseAttestations(const QByteArray &json, const QString &algorithm, const QString &digest,
-                                    const QString &repositoryUrl, const SigstoreTrust &trust)
+                                    const QString &repositoryUrl, const SignerPolicy &policy,
+                                    const SigstoreTrust &trust)
 {
     AttestationResult result;
     const QJsonDocument doc = QJsonDocument::fromJson(json);
@@ -63,7 +64,9 @@ AttestationResult parseAttestations(const QByteArray &json, const QString &algor
             }
             if (!isProvenance(verified.value.statement) || !namesDigest(verified.value.statement, algorithm, digest))
                 break;
-            const Error identity = checkGitHubWorkflowIdentity(verified.value, repositoryUrl);
+            Error identity = checkGitHubWorkflowIdentity(verified.value, repositoryUrl);
+            if (identity.ok())
+                identity = checkSignerPolicy(verified.value, policy);
             if (!identity.ok()) {
                 problem = identity.message;
                 break;
@@ -80,11 +83,18 @@ AttestationResult parseAttestations(const QByteArray &json, const QString &algor
             if (!isProvenance(statement) || !namesDigest(statement, algorithm, digest))
                 break;
             // Not proof (the certificate is not verified here), but a bundle
-            // naming another repository is certainly not this one's.
-            const QString source = bundleSourceRepository(bundle);
-            if (source.isEmpty()
-                || canonicalRepositoryUrl(source).compare(canonicalRepositoryUrl(repositoryUrl), Qt::CaseInsensitive) != 0) {
+            // naming another repository, workflow or ref is certainly not
+            // an acceptable one.
+            const VerifiedBundle claimed = bundleClaimedIdentity(bundle);
+            if (claimed.sourceRepository.isEmpty()
+                || canonicalRepositoryUrl(claimed.sourceRepository)
+                           .compare(canonicalRepositoryUrl(repositoryUrl), Qt::CaseInsensitive) != 0) {
                 problem = QStringLiteral("The attestation was not made for this repository");
+                break;
+            }
+            const Error claimedPolicy = checkSignerPolicy(claimed, policy);
+            if (!claimedPolicy.ok()) {
+                problem = claimedPolicy.message;
                 break;
             }
             byGitHub = true;
@@ -112,7 +122,7 @@ AttestationResult parseAttestations(const QByteArray &json, const QString &algor
 }
 
 void checkGitHubAttestation(HttpTransport &transport, const QString &apiBase, const QString &repositoryUrl,
-                            const QString &token, const QString &sha256,
+                            const SignerPolicy &policy, const QString &token, const QString &sha256,
                             std::function<void(const AttestationResult &)> done)
 {
     HttpRequest request;
@@ -120,10 +130,10 @@ void checkGitHubAttestation(HttpTransport &transport, const QString &apiBase, co
     request.setHeader("Accept", "application/vnd.github+json");
     if (!token.isEmpty())
         request.setHeader("Authorization", "Bearer " + token.toUtf8());
-    transport.get(request, [sha256, repositoryUrl, done](const HttpResponse &response) {
+    transport.get(request, [sha256, repositoryUrl, policy, done](const HttpResponse &response) {
         AttestationResult result;
         if (response.status == 200) {
-            done(parseAttestations(response.body, QStringLiteral("sha256"), sha256, repositoryUrl,
+            done(parseAttestations(response.body, QStringLiteral("sha256"), sha256, repositoryUrl, policy,
                                    SigstoreTrust::builtIn()));
             return;
         }

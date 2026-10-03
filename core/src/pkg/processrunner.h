@@ -1,8 +1,13 @@
 #pragma once
 
 #include <QByteArray>
+#include <QtGlobal>
 #include <QString>
 #include <QStringList>
+
+#include <functional>
+
+class QObject;
 
 namespace Harpoon {
 
@@ -20,13 +25,25 @@ class ProcessRunner
 public:
     virtual ~ProcessRunner() = default;
     virtual ProcessResult run(const QString &program, const QStringList &arguments, int timeoutMs = 15000) = 0;
+
+    // Runs without blocking and calls done on context's thread, unless
+    // context is destroyed first. This default runs synchronously, calling
+    // done before it returns (good enough for fakes).
+    virtual void runAsync(QObject *context, const QString &program, const QStringList &arguments,
+                          std::function<void(const ProcessResult &)> done, int timeoutMs = 15000)
+    {
+        Q_UNUSED(context)
+        done(run(program, arguments, timeoutMs));
+    }
 };
 
-// Runs real processes synchronously with QProcess.
+// Runs real processes with QProcess.
 class SystemProcessRunner : public ProcessRunner
 {
 public:
     ProcessResult run(const QString &program, const QStringList &arguments, int timeoutMs = 15000) override;
+    void runAsync(QObject *context, const QString &program, const QStringList &arguments,
+                  std::function<void(const ProcessResult &)> done, int timeoutMs = 15000) override;
 };
 
 } // namespace Harpoon

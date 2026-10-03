@@ -2,6 +2,7 @@
 
 #include "pipeline/releasepipeline.h"
 #include "sources/githubattestation.h"
+#include "verify/sigstore.h"
 #include "sources/githubsource.h"
 
 #include <QRegularExpression>
@@ -116,8 +117,11 @@ AppInstaller::Verifier AppChecker::verifier(const App &app) const
     const QString repositoryUrl = match.value.standardUrl;
     const QString token = m_sourceConfig.value(github->tokenKey()).value(QStringLiteral("token")).toString().trimmed();
     HttpTransport *transport = &m_transport;
+    SignerPolicy policy;
+    policy.workflow = app.settings.getString(Keys::attestationWorkflow);
+    policy.refPattern = app.settings.getString(Keys::attestationRefRegEx);
 
-    return [transport, apiBase, repositoryUrl, token, enforce](const App &, const QStringList &files, const QStringList &sha256s,
+    return [transport, apiBase, repositoryUrl, policy, token, enforce](const App &, const QStringList &files, const QStringList &sha256s,
                                                 std::function<void(const AppInstaller::Verification &)> done) {
         struct State
         {
@@ -154,7 +158,7 @@ AppInstaller::Verifier AppChecker::verifier(const App &app) const
             // Downloads are cached as "<12 hex digits>-<asset name>"; name the asset.
             static const QRegularExpression cachePrefix(QStringLiteral("^[0-9a-f]{12}-"));
             const QString name = files.value(i).section(QLatin1Char('/'), -1).remove(cachePrefix);
-            checkGitHubAttestation(*transport, apiBase, repositoryUrl, token, sha256s.at(i),
+            checkGitHubAttestation(*transport, apiBase, repositoryUrl, policy, token, sha256s.at(i),
                                    [state, name, finish](const AttestationResult &r) {
                                        if (int(r.status) > int(state->worst))
                                            state->worst = r.status;

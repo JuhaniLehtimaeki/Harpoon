@@ -45,6 +45,9 @@ public:
     // installedPackage() for many names with one rpm call; names that are not
     // installed (or not valid names) are absent from the result.
     Result<QHash<QString, RpmInfo>> installedPackages(const QStringList &names) const;
+    // installedPackages() without blocking; see ProcessRunner::runAsync().
+    void installedPackagesAsync(QObject *context, const QStringList &names,
+                                std::function<void(const Result<QHash<QString, RpmInfo>> &)> done) const;
 
     // Parses lines produced with queryFormat().
     static QList<RpmInfo> parse(const QByteArray &output);

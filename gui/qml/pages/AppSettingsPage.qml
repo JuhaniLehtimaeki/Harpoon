@@ -15,7 +15,8 @@ Page {
     property bool _advanced
 
     readonly property var _essentialKeys: ["packageName", "customLinkFilterRegex", "includePrereleases",
-        "trackOnly", "excludeFromAutoUpdate", "githubBuildVerificationMode"]
+        "trackOnly", "excludeFromAutoUpdate", "githubBuildVerificationMode", "attestationWorkflow",
+        "attestationRefRegEx"]
 
     function _usesAdvanced() {
         var values = details.settings || {}
@@ -139,6 +140,33 @@ Page {
                     { value: "audit", text: qsTr("Warn if missing") },
                     { value: "enforce", text: qsTr("Refuse unless verified") }
                 ]
+            }
+
+            // Optional rules for who may sign: only meaningful once provenance is checked.
+            Column {
+                width: parent.width
+                visible: details.effectiveSourceId === "GitHub"
+                         && (page._values.githubBuildVerificationMode === "audit"
+                             || page._values.githubBuildVerificationMode === "enforce")
+
+                SettingText {
+                    appId: page.appId; key: "attestationWorkflow"; values: page._values
+                    label: qsTr("Signed only by the workflow")
+                    placeholderText: qsTr("Any workflow, or for example release.yml")
+                }
+                SettingText {
+                    appId: page.appId; key: "attestationRefRegEx"; values: page._values
+                    label: qsTr("Signed only from refs matching")
+                    placeholderText: qsTr("Any branch or tag, or for example refs/tags/.*")
+                }
+                Label {
+                    x: Theme.horizontalPageMargin
+                    width: parent.width - 2 * Theme.horizontalPageMargin
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Theme.fontSizeExtraSmall
+                    color: Theme.secondaryHighlightColor
+                    text: qsTr("Limits accepted builds to the release workflow, or to tags, so a build from a test branch or another workflow of the repository is not accepted. The ref is a regular expression.")
+                }
             }
 
             Item {

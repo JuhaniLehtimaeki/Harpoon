@@ -3,11 +3,14 @@
 #include <QCryptographicHash>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QRegularExpression>
 #include <QStringList>
 #include <QUrl>
 
+#include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/objects.h>
+#include <openssl/ts.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
@@ -26,6 +29,11 @@ using PKeyPtr = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>;
 Result<VerifiedBundle> fail(const QString &why)
 {
     return Result<VerifiedBundle>::failure(Error::make(Error::Verification, why));
+}
+
+Result<QDateTime> failTime(const QString &why)
+{
+    return Result<QDateTime>::failure(Error::make(Error::Verification, why));
 }
 
 QByteArray fromB64(const QJsonValue &v)
@@ -208,15 +216,49 @@ bool verifyCheckpoint(const QString &envelope, EVP_PKEY *key, qint64 size, const
     return false;
 }
 
+// Rekor v2 (0.0.2) entries: hashes as {algorithm: "SHA2_256", digest: base64}
+// and keys as {x509Certificate: {rawBytes}}.
+bool v2HashIs(const QJsonObject &hash, const QByteArray &expected)
+{
+    return hash.value(QStringLiteral("algorithm")).toString() == QLatin1String("SHA2_256")
+           && fromB64(hash.value(QStringLiteral("digest"))) == expected;
+}
+
+bool v2SignatureIs(const QJsonObject &signature, const QByteArray &expected, const QByteArray &certDer)
+{
+    return fromB64(signature.value(QStringLiteral("content"))) == expected
+           && fromB64(signature.value(QStringLiteral("verifier")).toObject().value(QStringLiteral("x509Certificate"))
+                          .toObject().value(QStringLiteral("rawBytes")))
+                  == certDer;
+}
+
 // The canonicalized Rekor entry must record this envelope.
-bool entryMatches(const QJsonObject &body, const QByteArray &payload, const QByteArray &signatureB64,
-                  const QByteArray &certDer)
+bool entryMatches(const QJsonObject &body, const QByteArray &payloadType, const QByteArray &payload,
+                  const QByteArray &signatureB64, const QByteArray &certDer)
 {
     const QString kind = body.value(QStringLiteral("kind")).toString();
     const QString version = body.value(QStringLiteral("apiVersion")).toString();
     const QJsonObject spec = body.value(QStringLiteral("spec")).toObject();
-    const QString payloadHash = QString::fromLatin1(sha256(payload).toHex());
+    const QByteArray signature = QByteArray::fromBase64(signatureB64);
 
+    if (version == QLatin1String("0.0.2") && kind == QLatin1String("hashedrekord")) {
+        // Rekor v2 logs a DSSE envelope as a hashedrekord over its
+        // pre-authentication encoding.
+        const QJsonObject v2 = spec.value(QStringLiteral("hashedRekordV002")).toObject();
+        return v2HashIs(v2.value(QStringLiteral("data")).toObject(), sha256(pae(payloadType, payload)))
+               && v2SignatureIs(v2.value(QStringLiteral("signature")).toObject(), signature, certDer);
+    }
+    if (version == QLatin1String("0.0.2") && kind == QLatin1String("dsse")) {
+        const QJsonObject v2 = spec.value(QStringLiteral("dsseV002")).toObject();
+        if (!v2HashIs(v2.value(QStringLiteral("payloadHash")).toObject(), sha256(payload)))
+            return false;
+        for (const QJsonValue &v : v2.value(QStringLiteral("signatures")).toArray())
+            if (v2SignatureIs(v.toObject(), signature, certDer))
+                return true;
+        return false;
+    }
+
+    const QString payloadHash = QString::fromLatin1(sha256(payload).toHex());
     QJsonObject hashObject;
     QJsonArray signatures;
     QString sigKey;
@@ -245,12 +287,97 @@ bool entryMatches(const QJsonObject &body, const QByteArray &payload, const QByt
         QByteArray sig = s.value(sigKey).toString().toLatin1();
         if (sigIsDoubleEncoded)
             sig = QByteArray::fromBase64(sig);
-        if (QByteArray::fromBase64(sig) != QByteArray::fromBase64(signatureB64))
+        if (QByteArray::fromBase64(sig) != signature)
             continue;
         if (derFromPem(fromB64(s.value(keyKey))) == certDer)
             return true;
     }
     return false;
+}
+
+// A store trusting the last certificate of a chain, with the others as
+// untrusted intermediates, checking validity at `at`.
+struct ChainStore
+{
+    std::unique_ptr<X509_STORE, decltype(&X509_STORE_free)> store{X509_STORE_new(), X509_STORE_free};
+    std::unique_ptr<STACK_OF(X509), void (*)(STACK_OF(X509) *)> intermediates{
+        sk_X509_new_null(), [](STACK_OF(X509) *s) { sk_X509_pop_free(s, X509_free); }};
+
+    bool load(const QList<QByteArray> &chainDer, const QDateTime &at)
+    {
+        if (!store || !intermediates || chainDer.isEmpty())
+            return false;
+        for (int i = 0; i < chainDer.size(); ++i) {
+            X509Ptr c = parseCert(chainDer.at(i));
+            if (!c)
+                return false;
+            if (i == chainDer.size() - 1) {
+                if (X509_STORE_add_cert(store.get(), c.get()) != 1)
+                    return false;
+            } else {
+                if (sk_X509_push(intermediates.get(), c.get()) <= 0)
+                    return false;
+                c.release();
+            }
+        }
+        X509_VERIFY_PARAM_set_time(X509_STORE_get0_param(store.get()), time_t(at.toMSecsSinceEpoch() / 1000));
+        return true;
+    }
+};
+
+// The certificate chains to a Fulcio CA trusted at `at`.
+bool chainsToFulcio(X509 *leaf, const SigstoreTrust &trust, const QDateTime &at)
+{
+    for (const auto &authority : trust.authorities) {
+        if (!covers(authority.start, authority.end, at))
+            continue;
+        ChainStore chain;
+        if (!chain.load(authority.chainDer, at))
+            continue;
+        std::unique_ptr<X509_STORE_CTX, decltype(&X509_STORE_CTX_free)> ctx(X509_STORE_CTX_new(), X509_STORE_CTX_free);
+        if (!ctx || X509_STORE_CTX_init(ctx.get(), chain.store.get(), leaf, chain.intermediates.get()) != 1)
+            continue;
+        X509_VERIFY_PARAM_set_time(X509_STORE_CTX_get0_param(ctx.get()), time_t(at.toMSecsSinceEpoch() / 1000));
+        if (X509_verify_cert(ctx.get()) == 1)
+            return true;
+    }
+    return false;
+}
+
+// What the certificate says about who signed.
+VerifiedBundle identityOf(X509 *leaf)
+{
+    VerifiedBundle out;
+    out.sourceRepository = extension(leaf, "1.3.6.1.4.1.57264.1.12", true);
+    out.sourceRef = extension(leaf, "1.3.6.1.4.1.57264.1.14", true);
+    out.buildSignerUri = extension(leaf, "1.3.6.1.4.1.57264.1.9", true);
+    out.buildConfigUri = extension(leaf, "1.3.6.1.4.1.57264.1.18", true);
+    out.issuer = extension(leaf, "1.3.6.1.4.1.57264.1.8", true);
+    if (out.issuer.isEmpty())
+        out.issuer = extension(leaf, "1.3.6.1.4.1.57264.1.1", false);
+    out.san = sanUri(leaf);
+    return out;
+}
+
+QByteArray leafCertificateDer(const QJsonObject &bundle)
+{
+    // v0.3 "certificate", older "x509CertificateChain".
+    const QJsonObject material = bundle.value(QStringLiteral("verificationMaterial")).toObject();
+    QByteArray der = fromB64(material.value(QStringLiteral("certificate")).toObject().value(QStringLiteral("rawBytes")));
+    if (der.isEmpty())
+        der = fromB64(material.value(QStringLiteral("x509CertificateChain")).toObject()
+                          .value(QStringLiteral("certificates")).toArray().at(0).toObject()
+                          .value(QStringLiteral("rawBytes")));
+    return der;
+}
+
+QDateTime fromAsn1Time(const ASN1_GENERALIZEDTIME *time)
+{
+    struct tm tm = {};
+    if (!time || ASN1_TIME_to_tm(time, &tm) != 1)
+        return QDateTime();
+    return QDateTime(QDate(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday), QTime(tm.tm_hour, tm.tm_min, tm.tm_sec),
+                     Qt::UTC);
 }
 
 } // namespace
@@ -282,6 +409,17 @@ Result<SigstoreTrust> SigstoreTrust::fromJson(const QByteArray &json)
         if (!l.keyId.isEmpty() && !l.publicKeyDer.isEmpty())
             trust.logs << l;
     }
+    for (const QJsonValue &v : root.value(QStringLiteral("timestampAuthorities")).toArray()) {
+        const QJsonObject tsa = v.toObject();
+        Authority a;
+        for (const QJsonValue &c : tsa.value(QStringLiteral("certChain")).toObject().value(QStringLiteral("certificates")).toArray())
+            a.chainDer << fromB64(c.toObject().value(QStringLiteral("rawBytes")));
+        const QJsonObject valid = tsa.value(QStringLiteral("validFor")).toObject();
+        a.start = parseTime(valid.value(QStringLiteral("start")));
+        a.end = parseTime(valid.value(QStringLiteral("end")));
+        if (!a.chainDer.isEmpty())
+            trust.timestampAuthorities << a;
+    }
     if (trust.authorities.isEmpty() || trust.logs.isEmpty())
         return Result<SigstoreTrust>::failure(Error::make(Error::Verification, QStringLiteral("Invalid Sigstore trusted root")));
     return Result<SigstoreTrust>::success(trust);
@@ -310,12 +448,7 @@ Result<VerifiedBundle> verifySigstoreBundle(const QJsonObject &bundle, const Sig
     if (envelope.isEmpty())
         return fail(QStringLiteral("The bundle has no DSSE envelope"));
 
-    // The signing certificate: v0.3 "certificate", older "x509CertificateChain".
-    QByteArray certDer = fromB64(material.value(QStringLiteral("certificate")).toObject().value(QStringLiteral("rawBytes")));
-    if (certDer.isEmpty())
-        certDer = fromB64(material.value(QStringLiteral("x509CertificateChain")).toObject()
-                              .value(QStringLiteral("certificates")).toArray().at(0).toObject()
-                              .value(QStringLiteral("rawBytes")));
+    const QByteArray certDer = leafCertificateDer(bundle);
     X509Ptr leaf = parseCert(certDer);
     if (!leaf)
         return fail(QStringLiteral("The bundle has no signing certificate"));
@@ -327,121 +460,183 @@ Result<VerifiedBundle> verifySigstoreBundle(const QJsonObject &bundle, const Sig
         return fail(QStringLiteral("The bundle's envelope must have a payload and one signature"));
     const QByteArray signatureB64 = signatures.first().toObject().value(QStringLiteral("sig")).toString().toLatin1();
 
+    const QByteArray signature = QByteArray::fromBase64(signatureB64);
+
     // 1-2. A transparency log entry for this envelope, under a trusted key.
-    QDateTime signedAt;
+    bool logged = false;
+    QDateTime integratedAt;
+    const SigstoreTrust::Log *log = nullptr;
     QString logProblem = QStringLiteral("The bundle has no transparency log entry");
     for (const QJsonValue &v : material.value(QStringLiteral("tlogEntries")).toArray()) {
         const QJsonObject entry = v.toObject();
-        const QByteArray keyId = fromB64(entry.value(QStringLiteral("logId")).toObject().value(QStringLiteral("keyId")));
-        const SigstoreTrust::Log *log = findLog(trust, keyId);
-        if (!log) {
-            logProblem = QStringLiteral("The transparency log is not trusted");
-            continue;
-        }
-        const QByteArray bodyB64 = entry.value(QStringLiteral("canonicalizedBody")).toString().toLatin1();
-        const QByteArray body = QByteArray::fromBase64(bodyB64);
-        const QJsonObject bodyJson = QJsonDocument::fromJson(body).object();
-        if (!entryMatches(bodyJson, payload, signatureB64, certDer)) {
+        const QByteArray body = fromB64(entry.value(QStringLiteral("canonicalizedBody")));
+        if (!entryMatches(QJsonDocument::fromJson(body).object(), payloadType, payload, signatureB64, certDer)) {
             logProblem = QStringLiteral("The transparency log entry does not match the signature");
             continue;
         }
-        const qint64 integrated = entry.value(QStringLiteral("integratedTime")).toString().toLongLong();
-        const QDateTime time = QDateTime::fromMSecsSinceEpoch(integrated * 1000, Qt::UTC);
-        if (integrated <= 0 || !covers(log->start, log->end, time)) {
-            logProblem = QStringLiteral("The transparency log entry has no valid time");
+        const Result<QDateTime> proof = verifyTransparencyLogProof(entry, trust);
+        if (!proof.ok()) {
+            logProblem = proof.error.message;
             continue;
         }
-        PKeyPtr logKey = parseKey(log->publicKeyDer);
-
-        // The signed entry timestamp is what vouches for the integrated
-        // time, so it is required; an inclusion proof, when present, must
-        // hold as well.
-        bool proven = false;
-        const QByteArray set = fromB64(entry.value(QStringLiteral("inclusionPromise")).toObject()
-                                           .value(QStringLiteral("signedEntryTimestamp")));
-        if (!set.isEmpty()) {
-            const QByteArray canonical = "{\"body\":\"" + bodyB64 + "\",\"integratedTime\":" + QByteArray::number(integrated)
-                                         + ",\"logID\":\"" + keyId.toHex() + "\",\"logIndex\":"
-                                         + QByteArray::number(entry.value(QStringLiteral("logIndex")).toString().toLongLong())
-                                         + "}";
-            proven = verifySignature(logKey.get(), canonical, set);
-        }
-        const QJsonObject proof = entry.value(QStringLiteral("inclusionProof")).toObject();
-        if (proven && !proof.isEmpty()) {
-            QList<QByteArray> hashes;
-            for (const QJsonValue &h : proof.value(QStringLiteral("hashes")).toArray())
-                hashes << fromB64(h);
-            const qint64 size = proof.value(QStringLiteral("treeSize")).toString().toLongLong();
-            const QByteArray root = fromB64(proof.value(QStringLiteral("rootHash")));
-            proven = verifyInclusion(proof.value(QStringLiteral("logIndex")).toString().toLongLong(), size,
-                                     sha256('\x00' + body), hashes, root)
-                     && verifyCheckpoint(proof.value(QStringLiteral("checkpoint")).toObject()
-                                             .value(QStringLiteral("envelope")).toString(),
-                                         logKey.get(), size, root);
-        }
-        if (!proven) {
-            logProblem = QStringLiteral("The transparency log entry's signature is invalid");
-            continue;
-        }
-        signedAt = time;
+        logged = true;
+        integratedAt = proof.value;
+        log = findLog(trust, fromB64(entry.value(QStringLiteral("logId")).toObject().value(QStringLiteral("keyId"))));
         break;
     }
-    if (!signedAt.isValid())
+    if (!logged)
         return fail(logProblem);
 
-    // 3. The certificate chains to a trusted Fulcio CA at signing time.
-    bool chained = false;
-    for (const auto &authority : trust.authorities) {
-        if (!covers(authority.start, authority.end, signedAt))
-            continue;
-        std::unique_ptr<X509_STORE, decltype(&X509_STORE_free)> store(X509_STORE_new(), X509_STORE_free);
-        std::unique_ptr<STACK_OF(X509), void (*)(STACK_OF(X509) *)>
-            intermediates(sk_X509_new_null(), [](STACK_OF(X509) *s) { sk_X509_pop_free(s, X509_free); });
-        bool ok = store && intermediates;
-        for (int i = 0; ok && i < authority.chainDer.size(); ++i) {
-            X509Ptr c = parseCert(authority.chainDer.at(i));
-            if (!c) {
-                ok = false;
-            } else if (i == authority.chainDer.size() - 1) {
-                ok = X509_STORE_add_cert(store.get(), c.get()) == 1;
-            } else {
-                ok = sk_X509_push(intermediates.get(), c.get()) > 0;
-                if (ok)
-                    c.release();
-            }
-        }
-        if (!ok)
-            continue;
-        std::unique_ptr<X509_STORE_CTX, decltype(&X509_STORE_CTX_free)> ctx(X509_STORE_CTX_new(), X509_STORE_CTX_free);
-        if (!ctx || X509_STORE_CTX_init(ctx.get(), store.get(), leaf.get(), intermediates.get()) != 1)
-            continue;
-        X509_VERIFY_PARAM_set_time(X509_STORE_CTX_get0_param(ctx.get()), time_t(signedAt.toMSecsSinceEpoch() / 1000));
-        if (X509_verify_cert(ctx.get()) == 1) {
-            chained = true;
-            break;
-        }
+    // 3. Timestamps: every one given must hold. Rekor v2 entries carry no
+    // time of their own, so they need at least one.
+    QList<QDateTime> times;
+    if (integratedAt.isValid())
+        times << integratedAt;
+    for (const QJsonValue &v : material.value(QStringLiteral("timestampVerificationData")).toObject()
+                                   .value(QStringLiteral("rfc3161Timestamps")).toArray()) {
+        const Result<QDateTime> time =
+            verifySignedTimestamp(fromB64(v.toObject().value(QStringLiteral("signedTimestamp"))), signature, trust);
+        if (!time.ok())
+            return fail(time.error.message);
+        if (!integratedAt.isValid() && log && !covers(log->start, log->end, time.value))
+            return fail(QStringLiteral("The transparency log was not in use at the time of the signature"));
+        times << time.value;
     }
-    if (!chained)
-        return fail(QStringLiteral("The signing certificate is not from a trusted Sigstore authority"));
+    if (times.isEmpty())
+        return fail(QStringLiteral("The bundle has no trusted time of signing"));
+    QDateTime signedAt = integratedAt;
+    if (!signedAt.isValid())
+        for (const QDateTime &time : times)
+            if (!signedAt.isValid() || time < signedAt)
+                signedAt = time;
+
+    // 4. The certificate chains to a trusted Fulcio CA at each of those times.
+    for (const QDateTime &time : times)
+        if (!chainsToFulcio(leaf.get(), trust, time))
+            return fail(QStringLiteral("The signing certificate is not from a trusted Sigstore authority"));
     if (!(X509_get_extension_flags(leaf.get()) & EXFLAG_XKUSAGE) || !(X509_get_extended_key_usage(leaf.get()) & XKU_CODE_SIGN))
         return fail(QStringLiteral("The signing certificate is not for code signing"));
 
-    // 4. The envelope signature.
+    // 5. The envelope signature.
     PKeyPtr leafKey(X509_get_pubkey(leaf.get()), EVP_PKEY_free);
-    if (!verifySignature(leafKey.get(), pae(payloadType, payload), QByteArray::fromBase64(signatureB64)))
+    if (!verifySignature(leafKey.get(), pae(payloadType, payload), signature))
         return fail(QStringLiteral("The attestation's signature is invalid"));
 
-    VerifiedBundle out;
+    VerifiedBundle out = identityOf(leaf.get());
     out.statement = QJsonDocument::fromJson(payload).object();
-    out.sourceRepository = extension(leaf.get(), "1.3.6.1.4.1.57264.1.12", true);
-    out.issuer = extension(leaf.get(), "1.3.6.1.4.1.57264.1.8", true);
-    if (out.issuer.isEmpty())
-        out.issuer = extension(leaf.get(), "1.3.6.1.4.1.57264.1.1", false);
-    out.san = sanUri(leaf.get());
     out.signedAt = signedAt;
     if (payloadType != "application/vnd.in-toto+json" || out.statement.isEmpty())
         return fail(QStringLiteral("The attestation is not an in-toto statement"));
     return Result<VerifiedBundle>::success(out);
+}
+
+Result<QDateTime> verifyTransparencyLogProof(const QJsonObject &entry, const SigstoreTrust &trust)
+{
+    const QByteArray keyId = fromB64(entry.value(QStringLiteral("logId")).toObject().value(QStringLiteral("keyId")));
+    const SigstoreTrust::Log *log = findLog(trust, keyId);
+    if (!log)
+        return failTime(QStringLiteral("The transparency log is not trusted"));
+    PKeyPtr logKey = parseKey(log->publicKeyDer);
+    const QByteArray bodyB64 = entry.value(QStringLiteral("canonicalizedBody")).toString().toLatin1();
+    const QByteArray body = QByteArray::fromBase64(bodyB64);
+
+    // An inclusion proof, when present, must hold, up to a checkpoint the
+    // log signed.
+    const QJsonObject proof = entry.value(QStringLiteral("inclusionProof")).toObject();
+    if (!proof.isEmpty()) {
+        QList<QByteArray> hashes;
+        for (const QJsonValue &h : proof.value(QStringLiteral("hashes")).toArray())
+            hashes << fromB64(h);
+        const qint64 size = proof.value(QStringLiteral("treeSize")).toString().toLongLong();
+        const QByteArray root = fromB64(proof.value(QStringLiteral("rootHash")));
+        if (!verifyInclusion(proof.value(QStringLiteral("logIndex")).toString().toLongLong(), size,
+                             sha256('\x00' + body), hashes, root)
+            || !verifyCheckpoint(proof.value(QStringLiteral("checkpoint")).toObject()
+                                     .value(QStringLiteral("envelope")).toString(),
+                                 logKey.get(), size, root))
+            return failTime(QStringLiteral("The transparency log entry's inclusion proof is invalid"));
+    }
+
+    // Rekor v1 signs a promise of inclusion that also vouches for the time
+    // of logging. Rekor v2 has neither: its inclusion proof is the evidence,
+    // and the time comes from a timestamp authority.
+    const QByteArray set = fromB64(entry.value(QStringLiteral("inclusionPromise")).toObject()
+                                       .value(QStringLiteral("signedEntryTimestamp")));
+    if (set.isEmpty()) {
+        if (proof.isEmpty())
+            return failTime(QStringLiteral("The transparency log entry has no proof of inclusion"));
+        return Result<QDateTime>::success(QDateTime());
+    }
+    const qint64 integrated = entry.value(QStringLiteral("integratedTime")).toString().toLongLong();
+    const QDateTime time = QDateTime::fromMSecsSinceEpoch(integrated * 1000, Qt::UTC);
+    if (integrated <= 0 || !covers(log->start, log->end, time))
+        return failTime(QStringLiteral("The transparency log entry has no valid time"));
+    const QByteArray canonical = "{\"body\":\"" + bodyB64 + "\",\"integratedTime\":" + QByteArray::number(integrated)
+                                 + ",\"logID\":\"" + keyId.toHex() + "\",\"logIndex\":"
+                                 + QByteArray::number(entry.value(QStringLiteral("logIndex")).toString().toLongLong())
+                                 + "}";
+    if (!verifySignature(logKey.get(), canonical, set))
+        return failTime(QStringLiteral("The transparency log entry's signature is invalid"));
+    return Result<QDateTime>::success(time);
+}
+
+Result<QDateTime> verifySignedTimestamp(const QByteArray &der, const QByteArray &signature,
+                                        const SigstoreTrust &trust)
+{
+    // A TimeStampResp, or the bare token inside one.
+    const auto *p = reinterpret_cast<const unsigned char *>(der.constData());
+    std::unique_ptr<TS_RESP, decltype(&TS_RESP_free)> response(d2i_TS_RESP(nullptr, &p, der.size()), TS_RESP_free);
+    std::unique_ptr<PKCS7, decltype(&PKCS7_free)> ownToken(nullptr, PKCS7_free);
+    std::unique_ptr<TS_TST_INFO, decltype(&TS_TST_INFO_free)> ownInfo(nullptr, TS_TST_INFO_free);
+    PKCS7 *token = nullptr;
+    TS_TST_INFO *info = nullptr;
+    if (response) {
+        const long status = ASN1_INTEGER_get(TS_STATUS_INFO_get0_status(TS_RESP_get_status_info(response.get())));
+        if (status != 0 && status != 1) // granted, granted with modifications
+            return failTime(QStringLiteral("The timestamp authority refused the timestamp"));
+        token = TS_RESP_get_token(response.get());
+        info = TS_RESP_get_tst_info(response.get());
+    } else {
+        p = reinterpret_cast<const unsigned char *>(der.constData());
+        ownToken.reset(d2i_PKCS7(nullptr, &p, der.size()));
+        if (ownToken)
+            ownInfo.reset(PKCS7_to_TS_TST_INFO(ownToken.get()));
+        token = ownToken.get();
+        info = ownInfo.get();
+    }
+    const QDateTime time = info ? fromAsn1Time(TS_TST_INFO_get_time(info)) : QDateTime();
+    if (!token || !time.isValid()) {
+        ERR_clear_error();
+        return failTime(QStringLiteral("The timestamp cannot be read"));
+    }
+
+    for (const auto &authority : trust.timestampAuthorities) {
+        if (!covers(authority.start, authority.end, time))
+            continue;
+        // The authority's certificates are checked at the time they stamped.
+        ChainStore chain;
+        if (!chain.load(authority.chainDer, time))
+            continue;
+        std::unique_ptr<TS_VERIFY_CTX, decltype(&TS_VERIFY_CTX_free)> ctx(TS_VERIFY_CTX_new(), TS_VERIFY_CTX_free);
+        BIO *data = BIO_new_mem_buf(signature.constData(), signature.size());
+        if (!ctx || !data) {
+            BIO_free(data);
+            continue;
+        }
+        TS_VERIFY_CTX_set_flags(ctx.get(), TS_VFY_VERSION | TS_VFY_SIGNATURE | TS_VFY_DATA);
+        // The context takes these over.
+        TS_VERIFY_CTX_set_data(ctx.get(), data);
+        TS_VERIFY_CTX_set_store(ctx.get(), chain.store.release());
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        TS_VERIFY_CTX_set_certs(ctx.get(), chain.intermediates.release());
+#else
+        TS_VERIFY_CTS_set_certs(ctx.get(), chain.intermediates.release());
+#endif
+        if (TS_RESP_verify_token(ctx.get(), token) == 1)
+            return Result<QDateTime>::success(time);
+    }
+    ERR_clear_error();
+    return failTime(QStringLiteral("The timestamp is not from a trusted timestamp authority"));
 }
 
 QString canonicalRepositoryUrl(const QString &repositoryUrl)
@@ -461,16 +656,50 @@ QString canonicalRepositoryUrl(const QString &repositoryUrl)
     return QStringLiteral("https://") + authority + path;
 }
 
-QString bundleSourceRepository(const QJsonObject &bundle)
+VerifiedBundle bundleClaimedIdentity(const QJsonObject &bundle)
 {
-    const QJsonObject material = bundle.value(QStringLiteral("verificationMaterial")).toObject();
-    QByteArray certDer = fromB64(material.value(QStringLiteral("certificate")).toObject().value(QStringLiteral("rawBytes")));
-    if (certDer.isEmpty())
-        certDer = fromB64(material.value(QStringLiteral("x509CertificateChain")).toObject()
-                              .value(QStringLiteral("certificates")).toArray().at(0).toObject()
-                              .value(QStringLiteral("rawBytes")));
-    X509Ptr leaf = parseCert(certDer);
-    return leaf ? extension(leaf.get(), "1.3.6.1.4.1.57264.1.12", true) : QString();
+    X509Ptr leaf = parseCert(leafCertificateDer(bundle));
+    return leaf ? identityOf(leaf.get()) : VerifiedBundle();
+}
+
+Error checkSignerPolicy(const VerifiedBundle &bundle, const SignerPolicy &policy)
+{
+    const QString workflow = policy.workflow.trimmed();
+    if (!workflow.isEmpty()) {
+        // Both URIs end in "@<ref>".
+        const QString signer = bundle.buildSignerUri.section(QLatin1Char('@'), 0, 0);
+        const QString started = bundle.buildConfigUri.section(QLatin1Char('@'), 0, 0);
+        bool matches;
+        if (workflow.contains(QLatin1String("://"))) {
+            matches = !signer.isEmpty() && canonicalRepositoryUrl(signer) == canonicalRepositoryUrl(workflow);
+        } else {
+            QString path = workflow;
+            while (path.startsWith(QLatin1Char('/')))
+                path.remove(0, 1);
+            if (!path.contains(QLatin1Char('/')))
+                path.prepend(QLatin1String(".github/workflows/"));
+            const QString prefix = canonicalRepositoryUrl(bundle.sourceRepository) + QLatin1Char('/');
+            matches = !started.isEmpty() && !bundle.sourceRepository.isEmpty()
+                      && canonicalRepositoryUrl(started).compare(prefix + path, Qt::CaseInsensitive) == 0;
+        }
+        if (!matches)
+            return Error::make(Error::Verification, QStringLiteral("The attestation was signed by %1, not by the workflow %2")
+                                                        .arg(bundle.buildConfigUri.isEmpty() ? bundle.san
+                                                                                              : bundle.buildConfigUri,
+                                                             workflow));
+    }
+    const QString pattern = policy.refPattern.trimmed();
+    if (!pattern.isEmpty()) {
+        const QRegularExpression re(QStringLiteral("\\A(?:") + pattern + QStringLiteral(")\\z"));
+        if (!re.isValid())
+            return Error::make(Error::Verification, QStringLiteral("Invalid signing ref pattern: %1").arg(re.errorString()));
+        if (bundle.sourceRef.isEmpty() || !re.match(bundle.sourceRef).hasMatch())
+            return Error::make(Error::Verification, QStringLiteral("The attestation was signed from %1, which does not match %2")
+                                                        .arg(bundle.sourceRef.isEmpty() ? QStringLiteral("an unknown ref")
+                                                                                         : bundle.sourceRef,
+                                                             pattern));
+    }
+    return Error();
 }
 
 Error checkGitHubWorkflowIdentity(const VerifiedBundle &bundle, const QString &repositoryUrl)
