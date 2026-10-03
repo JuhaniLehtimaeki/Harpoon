@@ -53,6 +53,10 @@ struct App
 
     QDateTime lastCheck;
     QString lastError;          // empty when the last check succeeded
+    // The source answered but has nothing to install yet: no releases, or
+    // none with a package for this device. lastError explains it; this is
+    // not a failure, and the app is installable once builds appear.
+    bool waitingForBuilds = false;
 
     InstallReceipt receipt;
     QString acknowledgedVersion; // track-only apps: latest version the user has seen

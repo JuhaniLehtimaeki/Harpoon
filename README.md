@@ -115,7 +115,9 @@ To make it even easier for people:
   instead. [docs/add-to-harpoon.md](docs/add-to-harpoon.md) explains both.
 - **Keep Releases turned on.** On Codeberg and other Forgejo or Gitea servers, Releases can
   be switched off in the repository's settings (Settings, Units). Then there is nothing for
-  Harpoon to find, even if your code and tags are there; Harpoon tells its users so.
+  Harpoon to find, even if your code and tags are there. People can still add your app:
+  Harpoon shows it as waiting for builds, explains why, and offers it as soon as you
+  publish a release with packages.
 - **Use standard package file names**, `name-version-release.arch.rpm`, and attach a package
   for every architecture you support (`aarch64`, `armv7hl`, `i486`, or `noarch`). If you
   build separately for different Sailfish OS versions, put a tag such as `sfos5.1` in the

@@ -97,6 +97,8 @@ QJsonObject App::toJson() const
 
     o.insert(QStringLiteral("lastCheck"), dateToJson(lastCheck));
     o.insert(QStringLiteral("lastError"), lastError);
+    if (waitingForBuilds)
+        o.insert(QStringLiteral("waitingForBuilds"), true);
 
     if (receipt.isValid()) {
         QJsonObject r;
@@ -155,6 +157,7 @@ Result<App> App::fromJson(const QJsonObject &o)
 
     app.lastCheck = dateFromJson(o.value(QStringLiteral("lastCheck")));
     app.lastError = o.value(QStringLiteral("lastError")).toString();
+    app.waitingForBuilds = o.value(QStringLiteral("waitingForBuilds")).toBool();
 
     const QJsonObject r = o.value(QStringLiteral("receipt")).toObject();
     app.receipt.version = r.value(QStringLiteral("version")).toString();

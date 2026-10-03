@@ -359,7 +359,9 @@ void HarpoonController::addApp(const QString &url, const QString &sourceId, cons
     beginCheck();
     checker().check(app, [this, force](const App &checked, const Error &error) {
         endCheck();
-        if (!error.ok() && !force) {
+        // A repository that is there but has no builds yet is tracked: it
+        // becomes installable as soon as its developer publishes some.
+        if (!error.ok() && !force && !isWaitingForBuilds(error)) {
             emit addFinished(false, error.message);
             return;
         }
@@ -368,6 +370,10 @@ void HarpoonController::addApp(const QString &url, const QString &sourceId, cons
             adoptInstalled(added, installed);
             storeAndShow(added);
             emit addFinished(true, added.id);
+            if (added.waitingForBuilds)
+                emit operationFinished(added.id, true,
+                                       tr("Added %1. No builds yet: Harpoon will offer it as soon as they are "
+                                          "published.").arg(added.name));
         });
     });
 }
@@ -639,6 +645,7 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
         {QStringLiteral("assets"), assets},
         {QStringLiteral("lastCheck"), a.lastCheck},
         {QStringLiteral("lastError"), a.lastError},
+        {QStringLiteral("waitingForBuilds"), a.waitingForBuilds},
         {QStringLiteral("trackOnly"), a.settings.getBool(Keys::trackOnly)},
         {QStringLiteral("acknowledgedVersion"), a.acknowledgedVersion},
         {QStringLiteral("receiptEvr"), a.receipt.evr},

@@ -20,6 +20,13 @@ namespace Harpoon {
 // another one) and are kept.
 App applyCheckResult(App current, const App &checked);
 
+// A check that found the repository but nothing to install yet (no releases,
+// or no package for this device): the app is still worth tracking.
+inline bool isWaitingForBuilds(const Error &error)
+{
+    return error.kind == Error::NoReleases || error.kind == Error::NoAsset;
+}
+
 // Runs update checks: resolves each app's source, fetches the latest release
 // and writes the result into the app record (latest*, lastCheck, lastError).
 // A failed check keeps the previous latest* fields and sets lastError.

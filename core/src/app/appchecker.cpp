@@ -23,6 +23,7 @@ App applyCheckResult(App current, const App &checked)
     current.latestAssets = checked.latestAssets;
     current.lastCheck = checked.lastCheck;
     current.lastError = checked.lastError;
+    current.waitingForBuilds = checked.waitingForBuilds;
     return current;
 }
 
@@ -46,6 +47,7 @@ void AppChecker::check(const App &app, AppDone done)
             App updated = app;
             updated.lastCheck = QDateTime::currentDateTimeUtc();
             updated.lastError = match.error.message;
+            updated.waitingForBuilds = false;
             finish(updated, match.error);
             return;
         }
@@ -58,11 +60,13 @@ void AppChecker::check(const App &app, AppDone done)
                                updated.lastCheck = QDateTime::currentDateTimeUtc();
                                if (!result.ok()) {
                                    updated.lastError = result.error.message;
+                                   updated.waitingForBuilds = isWaitingForBuilds(result.error);
                                    finish(updated, result.error);
                                    return;
                                }
                                const LatestRelease &l = result.value;
                                updated.lastError.clear();
+                               updated.waitingForBuilds = false;
                                updated.latestVersion = l.version;
                                updated.latestTag = l.release.tag;
                                updated.latestTitle = l.release.title;

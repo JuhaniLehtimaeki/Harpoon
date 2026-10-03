@@ -259,9 +259,19 @@ Page {
                     highlighted: item.highlighted
                 }
 
+                // The repository is there, but has nothing to install yet.
                 Label {
                     width: parent.width
-                    visible: !model.busy && model.lastError.length > 0
+                    visible: !model.busy && model.waitingForBuilds === true
+                    text: qsTr("No builds yet, waiting for the first one")
+                    font.pixelSize: Theme.fontSizeExtraSmall
+                    truncationMode: TruncationMode.Fade
+                    color: item.highlighted ? Theme.secondaryHighlightColor : Theme.secondaryColor
+                }
+
+                Label {
+                    width: parent.width
+                    visible: !model.busy && model.lastError.length > 0 && model.waitingForBuilds !== true
                     text: model.lastError
                     font.pixelSize: Theme.fontSizeExtraSmall
                     truncationMode: TruncationMode.Fade
@@ -278,7 +288,8 @@ Page {
                 }
             }
 
-            // Right edge: busy, an update waiting, or a failed check.
+            // Right edge: busy, an update waiting, waiting for builds, or a
+            // failed check.
             Item {
                 id: statusIcon
 
@@ -298,11 +309,15 @@ Page {
                     visible: running
                 }
                 Icon {
+                    readonly property bool _waiting: model.waitingForBuilds === true
+                    readonly property bool _failed: model.lastError.length > 0 && !_waiting
+
                     anchors.centerIn: parent
                     visible: !model.busy
-                    source: model.lastError.length > 0 ? "image://theme/icon-s-filled-warning"
-                                                        : "image://theme/icon-s-update"
-                    color: model.lastError.length > 0 ? Theme.errorColor : Theme.highlightColor
+                    source: _waiting ? "image://theme/icon-s-time"
+                                     : _failed ? "image://theme/icon-s-filled-warning" : "image://theme/icon-s-update"
+                    color: _waiting ? Theme.secondaryHighlightColor
+                                    : _failed ? Theme.errorColor : Theme.highlightColor
                 }
             }
         }

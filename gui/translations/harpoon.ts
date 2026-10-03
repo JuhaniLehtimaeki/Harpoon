@@ -67,94 +67,94 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="134"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="135"/>
         <source>Could not add the app: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="145"/>
         <location filename="../qml/pages/AddAppDialog.qml" line="146"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="147"/>
         <source>Repository URL</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="179"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="180"/>
         <source>The address of the app&apos;s repository or releases page, for example on GitHub or Codeberg</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="180"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="181"/>
         <source>%1: %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="203"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="204"/>
         <source>Scan QR code</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="211"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="212"/>
         <source>Source type</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="212"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="213"/>
         <source>Choose a type for self-hosted servers (your own Forgejo or Gitea), Jenkins jobs and RPM repositories</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="214"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="215"/>
         <source>Detect from URL</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="227"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="228"/>
         <source>Package name in the repository</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="234"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="235"/>
         <source>Options</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="239"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="240"/>
         <source>Include prereleases</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="240"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="241"/>
         <source>Also offer releases the developer marked as prerelease</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="246"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="247"/>
         <source>Track only</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="247"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="248"/>
         <source>Only notify about new releases; nothing is installed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="254"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="255"/>
         <source>Add it anyway</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="255"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="256"/>
         <source>Track the app even though the check failed, for example when it has no release yet</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="262"/>
         <location filename="../qml/pages/AddAppDialog.qml" line="263"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="264"/>
         <source>Package filter (regular expression)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AddAppDialog.qml" line="270"/>
+        <location filename="../qml/pages/AddAppDialog.qml" line="271"/>
         <source>Harpoon picks the RPM for this device (%1) automatically. A filter is only needed when a release contains several packages.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -247,12 +247,17 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppListPage.qml" line="315"/>
+        <location filename="../qml/pages/AppListPage.qml" line="266"/>
+        <source>No builds yet, waiting for the first one</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppListPage.qml" line="330"/>
         <source>Nothing on the line yet</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppListPage.qml" line="316"/>
+        <location filename="../qml/pages/AppListPage.qml" line="331"/>
         <source>Pull down to add an app by its link or QR code, from GitHub, Codeberg or another forge</source>
         <translation type="unfinished"></translation>
     </message>
@@ -285,17 +290,17 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="198"/>
+        <location filename="../qml/pages/AppPage.qml" line="257"/>
         <source>Update</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="198"/>
+        <location filename="../qml/pages/AppPage.qml" line="257"/>
         <source>Install</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="207"/>
+        <location filename="../qml/pages/AppPage.qml" line="266"/>
         <source>Mark as seen</source>
         <translation type="unfinished"></translation>
     </message>
@@ -315,128 +320,138 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="248"/>
+        <location filename="../qml/pages/AppPage.qml" line="215"/>
+        <source>No builds yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppPage.qml" line="232"/>
+        <source>Harpoon keeps checking this app and offers it as soon as a build is published. You don&apos;t need to do anything.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppPage.qml" line="307"/>
         <source>What&apos;s new in %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="249"/>
+        <location filename="../qml/pages/AppPage.qml" line="308"/>
         <source>What&apos;s new</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="272"/>
+        <location filename="../qml/pages/AppPage.qml" line="331"/>
         <source>Show less</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="272"/>
+        <location filename="../qml/pages/AppPage.qml" line="331"/>
         <source>Show all</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="285"/>
+        <location filename="../qml/pages/AppPage.qml" line="346"/>
         <source>Latest release</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="288"/>
-        <location filename="../qml/pages/AppPage.qml" line="325"/>
+        <location filename="../qml/pages/AppPage.qml" line="351"/>
+        <location filename="../qml/pages/AppPage.qml" line="388"/>
         <source>Version</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="294"/>
+        <location filename="../qml/pages/AppPage.qml" line="357"/>
         <source>Title</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="299"/>
+        <location filename="../qml/pages/AppPage.qml" line="362"/>
         <source>Published</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="304"/>
+        <location filename="../qml/pages/AppPage.qml" line="367"/>
         <source>Channel</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="305"/>
+        <location filename="../qml/pages/AppPage.qml" line="368"/>
         <source>Prerelease</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="309"/>
+        <location filename="../qml/pages/AppPage.qml" line="372"/>
         <source>Download size</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="315"/>
+        <location filename="../qml/pages/AppPage.qml" line="378"/>
         <source>Package</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="322"/>
+        <location filename="../qml/pages/AppPage.qml" line="385"/>
         <source>Installed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="327"/>
+        <location filename="../qml/pages/AppPage.qml" line="390"/>
         <source>Not installed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="331"/>
+        <location filename="../qml/pages/AppPage.qml" line="394"/>
         <source>Vendor</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="336"/>
+        <location filename="../qml/pages/AppPage.qml" line="399"/>
         <source>Installed by Harpoon</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="342"/>
+        <location filename="../qml/pages/AppPage.qml" line="405"/>
         <source>Build provenance</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="343"/>
+        <location filename="../qml/pages/AppPage.qml" line="406"/>
         <source>Signature verified</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="344"/>
+        <location filename="../qml/pages/AppPage.qml" line="407"/>
         <source>Reported by GitHub</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="345"/>
+        <location filename="../qml/pages/AppPage.qml" line="408"/>
         <source>No attestation</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="346"/>
+        <location filename="../qml/pages/AppPage.qml" line="409"/>
         <source>Could not check</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="349"/>
+        <location filename="../qml/pages/AppPage.qml" line="412"/>
         <source>Source</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="352"/>
+        <location filename="../qml/pages/AppPage.qml" line="415"/>
         <source>Type</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="356"/>
+        <location filename="../qml/pages/AppPage.qml" line="419"/>
         <source>Last check</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="357"/>
+        <location filename="../qml/pages/AppPage.qml" line="420"/>
         <source>Never</source>
         <translation type="unfinished"></translation>
     </message>
@@ -842,64 +857,69 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="411"/>
+        <location filename="../src/harpooncontroller.cpp" line="375"/>
+        <source>Added %1. No builds yet: Harpoon will offer it as soon as they are published.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/harpooncontroller.cpp" line="417"/>
         <source>Checking</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="456"/>
-        <location filename="../src/harpooncontroller.cpp" line="536"/>
+        <location filename="../src/harpooncontroller.cpp" line="462"/>
+        <location filename="../src/harpooncontroller.cpp" line="542"/>
         <source>%1 is busy: %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="460"/>
+        <location filename="../src/harpooncontroller.cpp" line="466"/>
         <source>Preparing</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="484"/>
-        <location filename="../src/harpooncontroller.cpp" line="487"/>
+        <location filename="../src/harpooncontroller.cpp" line="490"/>
+        <location filename="../src/harpooncontroller.cpp" line="493"/>
         <source>Installed %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="497"/>
+        <location filename="../src/harpooncontroller.cpp" line="503"/>
         <source>This package is also tracked as &quot;%1&quot;; remove one of the two.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="513"/>
+        <location filename="../src/harpooncontroller.cpp" line="519"/>
         <source>Downloading %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="515"/>
+        <location filename="../src/harpooncontroller.cpp" line="521"/>
         <source>Verifying %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="517"/>
+        <location filename="../src/harpooncontroller.cpp" line="523"/>
         <source>Installing %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="519"/>
+        <location filename="../src/harpooncontroller.cpp" line="525"/>
         <source>Checking packages</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="540"/>
+        <location filename="../src/harpooncontroller.cpp" line="546"/>
         <source>Uninstalling</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="550"/>
+        <location filename="../src/harpooncontroller.cpp" line="556"/>
         <source>Uninstalled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="688"/>
+        <location filename="../src/harpooncontroller.cpp" line="695"/>
         <source>Cannot read %1: %2</source>
         <translation type="unfinished"></translation>
     </message>

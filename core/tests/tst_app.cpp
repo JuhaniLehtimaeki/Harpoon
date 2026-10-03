@@ -55,11 +55,14 @@ private slots:
         a.receipt.evr = QStringLiteral("1.2.2-1");
         a.receipt.assetNames << QStringLiteral("tool-1.2.2-1.aarch64.rpm");
         a.receipt.installedAt = QDateTime::currentDateTimeUtc();
+        a.lastError = QStringLiteral("No builds yet");
+        a.waitingForBuilds = true;
 
         const auto b = App::fromJson(a.toJson());
         QVERIFY2(b.ok(), qPrintable(b.error.message));
         QCOMPARE(b.value.toJson(), a.toJson());
         QCOMPARE(b.value.sourceId, QStringLiteral("Forgejo"));
+        QVERIFY(b.value.waitingForBuilds);
         QVERIFY(b.value.settings.getBool(Keys::includePrereleases));
         QCOMPARE(b.value.latestAssets.first().size, qint64(1234));
         QCOMPARE(b.value.latestDate, a.latestDate);

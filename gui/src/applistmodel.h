@@ -13,7 +13,8 @@ class AppListModel : public QAbstractListModel
     Q_OBJECT
     Q_PROPERTY(int count READ count NOTIFY countChanged)
     Q_PROPERTY(int updatesCount READ updatesCount NOTIFY updatesCountChanged)
-    // Apps whose last check failed. Shares updatesCount's change signal.
+    // Apps whose last check failed (not those only waiting for builds).
+    // Shares updatesCount's change signal.
     Q_PROPERTY(int failedCount READ failedCount NOTIFY updatesCountChanged)
     // For the list's summary: apps that are installed, and the most recent
     // check of any app (invalid: never checked).
@@ -43,6 +44,7 @@ public:
         ProgressRole,
         HasUpdateRole,
         IconRole,
+        WaitingForBuildsRole,
     };
 
     struct Entry

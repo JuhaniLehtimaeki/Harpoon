@@ -27,6 +27,7 @@ QVariant AppListModel::data(const QModelIndex &index, int role) const
     case LatestVersionRole: return e.status.latestVersion;
     case StateRole: return int(toState(e.status.state));
     case LastErrorRole: return e.app.lastError;
+    case WaitingForBuildsRole: return e.app.waitingForBuilds;
     case TrackOnlyRole: return e.app.settings.getBool(Keys::trackOnly);
     case PrereleaseRole: return e.app.latestPrerelease;
     case ReleaseDateRole: return e.app.latestDate;
@@ -50,6 +51,7 @@ QHash<int, QByteArray> AppListModel::roleNames() const
         {LatestVersionRole, "latestVersion"},
         {StateRole, "state"},
         {LastErrorRole, "lastError"},
+        {WaitingForBuildsRole, "waitingForBuilds"},
         {TrackOnlyRole, "trackOnly"},
         {PrereleaseRole, "prerelease"},
         {ReleaseDateRole, "releaseDate"},
@@ -77,7 +79,7 @@ int AppListModel::failedCount() const
 {
     int n = 0;
     for (const Entry &e : m_entries)
-        if (!e.app.lastError.isEmpty())
+        if (!e.app.lastError.isEmpty() && !e.app.waitingForBuilds)
             ++n;
     return n;
 }

@@ -460,6 +460,26 @@ private slots:
         popToList();
     }
 
+    void waitingForBuildsShowsANotice()
+    {
+        m_transport.respondJson(QStringLiteral("https://api.github.com/repos/someone/harbour-soon/releases?per_page=100"),
+                                "[]");
+        QSignalSpy added(m_controller.get(), &HarpoonController::addFinished);
+        m_controller->addApp(QStringLiteral("https://github.com/someone/harbour-soon"), QString(), QVariantMap());
+        QTRY_COMPARE(added.count(), 1);
+        QVERIFY(added.first().at(0).toBool());
+        const QString id = added.first().at(1).toString();
+        expectClean("adding an app without builds");
+        shot(QStringLiteral("list-waiting"));
+        QObject *page = push(QStringLiteral("AppPage.qml"), QStringLiteral("{ appId: '%1' }").arg(id));
+        expectClean("an app waiting for builds");
+        shot(QStringLiteral("app-waiting"));
+        QVERIFY(page->property("details").toMap().value(QStringLiteral("waitingForBuilds")).toBool());
+        popToList();
+        m_controller->removeApp(id);
+        expectClean("removing it again");
+    }
+
     void failedAddKeepsTheForm()
     {
         QObject *dialog = push(QStringLiteral("AddAppDialog.qml"));

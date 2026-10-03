@@ -620,6 +620,35 @@ private slots:
         QVERIFY(m_controller->loaded());
     }
 
+    // A repository with nothing to install yet is tracked, not refused.
+    void addingARepositoryWithoutBuilds()
+    {
+        m_transport->respondJson(QStringLiteral("https://api.github.com/repos/someone/harbour-soon/releases?per_page=100"),
+                                 "[]");
+        QSignalSpy finished(m_controller.get(), &HarpoonController::operationFinished);
+        QString id;
+        QVERIFY(addApp(QStringLiteral("https://github.com/someone/harbour-soon"), {}, &id));
+        AppListModel *model = m_controller->apps();
+        QCOMPARE(model->count(), 1);
+        const AppListModel::Entry *e = model->entry(id);
+        QVERIFY(e && e->app.waitingForBuilds);
+        QVERIFY(e->app.lastError.contains(QLatin1String("no releases yet")));
+        QCOMPARE(model->failedCount(), 0); // waiting is not a failure
+        QVERIFY(m_controller->appDetails(id).value(QStringLiteral("waitingForBuilds")).toBool());
+        QVERIFY(!finished.isEmpty());
+        QVERIFY(finished.last().at(2).toString().contains(QLatin1String("No builds yet")));
+
+        // Builds appear: the next check makes it a normal, installable app.
+        m_transport->respondFixture(QStringLiteral("https://api.github.com/repos/someone/harbour-soon/releases?per_page=100"),
+                                    QStringLiteral("github/chum-gui-releases.json"));
+        m_controller->check(id);
+        QTRY_VERIFY(!m_controller->checking());
+        e = model->entry(id);
+        QVERIFY(e && !e->app.waitingForBuilds);
+        QVERIFY(e->app.lastError.isEmpty());
+        QVERIFY(!e->app.latestVersion.isEmpty());
+    }
+
     void listSummary()
     {
         AppStore store(m_dir->filePath(QStringLiteral("data/apps")));

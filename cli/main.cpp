@@ -268,10 +268,14 @@ private:
         out() << app.id << "  " << app.name << "\n    installed: "
               << (s.installedVersion.isEmpty() ? QStringLiteral("-") : s.installedVersion)
               << "  latest: " << (s.latestVersion.isEmpty() ? QStringLiteral("-") : s.latestVersion)
-              << "  [" << (s.state == UpdateState::NotChecked && !app.lastError.isEmpty()
-                               ? QStringLiteral("check failed") : updateStateName(s.state))
+              << "  [" << (app.waitingForBuilds ? QStringLiteral("waiting for builds")
+                         : s.state == UpdateState::NotChecked && !app.lastError.isEmpty() ? QStringLiteral("check failed")
+                                                                                          : updateStateName(s.state))
               << "]";
-        if (!app.lastError.isEmpty())
+        if (app.waitingForBuilds)
+            out() << "\n    no builds yet: " << app.lastError
+                  << "\n    Harpoon keeps checking and offers the app once builds are published.";
+        else if (!app.lastError.isEmpty())
             out() << "\n    last check failed: " << app.lastError;
         out() << "\n";
     }
@@ -327,7 +331,8 @@ private:
             return fail(bad.message);
 
         const auto checked = checkOne(app);
-        if (!checked.second.ok() && !args.has("--force"))
+        // No builds yet is no reason to refuse: tracking starts now.
+        if (!checked.second.ok() && !args.has("--force") && !isWaitingForBuilds(checked.second))
             return fail(checked.second.message + QStringLiteral("\n(use --force to track it anyway)"));
         app = checked.first;
         adoptInstalled(app);

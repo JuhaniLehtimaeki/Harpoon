@@ -152,6 +152,7 @@ Page {
                         // A failed first check has nothing to summarise; the error says it.
                         visible: !(appState === AppListModel.NotChecked && details.lastError !== undefined
                                    && details.lastError.length > 0)
+                                 && details.waitingForBuilds !== true
                         x: Theme.horizontalPageMargin
                         width: parent.width - 2 * Theme.horizontalPageMargin
                         horizontalAlignment: Text.AlignHCenter
@@ -166,11 +167,69 @@ Page {
                         x: Theme.horizontalPageMargin
                         width: parent.width - 2 * Theme.horizontalPageMargin
                         visible: details.lastError !== undefined && details.lastError.length > 0
+                                 && details.waitingForBuilds !== true
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
                         plainText: details.lastError || ""
                         font.pixelSize: Theme.fontSizeSmall
                         color: Theme.errorColor
+                    }
+                }
+            }
+
+            // Tracked, but nothing to install yet: say why, and that it is fine.
+            Item {
+                id: waitingCard
+
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                height: waitingColumn.height + 2 * Theme.paddingLarge
+                visible: details.waitingForBuilds === true
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.paddingMedium
+                    color: Theme.rgba(Theme.highlightBackgroundColor, Theme.opacityFaint)
+                }
+
+                Column {
+                    id: waitingColumn
+
+                    x: Theme.paddingLarge
+                    y: Theme.paddingLarge
+                    width: parent.width - 2 * Theme.paddingLarge
+                    spacing: Theme.paddingMedium
+
+                    Row {
+                        spacing: Theme.paddingMedium
+
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            source: "image://theme/icon-m-time"
+                            color: Theme.highlightColor
+                        }
+                        Label {
+                            anchors.verticalCenter: parent.verticalCenter
+                            font.family: Theme.fontFamilyHeading
+                            color: Theme.highlightColor
+                            text: qsTr("No builds yet")
+                        }
+                    }
+
+                    LinkedLabel {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.highlightColor
+                        plainText: details.lastError || ""
+                    }
+
+                    Label {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        font.pixelSize: Theme.fontSizeExtraSmall
+                        color: Theme.secondaryHighlightColor
+                        text: qsTr("Harpoon keeps checking this app and offers it as soon as a build is published. You don't need to do anything.")
                     }
                 }
             }
@@ -282,11 +341,15 @@ Page {
                 }
             }
 
-            SectionHeader { text: qsTr("Latest release") }
+            SectionHeader {
+                visible: (details.latestVersion || "").length > 0
+                text: qsTr("Latest release")
+            }
 
             DetailItem {
+                visible: (details.latestVersion || "").length > 0
                 label: qsTr("Version")
-                value: details.latestVersion || "-"
+                value: details.latestVersion || ""
             }
             DetailItem {
                 visible: details.latestTitle !== undefined && details.latestTitle.length > 0
