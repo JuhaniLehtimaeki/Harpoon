@@ -77,8 +77,17 @@ AttestationResult parseAttestations(const QByteArray &json, const QString &algor
             const QByteArray payload = QByteArray::fromBase64(bundle.value(QStringLiteral("dsseEnvelope")).toObject()
                                                                   .value(QStringLiteral("payload")).toString().toLatin1());
             const QJsonObject statement = QJsonDocument::fromJson(payload).object();
-            if (isProvenance(statement) && namesDigest(statement, algorithm, digest))
-                byGitHub = true;
+            if (!isProvenance(statement) || !namesDigest(statement, algorithm, digest))
+                break;
+            // Not proof (the certificate is not verified here), but a bundle
+            // naming another repository is certainly not this one's.
+            const QString source = bundleSourceRepository(bundle);
+            if (source.isEmpty()
+                || canonicalRepositoryUrl(source).compare(canonicalRepositoryUrl(repositoryUrl), Qt::CaseInsensitive) != 0) {
+                problem = QStringLiteral("The attestation was not made for this repository");
+                break;
+            }
+            byGitHub = true;
             break;
         }
         case BundleKind::Unknown:
@@ -86,12 +95,14 @@ AttestationResult parseAttestations(const QByteArray &json, const QString &algor
             break;
         }
     }
-    if (byGitHub) {
-        result.status = AttestationStatus::VerifiedByGitHub;
-        result.message = QStringLiteral("GitHub reports a build attestation; its signature can only be checked by GitHub");
-    } else if (!problem.isEmpty()) {
+    // A bundle that failed verification outweighs one that could not be
+    // verified at all: never let an unchecked bundle hide a bad one.
+    if (!problem.isEmpty()) {
         result.status = AttestationStatus::Error;
         result.message = problem;
+    } else if (byGitHub) {
+        result.status = AttestationStatus::VerifiedByGitHub;
+        result.message = QStringLiteral("GitHub reports a build attestation; its signature can only be checked by GitHub");
     } else {
         result.status = AttestationStatus::Missing;
         result.message = attestations.isEmpty() ? QStringLiteral("No build attestation for this file")
@@ -105,7 +116,7 @@ void checkGitHubAttestation(HttpTransport &transport, const QString &apiBase, co
                             std::function<void(const AttestationResult &)> done)
 {
     HttpRequest request;
-    request.url = apiBase + QStringLiteral("/attestations/sha256:") + sha256.toLower();
+    request.url = apiBase + QStringLiteral("/attestations/sha256:") + sha256.toLower() + QStringLiteral("?per_page=100");
     request.setHeader("Accept", "application/vnd.github+json");
     if (!token.isEmpty())
         request.setHeader("Authorization", "Bearer " + token.toUtf8());

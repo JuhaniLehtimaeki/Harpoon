@@ -63,7 +63,16 @@ BundleKind sigstoreBundleKind(const QJsonObject &bundle);
 Result<VerifiedBundle> verifySigstoreBundle(const QJsonObject &bundle, const SigstoreTrust &trust);
 
 // The bundle was signed by a GitHub Actions workflow running in the
-// repository at repositoryUrl (e.g. https://github.com/owner/repo).
+// repository at repositoryUrl (e.g. https://github.com/owner/repo), as named
+// by the certificate's source repository extension.
 Error checkGitHubWorkflowIdentity(const VerifiedBundle &bundle, const QString &repositoryUrl);
+
+// "https://<host>/<owner>/<repo>" for comparing repository URLs: https,
+// lower-case host, github.com for www.github.com, no trailing slash or .git.
+QString canonicalRepositoryUrl(const QString &repositoryUrl);
+
+// The source repository extension of a bundle's signing certificate, read
+// WITHOUT verifying anything (for bundles that cannot be verified here).
+QString bundleSourceRepository(const QJsonObject &bundle);
 
 } // namespace Harpoon

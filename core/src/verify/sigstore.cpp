@@ -4,6 +4,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QStringList>
+#include <QUrl>
 
 #include <openssl/evp.h>
 #include <openssl/objects.h>
@@ -443,22 +444,49 @@ Result<VerifiedBundle> verifySigstoreBundle(const QJsonObject &bundle, const Sig
     return Result<VerifiedBundle>::success(out);
 }
 
+QString canonicalRepositoryUrl(const QString &repositoryUrl)
+{
+    const QUrl url(repositoryUrl.trimmed());
+    QString host = url.host().toLower();
+    if (host == QLatin1String("www.github.com"))
+        host = QStringLiteral("github.com");
+    QString path = url.path();
+    while (path.endsWith(QLatin1Char('/')))
+        path.chop(1);
+    if (path.endsWith(QLatin1String(".git")))
+        path.chop(4);
+    const QString authority = url.port() > 0 && host != QLatin1String("github.com")
+                                  ? host + QLatin1Char(':') + QString::number(url.port())
+                                  : host;
+    return QStringLiteral("https://") + authority + path;
+}
+
+QString bundleSourceRepository(const QJsonObject &bundle)
+{
+    const QJsonObject material = bundle.value(QStringLiteral("verificationMaterial")).toObject();
+    QByteArray certDer = fromB64(material.value(QStringLiteral("certificate")).toObject().value(QStringLiteral("rawBytes")));
+    if (certDer.isEmpty())
+        certDer = fromB64(material.value(QStringLiteral("x509CertificateChain")).toObject()
+                              .value(QStringLiteral("certificates")).toArray().at(0).toObject()
+                              .value(QStringLiteral("rawBytes")));
+    X509Ptr leaf = parseCert(certDer);
+    return leaf ? extension(leaf.get(), "1.3.6.1.4.1.57264.1.12", true) : QString();
+}
+
 Error checkGitHubWorkflowIdentity(const VerifiedBundle &bundle, const QString &repositoryUrl)
 {
     if (bundle.issuer != QLatin1String("https://token.actions.githubusercontent.com"))
         return Error::make(Error::Verification, QStringLiteral("The attestation was not made by GitHub Actions"));
-    QString expected = repositoryUrl;
-    while (expected.endsWith(QLatin1Char('/')))
-        expected.chop(1);
-    // Older certificates have no source repository extension; their identity
-    // is the workflow URL in the repository itself.
-    const bool matches = bundle.sourceRepository.isEmpty()
-                             ? bundle.san.startsWith(expected + QLatin1Char('/'), Qt::CaseInsensitive)
-                             : bundle.sourceRepository.compare(expected, Qt::CaseInsensitive) == 0;
-    if (!matches)
-        return Error::make(Error::Verification,
-                           QStringLiteral("The attestation was made for %1, not %2")
-                               .arg(bundle.sourceRepository.isEmpty() ? bundle.san : bundle.sourceRepository, expected));
+    // The source repository extension names the repository whose workflow
+    // ran; the SAN may name a reusable workflow in another repository, so it
+    // is no substitute. Fulcio has set the extension for GitHub Actions since
+    // before artifact attestations existed.
+    if (bundle.sourceRepository.isEmpty())
+        return Error::make(Error::Verification, QStringLiteral("The signing certificate names no source repository"));
+    const QString expected = canonicalRepositoryUrl(repositoryUrl);
+    if (canonicalRepositoryUrl(bundle.sourceRepository).compare(expected, Qt::CaseInsensitive) != 0)
+        return Error::make(Error::Verification, QStringLiteral("The attestation was made for %1, not %2")
+                                                    .arg(bundle.sourceRepository, expected));
     return Error();
 }
 

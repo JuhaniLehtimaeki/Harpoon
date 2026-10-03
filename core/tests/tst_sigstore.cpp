@@ -96,6 +96,13 @@ private slots:
         QVERIFY(!checkGitHubWorkflowIdentity(v, QStringLiteral("https://github.com/evil/sigstore-js")).ok());
         QVERIFY(checkGitHubWorkflowIdentity(v, QStringLiteral("https://github.com/sigstore/sigstore-js/")).ok());
         QVERIFY(!checkGitHubWorkflowIdentity(v, QStringLiteral("https://github.com/sigstore/sigstore")).ok());
+        QVERIFY(checkGitHubWorkflowIdentity(v, QStringLiteral("http://www.github.com/sigstore/sigstore-js.git")).ok());
+
+        // Without the source repository extension there is no identity: the
+        // SAN may name a reusable workflow of another repository.
+        VerifiedBundle noSource = v;
+        noSource.sourceRepository.clear();
+        QVERIFY(!checkGitHubWorkflowIdentity(noSource, QStringLiteral("https://github.com/sigstore/sigstore-js")).ok());
     }
 
     void inclusionProof()

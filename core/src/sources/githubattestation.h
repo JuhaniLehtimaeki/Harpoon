@@ -18,10 +18,11 @@ struct SigstoreTrust;
 // locally, and the signing certificate must name a GitHub Actions workflow of
 // the app's own repository. Private repositories are signed by GitHub's own
 // Sigstore instance, which Harpoon cannot verify offline; those count as
-// "checked by GitHub" (Harpoon then trusts GitHub's API over TLS).
+// "checked by GitHub" (Harpoon then trusts GitHub's API over TLS), which is
+// not enough for the "enforce" mode.
 enum class AttestationStatus {
     Verified,         // a locally verified provenance attestation names this file
-    VerifiedByGitHub, // GitHub returned one, but its signature could not be checked here
+    VerifiedByGitHub, // GitHub returned one for this repository, but its signature could not be checked here
     Missing,          // the repository has no attestation for this file
     Error,            // could not tell, or an attestation failed verification
 };

@@ -437,7 +437,12 @@ An independent review found these problems; all are fixed and covered by tests.
   - Sigstore's trusted root is compiled in from `core/data/sigstore-trusted-root.json`.
     Update it from `sigstore/root-signing` when Sigstore rotates keys.
   - Private repositories are signed by GitHub's own Sigstore with RFC 3161 timestamps, which
-    are not verified here. Those count as `attestation:github` ("Reported by GitHub").
+    are not verified here. Those count as `attestation:github` ("Reported by GitHub") when the
+    (unverified) certificate names the app's repository. That passes `audit` but not
+    `enforce`, which accepts only a signature verified on the phone. A bundle that fails
+    verification always wins over one that could not be verified.
+  - The identity is the certificate's source repository extension only; the SAN can name a
+    reusable workflow in another repository. URLs are compared in a canonical form.
   - Not checked: certificate transparency SCTs, and Rekor v2 entries (no signed entry
     timestamp). A bundle that cannot be verified is an error, never a silent pass.
   - Tests use real bundles from the GitHub CLI's test data.

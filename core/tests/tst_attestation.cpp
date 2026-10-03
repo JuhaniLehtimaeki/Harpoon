@@ -39,10 +39,15 @@ AttestationResult parseFor(const QByteArray &json, const QString &digest = kDige
     return parseAttestations(json, QStringLiteral("sha256"), digest, kRepo, SigstoreTrust::builtIn());
 }
 
+// A self-signed certificate whose source repository extension
+// (1.3.6.1.4.1.57264.1.12) is https://github.com/me/tool.
+const char *kMeToolCert = "MIIBnzCCAUWgAwIBAgIUXrPB9xdOyNK4kB+SQCvNC+Z5MWYwCgYIKoZIzj0EAwIwDzENMAsGA1UECgwEVGVzdDAeFw0yNjEwMDMwMDU1NTBaFw0yNjEwMDQwMDU1NTBaMA8xDTALBgNVBAoMBFRlc3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQ8OAvA0aVdqCPsz8mxUp+CZU1mqlJ3HwkNwKn+rANmZXbqWFLhdhdEBGWizmUzIFN60iPnytSqR21WsGtuBc7co38wfTAdBgNVHQ4EFgQU/fR6dSCb6YmROGNIA+rWkoNVimkwHwYDVR0jBBgwFoAU/fR6dSCb6YmROGNIA+rWkoNVimkwDwYDVR0TAQH/BAUwAwEB/zAqBgorBgEEAYO/MAEMBBwMGmh0dHBzOi8vZ2l0aHViLmNvbS9tZS90b29sMAoGCCqGSM49BAMCA0gAMEUCIAfSlIUwuLnQQPyMZFfDiKdl7fCff0L+CXiU1SM992h1AiEA2j/hYROY05SZ1P0+uqzzxL09kIrZtE1NjZH3OGF8Dy4=";
+
 // An attestations response as GitHub's own Sigstore instance (private
 // repositories) signs them: one in-toto statement naming `digests`. The
-// signature is not checked locally for these, so a fake one is enough.
-QByteArray attestations(const QStringList &digests)
+// signature is not checked locally for these, so a fake one is enough; only
+// the certificate's repository is compared.
+QByteArray attestations(const QStringList &digests, const char *certificate = kMeToolCert)
 {
     QJsonArray subjects;
     for (const QString &d : digests)
@@ -58,7 +63,9 @@ QByteArray attestations(const QStringList &digests)
                      {QStringLiteral("payloadType"), QStringLiteral("application/vnd.in-toto+json")}}},
         {QStringLiteral("verificationMaterial"),
          QJsonObject{{QStringLiteral("timestampVerificationData"),
-                      QJsonObject{{QStringLiteral("rfc3161Timestamps"), QJsonArray{QJsonObject()}}}}}}};
+                      QJsonObject{{QStringLiteral("rfc3161Timestamps"), QJsonArray{QJsonObject()}}}},
+                     {QStringLiteral("certificate"),
+                      QJsonObject{{QStringLiteral("rawBytes"), QString::fromLatin1(certificate)}}}}}};
     return QJsonDocument(QJsonObject{{QStringLiteral("attestations"),
                                       QJsonArray{QJsonObject{{QStringLiteral("bundle"), bundle}}}}})
         .toJson();
@@ -103,6 +110,33 @@ private slots:
         // A bundle without any verification material is not trusted.
         QCOMPARE(parseFor(response(QJsonObject{{QStringLiteral("dsseEnvelope"), QJsonObject()}})).status,
                  AttestationStatus::Error);
+        // An unverifiable bundle must at least name this repository.
+        QCOMPARE(parseFor(attestations({kDigest}, "")).status, AttestationStatus::Error);
+        QCOMPARE(parseAttestations(attestations({kDigest}), QStringLiteral("sha256"), kDigest,
+                                   QStringLiteral("https://github.com/someone/else"), SigstoreTrust::builtIn())
+                     .status,
+                 AttestationStatus::Error);
+        // www., http and a trailing slash name the same repository.
+        QCOMPARE(parseAttestations(attestations({kDigest}), QStringLiteral("sha256"), kDigest,
+                                   QStringLiteral("http://www.github.com/me/tool/"), SigstoreTrust::builtIn())
+                     .status,
+                 AttestationStatus::VerifiedByGitHub);
+    }
+
+    void failedBundleIsNotHiddenByAnUncheckedOne()
+    {
+        // A public-good bundle that fails verification plus an unchecked
+        // GitHub-instance bundle: the failure wins.
+        QJsonObject forged = QJsonDocument::fromJson(fixture("sigstore-js-2.1.0-bundle.json")).object();
+        QJsonObject envelope = forged.value(QStringLiteral("dsseEnvelope")).toObject();
+        envelope[QStringLiteral("payload")] = QStringLiteral("e30="); // "{}"
+        forged[QStringLiteral("dsseEnvelope")] = envelope;
+        const QJsonArray unchecked = QJsonDocument::fromJson(attestations({kDigest})).object()
+                                         .value(QStringLiteral("attestations")).toArray();
+        const QByteArray both = QJsonDocument(QJsonObject{
+            {QStringLiteral("attestations"),
+             QJsonArray{QJsonObject{{QStringLiteral("bundle"), forged}}, unchecked.at(0)}}}).toJson();
+        QCOMPARE(parseFor(both).status, AttestationStatus::Error);
     }
 
     void parseVerifiesSignaturesLocally()
@@ -145,7 +179,7 @@ private slots:
 
     void lookupOutcomes()
     {
-        const QString url = kApi + QStringLiteral("/attestations/sha256:") + kDigest;
+        const QString url = kApi + QStringLiteral("/attestations/sha256:") + kDigest + QStringLiteral("?per_page=100");
         FakeTransport ok;
         ok.respondJson(url, attestations({kDigest}));
         QCOMPARE(lookup(ok).status, AttestationStatus::VerifiedByGitHub);
@@ -167,7 +201,8 @@ private slots:
         FakeTransport t;
         const QString okDigest = kDigest;
         const QString badDigest = QString(64, QLatin1Char('b'));
-        t.respondJson(kApi + QStringLiteral("/attestations/sha256:") + okDigest, attestations({okDigest}));
+        t.respondJson(kApi + QStringLiteral("/attestations/sha256:") + okDigest + QStringLiteral("?per_page=100"),
+                      attestations({okDigest}));
         DeviceInfo device;
         device.arch = QStringLiteral("aarch64");
         AppChecker checker(registry, t, device);
@@ -188,18 +223,28 @@ private slots:
         v = runVerifier(audit, {okDigest, badDigest});
         QVERIFY(v.error.ok());
         QCOMPARE(v.warnings.size(), 1);
-        QVERIFY(v.warnings.first().contains(QLatin1String(": file1.rpm:")));
+        QVERIFY(v.warnings.first().contains(QLatin1String("file1.rpm: No build attestation")));
         QVERIFY(!v.warnings.first().contains(QLatin1String("0123456789ab")));
         QCOMPARE(v.status, QStringLiteral("attestation:missing"));
 
         app.settings.set(Keys::githubBuildVerificationMode, QStringLiteral("enforce"));
         v = runVerifier(checker.verifier(app), {badDigest});
         QCOMPARE(int(v.error.kind), int(Error::Verification));
+        // Enforce needs a signature verified here; GitHub's word is not enough.
+        v = runVerifier(checker.verifier(app), {okDigest});
+        QCOMPARE(int(v.error.kind), int(Error::Verification));
+        QCOMPARE(v.status, QStringLiteral("attestation:github"));
+        // Nothing to verify is not verified.
+        v = runVerifier(checker.verifier(app), {});
+        QCOMPARE(int(v.error.kind), int(Error::Verification));
 
-        // Only GitHub has attestations.
+        // Only GitHub has attestations: audit has nothing to say, enforce refuses.
         App codeberg = App::fromUrl(QStringLiteral("https://codeberg.org/me/tool"));
-        codeberg.settings.set(Keys::githubBuildVerificationMode, QStringLiteral("enforce"));
+        codeberg.settings.set(Keys::githubBuildVerificationMode, QStringLiteral("audit"));
         QVERIFY(!checker.verifier(codeberg));
+        codeberg.settings.set(Keys::githubBuildVerificationMode, QStringLiteral("enforce"));
+        v = runVerifier(checker.verifier(codeberg), {okDigest});
+        QCOMPARE(int(v.error.kind), int(Error::Verification));
     }
 };
 

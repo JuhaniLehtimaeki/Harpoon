@@ -207,11 +207,11 @@ Page {
                 visible: details.effectiveSourceId === "GitHub"
                 appId: page.appId; key: "githubBuildVerificationMode"; values: page._values
                 label: qsTr("Check build provenance")
-                description: qsTr("Uses GitHub artifact attestations to confirm the package was built by the repository's own workflow")
+                description: qsTr("Uses GitHub artifact attestations to confirm the package was built by the repository's own workflow. \"Refuse unless verified\" needs a signature Harpoon can check itself, which private repositories do not have.")
                 options: [
                     { value: "off", text: qsTr("Off") },
                     { value: "audit", text: qsTr("Warn if missing") },
-                    { value: "enforce", text: qsTr("Refuse to install if missing") }
+                    { value: "enforce", text: qsTr("Refuse unless verified") }
                 ]
             }
 

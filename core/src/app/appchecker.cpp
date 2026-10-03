@@ -80,14 +80,26 @@ AppInstaller::Verifier AppChecker::verifier(const App &app) const
     const QString mode = app.settings.getString(Keys::githubBuildVerificationMode, QStringLiteral("off"));
     if (mode != QLatin1String("audit") && mode != QLatin1String("enforce"))
         return nullptr;
+    const bool enforce = mode == QLatin1String("enforce");
     const auto match = m_registry.match(app.url, app.sourceId);
-    if (!match.ok() || match.value.source->id() != QLatin1String("GitHub"))
-        return nullptr;
+    if (!match.ok() || match.value.source->id() != QLatin1String("GitHub")) {
+        if (!enforce)
+            return nullptr;
+        // Asked to refuse unproven builds, but there is nothing to prove them
+        // with: refuse rather than silently install.
+        return [](const App &, const QStringList &, const QStringList &,
+                  std::function<void(const AppInstaller::Verification &)> done) {
+            AppInstaller::Verification v;
+            v.status = QStringLiteral("attestation:error");
+            v.error = Error::make(Error::Verification,
+                                  QStringLiteral("Build provenance can only be checked for GitHub repositories"));
+            done(v);
+        };
+    }
     const auto *github = static_cast<const GitHubSource *>(match.value.source.get());
     const QString apiBase = github->apiBaseUrl(match.value.standardUrl);
     const QString repositoryUrl = match.value.standardUrl;
     const QString token = m_sourceConfig.value(github->tokenKey()).value(QStringLiteral("token")).toString().trimmed();
-    const bool enforce = mode == QLatin1String("enforce");
     HttpTransport *transport = &m_transport;
 
     return [transport, apiBase, repositoryUrl, token, enforce](const App &, const QStringList &files, const QStringList &sha256s,
@@ -104,17 +116,22 @@ AppInstaller::Verifier AppChecker::verifier(const App &app) const
         auto finish = [state, enforce, done]() {
             AppInstaller::Verification v;
             v.status = QStringLiteral("attestation:") + attestationStatusName(state->worst);
-            if (state->worst == AttestationStatus::Missing || state->worst == AttestationStatus::Error) {
+            // Only a locally verified signature is proof. "Checked by GitHub"
+            // means Harpoon verified nothing, so enforce refuses it too.
+            if (state->worst != AttestationStatus::Verified) {
                 const QString message = QStringLiteral("Build provenance not confirmed: %1")
                                             .arg(state->problems.join(QStringLiteral("; ")));
                 if (enforce)
                     v.error = Error::make(Error::Verification, message);
-                else
+                else if (state->worst != AttestationStatus::VerifiedByGitHub)
                     v.warnings << message;
             }
             done(v);
         };
         if (sha256s.isEmpty()) {
+            // Nothing to verify is not a verified build.
+            state->worst = AttestationStatus::Error;
+            state->problems << QStringLiteral("no files");
             finish();
             return;
         }
@@ -126,7 +143,7 @@ AppInstaller::Verifier AppChecker::verifier(const App &app) const
                                    [state, name, finish](const AttestationResult &r) {
                                        if (int(r.status) > int(state->worst))
                                            state->worst = r.status;
-                                       if (r.status == AttestationStatus::Missing || r.status == AttestationStatus::Error)
+                                       if (r.status != AttestationStatus::Verified)
                                            state->problems << QStringLiteral("%1: %2").arg(name, r.message);
                                        if (--state->remaining == 0)
                                            finish();
