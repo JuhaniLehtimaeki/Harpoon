@@ -197,16 +197,12 @@ private slots:
         installed.arch = QStringLiteral("aarch64");
         m_db->installed.insert(installed.name, installed);
 
-        QVERIFY(addApp(QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui")));
-        // A temporary id does not know its package yet...
-        QCOMPARE(m_controller->apps()->updatesCount(), 0);
-        // ...but a record whose id is the RPM name does.
-        const QString tmpId = m_controller->apps()->data(m_controller->apps()->index(0), AppListModel::IdRole).toString();
-        AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
-        App app = store.load(tmpId).value;
-        app.id = installed.name;
-        app.temporaryId = false;
-        QVERIFY(store.replace(tmpId, app).ok());
+        QString id;
+        QVERIFY(addApp(QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui"), {}, &id));
+        // Already installed (from Chum, by hand...): the app takes the package's
+        // name at once instead of waiting for Harpoon to install it.
+        QCOMPARE(id, installed.name);
+        QCOMPARE(m_controller->apps()->updatesCount(), 1);
         m_controller->reload();
         QCOMPARE(m_controller->apps()->updatesCount(), 1);
         const QVariantMap details = m_controller->appDetails(installed.name);

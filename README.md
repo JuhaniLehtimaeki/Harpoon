@@ -25,8 +25,8 @@ A Silica UI (`gui/`) sits on top of it. Nothing has been tested on a device yet;
 harpoon-cli add https://github.com/owner/repo      # track an app (or a harpoon://add link)
 harpoon-cli list                                    # installed vs latest
 harpoon-cli check                                   # check all apps for updates
-devel-su -p harpoon-cli install <app>               # install; needs the privileged group
-devel-su -p harpoon-cli upgrade                     # install every available update
+sg privileged -c 'harpoon-cli install <app>'       # install; needs the privileged group
+sg privileged -c 'harpoon-cli upgrade'             # install every available update
 harpoon-cli background on --hours 6                 # periodic checks with notifications
 harpoon-cli auto-update on                          # let those checks install updates too
 harpoon-cli link https://git.example.org/me/app --source Forgejo   # a harpoon:// link for a QR code

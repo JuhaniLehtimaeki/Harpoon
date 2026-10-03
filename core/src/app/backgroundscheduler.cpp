@@ -31,9 +31,13 @@ QString BackgroundScheduler::dropInPath() const
 QByteArray BackgroundScheduler::dropInContent(int intervalHours)
 {
     // An empty assignment clears the packaged default before setting ours.
+    // It clears every monotonic trigger of the timer, not just this one, so
+    // the startup triggers from harpoon-check.timer are restated here.
     return "# Written by Harpoon from its settings; edits are overwritten.\n"
            "[Timer]\n"
            "OnUnitActiveSec=\n"
+           "OnBootSec=15min\n"
+           "OnActiveSec=15min\n"
            "OnUnitActiveSec="
            + QByteArray::number(qBound(1, intervalHours, 168)) + "h\n";
 }

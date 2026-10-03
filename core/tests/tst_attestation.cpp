@@ -77,7 +77,7 @@ AppInstaller::Verification runVerifier(const AppInstaller::Verifier &v, const QS
     bool called = false;
     QStringList files;
     for (int i = 0; i < sha256s.size(); ++i)
-        files << QStringLiteral("/tmp/file%1.rpm").arg(i);
+        files << QStringLiteral("/cache/0123456789ab-file%1.rpm").arg(i); // as AppInstaller names them
     v(App(), files, sha256s, [&](const AppInstaller::Verification &r) {
         out = r;
         called = true;
@@ -188,7 +188,8 @@ private slots:
         v = runVerifier(audit, {okDigest, badDigest});
         QVERIFY(v.error.ok());
         QCOMPARE(v.warnings.size(), 1);
-        QVERIFY(v.warnings.first().contains(QLatin1String("file1.rpm")));
+        QVERIFY(v.warnings.first().contains(QLatin1String(": file1.rpm:")));
+        QVERIFY(!v.warnings.first().contains(QLatin1String("0123456789ab")));
         QCOMPARE(v.status, QStringLiteral("attestation:missing"));
 
         app.settings.set(Keys::githubBuildVerificationMode, QStringLiteral("enforce"));

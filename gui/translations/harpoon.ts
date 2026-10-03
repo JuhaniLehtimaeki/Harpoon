@@ -284,7 +284,7 @@
     </message>
     <message>
         <location filename="../qml/pages/AppPage.qml" line="140"/>
-        <location filename="../qml/pages/AppPage.qml" line="170"/>
+        <location filename="../qml/pages/AppPage.qml" line="172"/>
         <source>Version</source>
         <translation type="unfinished"></translation>
     </message>
@@ -314,72 +314,72 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="167"/>
+        <location filename="../qml/pages/AppPage.qml" line="169"/>
         <source>Installed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="172"/>
+        <location filename="../qml/pages/AppPage.qml" line="174"/>
         <source>Not installed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="176"/>
+        <location filename="../qml/pages/AppPage.qml" line="178"/>
         <source>Vendor</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="181"/>
+        <location filename="../qml/pages/AppPage.qml" line="183"/>
         <source>Installed by Harpoon</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="187"/>
+        <location filename="../qml/pages/AppPage.qml" line="189"/>
         <source>Build provenance</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="188"/>
+        <location filename="../qml/pages/AppPage.qml" line="190"/>
         <source>Signature verified</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="189"/>
+        <location filename="../qml/pages/AppPage.qml" line="191"/>
         <source>Reported by GitHub</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="190"/>
+        <location filename="../qml/pages/AppPage.qml" line="192"/>
         <source>No attestation</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="191"/>
+        <location filename="../qml/pages/AppPage.qml" line="193"/>
         <source>Could not check</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="194"/>
+        <location filename="../qml/pages/AppPage.qml" line="196"/>
         <source>Source</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="197"/>
+        <location filename="../qml/pages/AppPage.qml" line="199"/>
         <source>Type</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="201"/>
+        <location filename="../qml/pages/AppPage.qml" line="203"/>
         <source>Last check</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="202"/>
+        <location filename="../qml/pages/AppPage.qml" line="204"/>
         <source>Never</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="213"/>
+        <location filename="../qml/pages/AppPage.qml" line="215"/>
         <source>Release notes</source>
         <translation type="unfinished"></translation>
     </message>
@@ -695,7 +695,7 @@
     <message numerus="yes">
         <location filename="../qml/cover/CoverPage.qml" line="32"/>
         <source>%n app(s)</source>
-                <translation>
+        <translation>
             <numerusform>%n app</numerusform>
             <numerusform>%n apps</numerusform>
         </translation>
@@ -711,7 +711,7 @@
     <message numerus="yes">
         <location filename="../qml/cover/CoverPage.qml" line="42"/>
         <source>%n check(s) failed</source>
-                <translation>
+        <translation>
             <numerusform>%n check failed</numerusform>
             <numerusform>%n checks failed</numerusform>
         </translation>
@@ -725,48 +725,48 @@
 <context>
     <name>Harpoon::HarpoonController</name>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="196"/>
+        <location filename="../src/harpooncontroller.cpp" line="197"/>
         <source>Unknown source type: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="239"/>
+        <location filename="../src/harpooncontroller.cpp" line="240"/>
         <source>Already tracked as %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="288"/>
+        <location filename="../src/harpooncontroller.cpp" line="306"/>
         <source>Checking</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="339"/>
+        <location filename="../src/harpooncontroller.cpp" line="359"/>
         <source>Preparing</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="363"/>
-        <location filename="../src/harpooncontroller.cpp" line="366"/>
+        <location filename="../src/harpooncontroller.cpp" line="383"/>
+        <location filename="../src/harpooncontroller.cpp" line="386"/>
         <source>Installed %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="377"/>
+        <location filename="../src/harpooncontroller.cpp" line="397"/>
         <source>This package is also tracked as &quot;%1&quot;; remove one of the two.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="403"/>
+        <location filename="../src/harpooncontroller.cpp" line="423"/>
         <source>Uninstalling</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="410"/>
+        <location filename="../src/harpooncontroller.cpp" line="430"/>
         <source>Uninstalled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="543"/>
+        <location filename="../src/harpooncontroller.cpp" line="563"/>
         <source>Cannot read %1: %2</source>
         <translation type="unfinished"></translation>
     </message>

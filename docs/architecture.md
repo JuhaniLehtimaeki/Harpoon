@@ -177,7 +177,8 @@ public:
    confirmed it yet. If it fails, those two features are easy to replace.
 2. Device tests on SailfishOS 5.x (steps in `docs/device-testing.md`):
    - Does privileged `InstallFiles` respect the "untrusted software" setting?
-   - Does `devel-su -p` give the CLI the `privileged` group PackageKit expects?
+   - Does `devel-su -p` give the CLI the `privileged` group PackageKit expects? Answered on a
+     device: the user is already in the group, so `sg privileged -c 'harpoon-cli …'` is enough.
    - Does the installation handler accept calls from an unsandboxed terminal process?
    - Does the `Sandboxing=Disabled` warning prompt appear (GUI phase)?
 
@@ -453,3 +454,15 @@ An independent review found these problems; all are fixed and covered by tests.
   the zxing-cpp writer through the `harpoonqr` image provider. The link is the plain URL
   when the host identifies the source, else a `harpoon://add` link.
 - **Design review:** see `docs/design-review.md`. The launcher icon was redrawn.
+
+## Device testing (Oct 2026)
+Tested on a phone with SailfishOS 5.1 by a local agent with the SDK (rounds 1 and 2):
+- Works: silent installs from the app through PackageKit, automatic updates from the
+  background job through `invoker` (privileged group confirmed), QR scanning from the camera,
+  `harpoon://` links through D-Bus activation, the scheduler, plurals, no TLS problems despite
+  OpenSSL 3 (Harpoon) and 1.1 (Qt 5.6) in one process.
+- Fixed from the findings: umask 0000 under the app launcher, a timer that never fired (an
+  empty `OnUnitActiveSec=` in a drop-in resets every monotonic trigger), the QtMultimedia
+  import version, the background job's exit status and fallback, notifications from the
+  background job without a desktop entry, apps already installed showing as not installed,
+  stale releases after `harpoon-cli set`, and several texts and layouts.

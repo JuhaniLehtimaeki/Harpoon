@@ -160,7 +160,9 @@ Page {
                 model: details.assets || []
                 DetailItem {
                     label: index === 0 ? qsTr("Package") : ""
-                    value: modelData.name
+                    // Let long file names wrap after "-" and "." rather than
+                    // anywhere ("…aarch64.rp" / "m").
+                    value: modelData.name.replace(/([-.])/g, "$1\u200b")
                 }
             }
 

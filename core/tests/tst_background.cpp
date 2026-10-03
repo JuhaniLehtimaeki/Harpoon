@@ -247,7 +247,8 @@ private slots:
         QFile dropIn(scheduler.dropInPath());
         QVERIFY(dropIn.open(QIODevice::ReadOnly));
         const QByteArray content = dropIn.readAll();
-        QVERIFY(content.contains("OnUnitActiveSec=\nOnUnitActiveSec=12h\n"));
+        // Resetting clears all monotonic triggers, so the startup ones follow it.
+        QVERIFY(content.contains("OnUnitActiveSec=\nOnBootSec=15min\nOnActiveSec=15min\nOnUnitActiveSec=12h\n"));
         // Never world-writable, whatever the umask (systemd ignores such files).
         QVERIFY(!(dropIn.permissions() & QFileDevice::WriteOther));
         QVERIFY(!(QFileInfo(QFileInfo(scheduler.dropInPath()).absolutePath()).permissions() & QFileDevice::WriteOther));

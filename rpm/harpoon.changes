@@ -1,3 +1,12 @@
+* Sat Oct 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.1.2-1
+- Fixes from the second device test: the background check now fires on
+  its own (the drop-in no longer clears the startup triggers), the
+  background job no longer reports failure for apps whose check failed
+  nor runs the fallback check twice, its notifications show as Harpoon's,
+  apps already installed are recognised when added, harpoon-cli set
+  re-checks the app, provenance messages name the package and show
+  lists the result, and long package names wrap cleanly.
+
 * Fri Oct 02 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.1.1-1
 - Fixes from the first device test on SailfishOS 5.1: files are no longer
   created world-writable under the app launcher (umask), the background

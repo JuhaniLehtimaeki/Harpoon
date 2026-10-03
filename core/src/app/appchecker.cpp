@@ -4,6 +4,8 @@
 #include "sources/githubattestation.h"
 #include "sources/githubsource.h"
 
+#include <QRegularExpression>
+
 #include <memory>
 
 namespace Harpoon {
@@ -117,7 +119,9 @@ AppInstaller::Verifier AppChecker::verifier(const App &app) const
             return;
         }
         for (int i = 0; i < sha256s.size(); ++i) {
-            const QString name = files.value(i).section(QLatin1Char('/'), -1);
+            // Downloads are cached as "<12 hex digits>-<asset name>"; name the asset.
+            static const QRegularExpression cachePrefix(QStringLiteral("^[0-9a-f]{12}-"));
+            const QString name = files.value(i).section(QLatin1Char('/'), -1).remove(cachePrefix);
             checkGitHubAttestation(*transport, apiBase, repositoryUrl, token, sha256s.at(i),
                                    [state, name, finish](const AttestationResult &r) {
                                        if (int(r.status) > int(state->worst))

@@ -3,6 +3,7 @@
 #include "app/addlink.h"
 #include "app/appinstaller.h"
 #include "app/backup.h"
+#include "app/installedmatch.h"
 #include "net/networktransport.h"
 #include "pkg/installhandlerbackend.h"
 #include "pkg/packagekitbackend.h"
@@ -275,9 +276,26 @@ void HarpoonController::addApp(const QString &url, const QString &sourceId, cons
             emit addFinished(false, error.message);
             return;
         }
-        storeAndShow(checked);
-        emit addFinished(true, checked.id);
+        App added = checked;
+        adoptInstalled(added);
+        storeAndShow(added);
+        emit addFinished(true, added.id);
     });
+}
+
+bool HarpoonController::adoptInstalled(App &app) const
+{
+    QStringList taken;
+    for (const AppListModel::Entry &e : m_model.entries())
+        if (e.app.id != app.id)
+            taken << e.app.id;
+    return adoptInstalledPackage(
+        app,
+        [this](const QString &name) {
+            const auto installed = m_inspector->installedPackage(name);
+            return installed.ok() && !installed.value.name.isEmpty();
+        },
+        taken);
 }
 
 void HarpoonController::check(const QString &id)
@@ -306,10 +324,12 @@ void HarpoonController::check(const QString &id)
         merged.latestAssets = checked.latestAssets;
         merged.lastCheck = checked.lastCheck;
         merged.lastError = checked.lastError;
-        storeAndShow(merged);
-        m_model.setBusy(id, false);
+        // Installed some other way since it was added: follow that package.
+        adoptInstalled(merged);
+        storeAndShow(merged, id);
+        m_model.setBusy(merged.id, false);
         // No banner: the list, the app page and the cover show a failed check.
-        emit operationFinished(id, error.ok(), QString());
+        emit operationFinished(merged.id, error.ok(), QString());
     });
 }
 

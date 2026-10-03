@@ -1,7 +1,7 @@
 // harpoon-cli: command-line front end to the Harpoon core.
 //
 // Installing needs the "privileged" group on SailfishOS, e.g.:
-//   devel-su -p harpoon-cli install <app>
+//   sg privileged -c 'harpoon-cli install <app>'
 // Everything else runs as the normal user.
 
 #include "app/addlink.h"
@@ -11,6 +11,7 @@
 #include "app/autoupdate.h"
 #include "app/backgroundscheduler.h"
 #include "app/backup.h"
+#include "app/installedmatch.h"
 #include "app/harpoonsettings.h"
 #include "app/updatenotifications.h"
 #include "app/updatestatus.h"
@@ -243,6 +244,23 @@ private:
                                              : QStringLiteral("\"%1\" is ambiguous; use the id").arg(key)));
     }
 
+    // A temporary id becomes the installed package's name when the app's
+    // RPM is already on the phone (see adoptInstalledPackage).
+    bool adoptInstalled(App &app)
+    {
+        QStringList taken;
+        for (const App &other : m_store.loadAll())
+            if (other.id != app.id)
+                taken << other.id;
+        return adoptInstalledPackage(
+            app,
+            [this](const QString &name) {
+                const auto installed = m_inspector.installedPackage(name);
+                return installed.ok() && !installed.value.name.isEmpty();
+            },
+            taken);
+    }
+
     RpmInfo installedOf(const App &app)
     {
         if (app.temporaryId)
@@ -319,6 +337,7 @@ private:
         if (!checked.second.ok() && !args.has("--force"))
             return fail(checked.second.message + QStringLiteral("\n(use --force to track it anyway)"));
         app = checked.first;
+        adoptInstalled(app);
 
         const Error saved = m_store.save(app);
         if (!saved.ok())
@@ -385,6 +404,8 @@ private:
         if (a.receipt.isValid())
             out() << "\n    installed by Harpoon: " << a.receipt.evr << " from " << a.receipt.tag << " at "
                   << a.receipt.installedAt.toLocalTime().toString(Qt::ISODate);
+        if (a.receipt.isValid() && !a.receipt.verification.isEmpty())
+            out() << "\n    build provenance: " << a.receipt.verification;
         if (!a.settings.values().isEmpty()) {
             out() << "\n    settings:";
             for (auto it = a.settings.values().constBegin(); it != a.settings.values().constEnd(); ++it)
@@ -415,10 +436,13 @@ private:
         await<bool>([&](std::function<void(const bool &)> done) {
             checker().checkAll(
                 apps,
-                [&](const App &updated, const Error &e) {
+                [&](const App &result, const Error &e) {
                     if (!e.ok())
                         ++failures;
-                    const Error saved = m_store.save(updated);
+                    App updated = result;
+                    const QString oldId = updated.id;
+                    const Error saved = adoptInstalled(updated) ? m_store.replace(oldId, updated)
+                                                                : m_store.save(updated);
                     if (!saved.ok())
                         err() << "Warning: " << saved.message << "\n";
                     checked << updated;
@@ -623,7 +647,10 @@ private:
         if (!result.ok()) {
             if (error)
                 *error = result.error;
-            return fail(app.name + QStringLiteral(": ") + result.error.message);
+            QString message = app.name + QStringLiteral(": ") + result.error.message;
+            if (result.error.kind == Error::NotAuthorized && b.isSilent())
+                message += QStringLiteral("\n(PackageKit needs the privileged group: sg privileged -c 'harpoon-cli …')");
+            return fail(message);
         }
         for (const QString &w : result.value.warnings)
             err() << "Warning: " << w << "\n";
@@ -698,8 +725,17 @@ private:
         const Error bad = applySettings(app.value, args.positional.mid(1));
         if (!bad.ok())
             return fail(bad.message);
-        const Error saved = m_store.save(app.value);
-        return saved.ok() ? 0 : fail(saved.message);
+        Error saved = m_store.save(app.value);
+        if (!saved.ok())
+            return fail(saved.message);
+        // Settings decide which release and package are chosen: check again
+        // so a following install does not use the old choice.
+        const auto checked = checkOne(app.value);
+        saved = m_store.save(checked.first);
+        if (!saved.ok())
+            return fail(saved.message);
+        printStatusLine(checked.first);
+        return 0;
     }
 
     int ack(const Args &args)
@@ -775,8 +811,12 @@ int main(int argc, char **argv)
     QCoreApplication::setOrganizationName(organizationName());
     QCoreApplication::setApplicationName(applicationName());
     Cli cli;
-    return cli.run({QStringLiteral("check"), QStringLiteral("--notify"), QStringLiteral("--quiet"),
-                    QStringLiteral("--auto-update")});
+    // An app whose check or update failed is reported in the notification
+    // and the log; it is not a failure of the background job (systemd would
+    // mark every such run failed).
+    cli.run({QStringLiteral("check"), QStringLiteral("--notify"), QStringLiteral("--quiet"),
+             QStringLiteral("--auto-update")});
+    return 0;
 #else
     QCoreApplication app(argc, argv);
     // Shared with the GUI: both use the same data and cache folders.

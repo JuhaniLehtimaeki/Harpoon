@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Harpoon
+Icon=harpoon
+Exec=/usr/bin/harpoon-autoupdate
+NoDisplay=true
+# Not launchable: names Harpoon's background job, so the notifications it
+# posts are shown as coming from Harpoon.
+
+[X-Sailjail]
+Sandboxing=Disabled
+OrganizationName=io.github.juhanilehtimaeki
+ApplicationName=harpoon

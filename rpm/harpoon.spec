@@ -1,7 +1,7 @@
 Name:       harpoon
 # The version must match a git tag (see docs/packaging.md).
 Summary:    Install and update apps from GitHub, Codeberg and other forges
-Version:    0.1.1
+Version:    0.1.2
 Release:    1
 # Parts of the core are ported from ObtainX (GPL-3.0).
 # zxing-cpp (3rdparty/, Apache-2.0) is linked into the app.
@@ -88,6 +88,7 @@ desktop-file-install --delete-original \
 %{_bindir}/harpoon-autoupdate
 %{_datadir}/harpoon
 %{_datadir}/applications/harpoon.desktop
+%{_datadir}/applications/harpoon-autoupdate.desktop
 %{_datadir}/icons/hicolor/*/apps/harpoon.png
 %{_datadir}/mapplauncherd/privileges.d/harpoon
 %{_datadir}/dbus-1/services/io.github.juhanilehtimaeki.harpoon.service

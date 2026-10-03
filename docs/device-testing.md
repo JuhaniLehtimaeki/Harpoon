@@ -47,10 +47,10 @@ avoids GitHub's anonymous rate limit.
 PackageKit admits callers whose effective group is `privileged`. From a terminal:
 
 ```sh
-devel-su -p harpoon-cli install sailfishos-chum-gui --reinstall
+sg privileged -c 'harpoon-cli install <app> --reinstall'
 ```
 
-Also try it without `devel-su -p`. That should fail with a clear "not authorized" error.
+Also try it without `sg privileged`. That fails with "PackageKit error 48: Failed to obtain authentication". The user is already in the `privileged` group, so `sg` is enough; no root.
 
 **Report:**
 - Whether the privileged install succeeds, and the full output.
@@ -70,7 +70,7 @@ decline it.
 ## 5. Uninstall
 
 ```sh
-devel-su -p harpoon-cli remove <some-test-app> --uninstall
+sg privileged -c 'harpoon-cli remove <some-test-app> --uninstall'
 ```
 
 Use an app you don't need. This removes the package.
@@ -109,7 +109,7 @@ app runs without a sandbox.
 
    ```sh
    systemctl --user start harpoon-check.service
-   journalctl --user -u harpoon-check.service
+   devel-su journalctl -b _SYSTEMD_USER_UNIT=harpoon-check.service   # no per-user journal on the phone
    ```
 
    The app should be updated without a prompt, with a "… was updated" notification. If the
@@ -121,7 +121,7 @@ app runs without a sandbox.
 
 **Report:** anything that looks wrong or un-Sailfish-like, any QML errors from
 `devel-su journalctl -fa | grep -i harpoon`, and whether installing from the app works without
-`devel-su -p`. That last one tests the privileges.d entry. For QR codes, report whether the
+`sg privileged`. That last one tests the privileges.d entry. For QR codes, report whether the
 scanner found codes and whether `harpoon:` links open Harpoon.
 
 ## Where things live
