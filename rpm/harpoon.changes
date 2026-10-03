@@ -1,3 +1,13 @@
+* Sat Oct 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.3.0-1
+- A fresh look: artwork of a harpoon over the sea in the colours of your
+  ambience, a bobbing harpoon when the list is empty, an "updates ready"
+  band that installs everything with one tap, status icons on the list,
+  a hero header on each app's page with "What's new" first, and a new
+  About page.
+- Settings pages are tidied: icons on the main switches and one aligned
+  style for all explanations.
+- The QR scanner's camera preview is no longer turned sideways.
+
 * Sat Oct 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.2.0-1
 - Release notes are shown formatted, with working links; the app page
   shows the app's icon and download size; app settings show the

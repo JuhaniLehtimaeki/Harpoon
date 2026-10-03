@@ -1,7 +1,7 @@
 Name:       harpoon
 # The version must match a git tag (see docs/packaging.md).
 Summary:    Install and update apps from GitHub, Codeberg and other forges
-Version:    0.2.0
+Version:    0.3.0
 Release:    1
 # Parts of the core are ported from ObtainX (GPL-3.0).
 # zxing-cpp (3rdparty/, Apache-2.0) is linked into the app.
