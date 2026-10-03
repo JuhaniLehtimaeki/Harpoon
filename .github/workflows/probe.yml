@@ -1,0 +1,66 @@
+name: Probe
+
+# Runs Harpoon's own release check (harpoon-probe) against an app address, as
+# a phone would, and prints what the forge's API returns. For looking into
+# "cannot add this app" reports without a phone.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: App address, for example https://codeberg.org/owner/repo
+        required: true
+      source:
+        description: Source type to force (empty to detect from the address)
+        required: false
+        default: ''
+      arch:
+        description: Phone architecture
+        required: false
+        default: aarch64
+      sfos:
+        description: SailfishOS version
+        required: false
+        default: 5.1.0.11
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt 5
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qtbase5-dev cmake g++ zlib1g-dev libssl-dev jq
+      - name: Build harpoon-probe
+        run: |
+          cmake -S . -B build -DHARPOON_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j"$(nproc)" --target harpoon-probe
+      - name: Harpoon's check
+        env:
+          URL: ${{ inputs.url }}
+          SOURCE: ${{ inputs.source }}
+        run: |
+          args=(--arch "${{ inputs.arch }}" --sfos "${{ inputs.sfos }}")
+          [ -n "$SOURCE" ] && args+=(--source "$SOURCE")
+          ./build/tools/harpoon-probe/harpoon-probe "${args[@]}" "$URL" || echo "::warning::harpoon-probe failed (exit $?)"
+          echo "--- with prereleases ---"
+          ./build/tools/harpoon-probe/harpoon-probe "${args[@]}" --prereleases "$URL" || true
+      - name: What the forge's API returns
+        env:
+          URL: ${{ inputs.url }}
+        run: |
+          base=$(echo "$URL" | sed -E 's#^(https?://[^/]+)/([^/]+)/([^/?#]+).*#\1|\2|\3#')
+          host=${base%%|*}; rest=${base#*|}; owner=${rest%%|*}; repo=${rest#*|}; repo=${repo%.git}
+          for api in "$host/api/v1/repos/$owner/$repo/releases?limit=10" \
+                     "https://api.github.com/repos/$owner/$repo/releases?per_page=10"; do
+            case "$api" in https://api.github.com/*) [ "$host" = "https://github.com" ] || continue ;; esac
+            echo "=== GET $api"
+            code=$(curl -sS -L -A "Harpoon-probe" -o body.json -w '%{http_code} %{content_type}' "$api")
+            echo "HTTP $code"
+            jq '[.[] | {tag_name, name, draft, prerelease, published_at,
+                        assets: [.assets[]? | {name, size, browser_download_url}]}]' body.json 2>/dev/null \
+              || head -c 2000 body.json
+          done
+          echo "=== Tags"
+          curl -sS -L -A "Harpoon-probe" "$host/api/v1/repos/$owner/$repo/tags?limit=5" | jq '[.[]? | .name]' 2>/dev/null || true
