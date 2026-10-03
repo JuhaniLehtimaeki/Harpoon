@@ -31,7 +31,21 @@ Result<QString> Source::standardizeWithRegex(const QString &url, const QString &
     if (!match.hasMatch())
         return Result<QString>::failure(
             Error::make(Error::InvalidUrl, QStringLiteral("Not a valid %1 URL: %2").arg(displayName(), url)));
-    return Result<QString>::success(match.captured(0));
+    // One spelling per repository: later comparisons (feed ids, asset URLs,
+    // credential origins) are with the URLs the server issues.
+    const QString matched = match.captured(0);
+    const int schemeEnd = matched.indexOf(QLatin1String("://"));
+    const int hostEnd = matched.indexOf(QLatin1Char('/'), schemeEnd + 3);
+    QString scheme = matched.left(schemeEnd).toLower();
+    QString host = matched.mid(schemeEnd + 3, (hostEnd < 0 ? matched.size() : hostEnd) - schemeEnd - 3).toLower();
+    const QString rest = hostEnd < 0 ? QString() : matched.mid(hostEnd);
+    if (m_customHost.isEmpty()) {
+        // Public forges are https-only; a self-hosted server keeps its scheme.
+        scheme = QStringLiteral("https");
+        if (host.startsWith(QLatin1String("www.")) && hosts().contains(host.mid(4)))
+            host = host.mid(4);
+    }
+    return Result<QString>::success(scheme + QStringLiteral("://") + host + rest);
 }
 
 void Source::prepareDownload(const Asset &, const AppSettings &, const QString &, DownloadRequest &) const {}

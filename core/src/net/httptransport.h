@@ -14,6 +14,11 @@ struct HttpRequest
 {
     QString url;
     QList<QPair<QByteArray, QByteArray>> headers;
+    // Larger bodies fail the request: API responses and pages are small, and
+    // the phone has little memory.
+    qint64 maxBodyBytes = 32 * 1024 * 1024;
+    // Stop once the headers have arrived (for ETag probes); body stays empty.
+    bool headersOnly = false;
 
     void setHeader(const QByteArray &name, const QByteArray &value) { headers.append(qMakePair(name, value)); }
     QByteArray header(const QByteArray &name) const

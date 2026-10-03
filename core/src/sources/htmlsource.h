@@ -88,6 +88,11 @@ protected:
 private:
     void followHops(const QVariantList &hops, int index, const QString &url, const AppSettings &settings,
                     HttpTransport &transport, Callback done);
+    // The request for a page or file: the user's request headers (often
+    // cookies) go only to the tracked page's own origin.
+    HttpRequest pageRequest(const QString &url, const AppSettings &settings) const;
+
+    QString m_origin; // the tracked page (a source object serves one check)
 };
 
 } // namespace Harpoon

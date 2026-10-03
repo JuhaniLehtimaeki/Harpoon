@@ -1,6 +1,7 @@
 #include "sourcetesthelpers.h"
 #include "sources/rpmmdreposource.h"
 
+#include <QCryptographicHash>
 #include <QtTest>
 
 using namespace Harpoon;
@@ -196,6 +197,34 @@ private slots:
         const FetchResult r = fetchFrom(repo, inflated, kBase, tracking("harbour-foo"));
         QVERIFY2(r.error.ok(), qPrintable(r.error.message));
         QCOMPARE(r.releases.size(), 3);
+    }
+
+    void otherChecksumAlgorithms()
+    {
+        // A repository that publishes only sha512 (or sha1) is still verified.
+        const QByteArray primary = readFixture("rpmmd/primary.xml");
+        const QByteArray good = QCryptographicHash::hash(primary, QCryptographicHash::Sha512).toHex();
+        auto repomd = [](const QByteArray &type, const QByteArray &sum) {
+            return "<repomd xmlns=\"http://linux.duke.edu/metadata/repo\"><data type=\"primary\">"
+                   "<checksum type=\"" + type + "\">" + sum + "</checksum>"
+                   "<location href=\"repodata/primary.xml\"/></data></repomd>";
+        };
+        RpmMdRepoSource repo;
+        FakeTransport ok;
+        ok.respondJson(kBase + "/repodata/repomd.xml", repomd("sha512", good));
+        ok.respondJson(kBase + "/repodata/primary.xml", primary);
+        QVERIFY(fetchFrom(repo, ok, kBase, tracking("harbour-foo")).error.ok());
+
+        FakeTransport bad;
+        bad.respondJson(kBase + "/repodata/repomd.xml", repomd("sha512", QByteArray(128, '0')));
+        bad.respondJson(kBase + "/repodata/primary.xml", primary);
+        QCOMPARE(int(fetchFrom(repo, bad, kBase, tracking("harbour-foo")).error.kind), int(Error::Checksum));
+
+        FakeTransport sha1;
+        sha1.respondJson(kBase + "/repodata/repomd.xml",
+                         repomd("sha", QCryptographicHash::hash(primary, QCryptographicHash::Sha1).toHex()));
+        sha1.respondJson(kBase + "/repodata/primary.xml", primary);
+        QVERIFY(fetchFrom(repo, sha1, kBase, tracking("harbour-foo")).error.ok());
     }
 
     void errors()

@@ -14,6 +14,13 @@ private slots:
         r.status = 404;
         r.body = "{\"message\":\"Not Found\"}";
         QVERIFY(rateLimitError(r, 0).ok());
+        // A plain 403 is a permission problem (token without access, SSO),
+        // even though GitHub sends its rate-limit headers on every response.
+        r.status = 403;
+        r.body = "{\"message\":\"Resource not accessible by personal access token\"}";
+        r.headers.insert("x-ratelimit-remaining", "4999");
+        r.headers.insert("x-ratelimit-reset", "1000");
+        QVERIFY(rateLimitError(r, 0).ok());
     }
 
     void resetHeader()

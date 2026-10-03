@@ -11,8 +11,11 @@ Error rateLimitError(const HttpResponse &response, qint64 nowMsecs)
     const auto mentions = [&](const QString &text) {
         return text.contains(QLatin1String("rate limit")) || text.contains(QLatin1String("too many requests"));
     };
+    // A 403 alone is not a rate limit: GitHub also answers 403 for tokens
+    // without access, SSO enforcement and blocked repositories.
     const bool isRateLimit = response.header("x-ratelimit-remaining") == "0" || response.status == 429
-                             || response.status == 403 || mentions(reason) || mentions(body);
+                             || (response.status == 403 && !response.header("retry-after").isEmpty())
+                             || mentions(reason) || mentions(body);
     if (!isRateLimit)
         return Error();
 

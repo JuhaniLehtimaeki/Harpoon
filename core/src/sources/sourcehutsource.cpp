@@ -75,10 +75,11 @@ void SourceHutSource::fetchRefPages(std::shared_ptr<QList<Release>> releases, in
     HttpRequest request;
     request.url = releases->at(index).pageUrl;
     transport.get(request, [this, releases, index, standardUrl, &transport, done](const HttpResponse &response) {
-        // A missing ref page just has no assets, as upstream. A network or
-        // server error fails the check instead, so the selector does not fall
-        // back to an older ref only because the newest page did not load.
-        if (response.isNetworkError() || response.status >= 500) {
+        // A missing ref page just has no assets, as upstream. Anything else
+        // that is not a page (network, rate limit, server error) fails the
+        // check, so the selector does not fall back to an older ref only
+        // because the newest page did not load.
+        if (response.status != 200 && response.status != 404 && response.status != 410) {
             FetchResult result;
             result.error = httpErrorFor(response, displayName(), QString());
             done(result);

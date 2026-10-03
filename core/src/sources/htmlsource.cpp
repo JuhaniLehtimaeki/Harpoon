@@ -90,15 +90,16 @@ QVariantList intermediateHops(const AppSettings &settings)
     return hops.mid(0, kMaxIntermediateLinks);
 }
 
-HttpRequest pageRequest(const QString &url, const AppSettings &settings)
+} // namespace
+
+HttpRequest HtmlSource::pageRequest(const QString &url, const AppSettings &settings) const
 {
     HttpRequest request;
     request.url = url;
-    request.headers = parseRequestHeaders(settings.values().value(QString::fromLatin1(Keys::requestHeader)));
+    if (m_origin.isEmpty() || isOwnOrigin(url, m_origin))
+        request.headers = parseRequestHeaders(settings.values().value(QString::fromLatin1(Keys::requestHeader)));
     return request;
 }
-
-} // namespace
 
 QList<QPair<QByteArray, QByteArray>> parseRequestHeaders(const QVariant &value)
 {
@@ -214,6 +215,7 @@ Result<QString> HtmlSource::standardizeUrl(const QString &input) const
 void HtmlSource::fetchReleases(const QString &standardUrl, const AppSettings &settings, HttpTransport &transport,
                                Callback done)
 {
+    m_origin = standardUrl;
     followHops(intermediateHops(settings), 0, standardUrl, settings, transport, done);
 }
 
@@ -356,7 +358,8 @@ void HtmlSource::finish(const QString &pageUrl, const QString &pageBody, const Q
         return;
     }
     HttpRequest probe = pageRequest(selected.url, settings);
-    probe.setHeader("Range", "bytes=0-0"); // only the headers are needed
+    probe.setHeader("Range", "bytes=0-0"); // only the headers are needed...
+    probe.headersOnly = true;              // ...even when the server ignores Range
     transport.get(probe, [this, release, selected, done](const HttpResponse &response) {
         FetchResult result;
         if (response.status < 200 || response.status >= 300) {

@@ -175,8 +175,9 @@ void GitHubSource::getJson(const QString &url, HttpTransport &transport, bool wi
             done(Result<QByteArray>::success(response.body));
             return;
         }
-        // An expired or wrong token should not block public repositories.
-        if (response.status == 401 && sendToken) {
+        // An expired, wrong or under-privileged token should not block
+        // public repositories.
+        if ((response.status == 401 || (response.status == 403 && rateLimitError(response, 0).ok())) && sendToken) {
             getJson(url, transport, false, done);
             return;
         }

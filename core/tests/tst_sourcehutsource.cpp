@@ -129,6 +129,9 @@ private slots:
         serveRepo(t);
         t.respondJson(kRepo + "/refs/v1.2.0", "oops", 502);
         QCOMPARE(int(fetchFrom(sh, t, kRepo).error.kind), int(Error::Http));
+        // Rate limited (sr.ht does that) is not "this ref has no packages".
+        t.respondJson(kRepo + "/refs/v1.2.0", "slow down", 429);
+        QCOMPARE(int(fetchFrom(sh, t, kRepo).error.kind), int(Error::RateLimited));
     }
 };
 

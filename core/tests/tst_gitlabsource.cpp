@@ -28,7 +28,7 @@ private slots:
         QTest::newRow("project") << "https://gitlab.com/owner/app" << "https://gitlab.com/owner/app";
         QTest::newRow("subgroups and sub-page") << "https://gitlab.com/grp/sub/deeper/app/-/releases/v1.0"
                                                 << "https://gitlab.com/grp/sub/deeper/app";
-        QTest::newRow("no scheme, www, .git") << "www.gitlab.com/owner/app.git" << "https://www.gitlab.com/owner/app";
+        QTest::newRow("no scheme, www, .git") << "www.gitlab.com/owner/app.git" << "https://gitlab.com/owner/app";
         QTest::newRow("query dropped") << "https://gitlab.com/owner/app?tab=readme" << "https://gitlab.com/owner/app";
         QTest::newRow("tree page") << "https://gitlab.com/owner/app/-/tree/main" << "https://gitlab.com/owner/app";
     }

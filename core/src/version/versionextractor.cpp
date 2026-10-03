@@ -4,6 +4,15 @@
 
 namespace Harpoon {
 
+namespace {
+// Error messages are stored and shown: never a whole web page.
+QString elided(const QString &text)
+{
+    const QString oneLine = text.simplified();
+    return oneLine.size() > 120 ? oneLine.left(117) + QStringLiteral("...") : oneLine;
+}
+} // namespace
+
 Result<QString> extractVersion(const QString &regex, const QString &matchGroup, const QString &input)
 {
     if (regex.isEmpty())
@@ -20,7 +29,7 @@ Result<QString> extractVersion(const QString &regex, const QString &matchGroup, 
         last = it.next();
     if (!last.hasMatch())
         return Result<QString>::failure(Error::make(
-            Error::NoVersion, QStringLiteral("Version extraction regex did not match \"%1\"").arg(input)));
+            Error::NoVersion, QStringLiteral("Version extraction regex did not match \"%1\"").arg(elided(input))));
 
     QString tmpl = matchGroup.trimmed();
     if (tmpl.isEmpty())
@@ -52,7 +61,7 @@ Result<QString> extractVersion(const QString &regex, const QString &matchGroup, 
 
     if (!anyGroup || output.trimmed().isEmpty())
         return Result<QString>::failure(Error::make(
-            Error::NoVersion, QStringLiteral("Version extraction produced an empty version from \"%1\"").arg(input)));
+            Error::NoVersion, QStringLiteral("Version extraction produced an empty version from \"%1\"").arg(elided(input))));
     return Result<QString>::success(output);
 }
 

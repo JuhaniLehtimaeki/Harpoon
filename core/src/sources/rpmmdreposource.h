@@ -54,6 +54,11 @@ struct RepoMdData
     QString href;   // location href, relative to the repository base
     QString sha256;     // checksum of the file as stored (compressed), if given
     QString openSha256; // checksum of the uncompressed XML, if given
+    // Repositories that publish another algorithm (sha512, sha1): the
+    // strongest one given, used when there is no sha256.
+    QString otherAlgorithm; // "sha512", "sha384", "sha1" ("sha" means sha1)
+    QString otherChecksum;
+    QString otherOpenChecksum;
 };
 
 // The <data type="primary"> entry of repomd.xml.

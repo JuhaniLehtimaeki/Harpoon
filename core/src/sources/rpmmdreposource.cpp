@@ -16,7 +16,29 @@ namespace Harpoon {
 
 namespace {
 
-const qint64 kMaxMetadataSize = 512LL * 1024 * 1024; // inflated primary.xml
+// Inflated primary.xml. Large distribution repositories exceed this; the
+// repositories apps publish are a few MB, and the phone has little memory.
+const qint64 kMaxMetadataSize = 96LL * 1024 * 1024;
+
+int algorithmRank(const QString &type)
+{
+    if (type == QLatin1String("sha512"))
+        return 3;
+    if (type == QLatin1String("sha384"))
+        return 2;
+    if (type == QLatin1String("sha1") || type == QLatin1String("sha"))
+        return 1;
+    return 0;
+}
+
+QCryptographicHash::Algorithm hashFor(const QString &type)
+{
+    if (type == QLatin1String("sha512"))
+        return QCryptographicHash::Sha512;
+    if (type == QLatin1String("sha384"))
+        return QCryptographicHash::Sha384;
+    return QCryptographicHash::Sha1;
+}
 
 const char *kRepoNs = "http://linux.duke.edu/metadata/repo";
 const char *kCommonNs = "http://linux.duke.edu/metadata/common";
@@ -162,9 +184,19 @@ void RpmMdRepoSource::fetchReleases(const QString &standardUrl, const AppSetting
                 done(out);
                 return;
             }
-            const QString actual =
-                QString::fromLatin1(QCryptographicHash::hash(primary.body, QCryptographicHash::Sha256).toHex());
-            if (!expected.sha256.isEmpty() && actual != expected.sha256 && actual != expected.openSha256) {
+            // repomd.xml's checksum binds the metadata to the repository; the
+            // file itself may be the stored (compressed) or the open one.
+            bool matches = true;
+            if (!expected.sha256.isEmpty()) {
+                const QString actual =
+                    QString::fromLatin1(QCryptographicHash::hash(primary.body, QCryptographicHash::Sha256).toHex());
+                matches = actual == expected.sha256 || actual == expected.openSha256;
+            } else if (!expected.otherChecksum.isEmpty()) {
+                const QString actual = QString::fromLatin1(
+                    QCryptographicHash::hash(primary.body, hashFor(expected.otherAlgorithm)).toHex());
+                matches = actual == expected.otherChecksum || actual == expected.otherOpenChecksum;
+            }
+            if (!matches) {
                 out.error = Error::make(Error::Checksum,
                                         QStringLiteral("Repository metadata does not match its checksum in repomd.xml"));
                 done(out);
@@ -209,10 +241,20 @@ Result<RepoMdData> parseRepoMd(const QByteArray &xml)
         } else if (inPrimary && (reader.name() == QLatin1String("checksum")
                                  || reader.name() == QLatin1String("open-checksum"))) {
             const bool uncompressed = reader.name() == QLatin1String("open-checksum");
-            const bool sha256 = reader.attributes().value(QLatin1String("type")) == QLatin1String("sha256");
+            const QString type = reader.attributes().value(QLatin1String("type")).toString().toLower();
             const QString text = reader.readElementText().trimmed().toLower();
-            if (sha256)
+            if (type == QLatin1String("sha256")) {
                 (uncompressed ? data.openSha256 : data.sha256) = text;
+            } else if (algorithmRank(type) > 0
+                       && (data.otherAlgorithm.isEmpty() || data.otherAlgorithm == type
+                           || algorithmRank(type) > algorithmRank(data.otherAlgorithm))) {
+                if (data.otherAlgorithm != type) {
+                    data.otherChecksum.clear();
+                    data.otherOpenChecksum.clear();
+                }
+                data.otherAlgorithm = type;
+                (uncompressed ? data.otherOpenChecksum : data.otherChecksum) = text;
+            }
         }
     }
     if (reader.hasError())

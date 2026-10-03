@@ -46,8 +46,10 @@ private slots:
 
         QTest::newRow("github") << "https://github.com/sailfishos-chum/sailfishos-chum-gui/releases/tag/0.6.12-1"
                                 << "" << "GitHub" << "https://github.com/sailfishos-chum/sailfishos-chum-gui";
+        QTest::newRow("github http upper case") << "HTTP://GitHub.com/Owner/Repo" << ""
+                                                << "GitHub" << "https://github.com/Owner/Repo";
         QTest::newRow("github www no scheme .git") << "www.github.com/Owner/Repo.git" << ""
-                                                   << "GitHub" << "https://www.github.com/Owner/Repo";
+                                                   << "GitHub" << "https://github.com/Owner/Repo";
         QTest::newRow("codeberg") << "https://codeberg.org/fishdev/harbour-tides/releases" << ""
                                   << "Forgejo" << "https://codeberg.org/fishdev/harbour-tides";
         QTest::newRow("self-hosted forgejo") << "https://git.example.net/me/app/src/branch/main" << "Forgejo"

@@ -45,6 +45,9 @@ private slots:
         QCOMPARE(int(extractVersion("(", QString(), "x").error.kind), int(Error::InvalidSetting));
         QCOMPARE(int(extractVersion("\\d+", QString(), "none").error.kind), int(Error::NoVersion));
         QCOMPARE(int(extractVersion("(a)?b", "$1", "b").error.kind), int(Error::NoVersion));
+        // The input (maybe a whole web page) is not copied into the message.
+        const QString page = QString(100000, QLatin1Char('x'));
+        QVERIFY(extractVersion("\\d+", QString(), page).error.message.size() < 300);
     }
 };
 
