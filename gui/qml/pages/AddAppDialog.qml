@@ -9,6 +9,11 @@ Dialog {
     property string initialUrl
     property string initialSourceId
     property string initialPackage
+    // After a failed add: what went wrong, and the options chosen then
+    // ({includePrereleases, trackOnly, assetFilterRegEx}), so only the
+    // mistake needs fixing.
+    property string errorText
+    property var initialSettings: ({})
 
     // Source forced for self-hosted forges; empty means "by host".
     readonly property string _sourceId: sourceBox.currentIndex > 0
@@ -47,6 +52,12 @@ Dialog {
         if (initialUrl.length > 0) {
             applyLink({ url: initialUrl, sourceId: initialSourceId, packageName: initialPackage })
         }
+        prereleaseSwitch.checked = initialSettings.includePrereleases === true
+        trackOnlySwitch.checked = initialSettings.trackOnly === true
+        filterField.text = initialSettings.assetFilterRegEx || ""
+        if (errorText.length > 0) {
+            urlField.cursorPosition = urlField.text.length
+        }
     }
 
     allowedOrientations: Orientation.All
@@ -66,7 +77,18 @@ Dialog {
         if (_needsPackageName) {
             settings.packageName = packageField.text.trim()
         }
-        harpoon.addApp(urlField.text.trim(), _sourceId, settings)
+        // Kept by the list, which brings this dialog back filled in if the
+        // first check fails.
+        var list = pageStack.find(function(p) { return p.objectName === "appListPage" })
+        if (list) {
+            list.pendingAdd = {
+                url: urlField.text.trim(),
+                sourceId: _sourceId,
+                packageName: packageField.text.trim(),
+                settings: settings
+            }
+        }
+        harpoon.addApp(urlField.text.trim(), _sourceId, settings, forceSwitch.visible && forceSwitch.checked)
     }
 
     SilicaFlickable {
@@ -84,12 +106,42 @@ Dialog {
                 title: qsTr("Add app")
             }
 
+            // Why the last try failed; the form below is as it was.
+            Item {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                height: errorLabel.height + Theme.paddingLarge
+                visible: dialog.errorText.length > 0
+
+                Icon {
+                    id: errorIcon
+
+                    source: "image://theme/icon-s-filled-warning"
+                    color: Theme.errorColor
+                }
+
+                Label {
+                    id: errorLabel
+
+                    anchors {
+                        left: errorIcon.right
+                        leftMargin: Theme.paddingSmall
+                        right: parent.right
+                    }
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.errorColor
+                    text: qsTr("Could not add the app: %1").arg(dialog.errorText)
+                }
+            }
+
             TextField {
                 id: urlField
 
                 width: parent.width
-                // No keyboard over a form already filled from a QR code or link.
-                focus: dialog.initialUrl.length === 0
+                // No keyboard over a form already filled from a QR code or
+                // link, but straight back to typing after a failed add.
+                focus: dialog.initialUrl.length === 0 || dialog.errorText.length > 0
                 label: qsTr("Repository URL")
                 placeholderText: qsTr("Repository URL")
                 inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
@@ -128,6 +180,15 @@ Dialog {
                           : _inspected.ok ? qsTr("%1: %2").arg(_inspected.sourceName).arg(_inspected.standardUrl)
                                           : _inspected.error
                 }
+            }
+
+            Item {
+                width: 1
+                height: Theme.paddingLarge
+            }
+
+            HostShortcuts {
+                field: urlField
             }
 
             Item {
@@ -184,6 +245,14 @@ Dialog {
 
                 text: qsTr("Track only")
                 description: qsTr("Only notify about new releases; nothing is installed")
+            }
+
+            TextSwitch {
+                id: forceSwitch
+
+                visible: dialog.errorText.length > 0
+                text: qsTr("Add it anyway")
+                description: qsTr("Track the app even though the check failed, for example when it has no release yet")
             }
 
             TextField {

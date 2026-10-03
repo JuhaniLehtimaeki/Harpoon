@@ -15,6 +15,10 @@ class AppListModel : public QAbstractListModel
     Q_PROPERTY(int updatesCount READ updatesCount NOTIFY updatesCountChanged)
     // Apps whose last check failed. Shares updatesCount's change signal.
     Q_PROPERTY(int failedCount READ failedCount NOTIFY updatesCountChanged)
+    // For the list's summary: apps that are installed, and the most recent
+    // check of any app (invalid: never checked).
+    Q_PROPERTY(int installedCount READ installedCount NOTIFY summaryChanged)
+    Q_PROPERTY(QDateTime lastChecked READ lastChecked NOTIFY summaryChanged)
 
 public:
     // Mirrors Harpoon::UpdateState for QML.
@@ -62,6 +66,8 @@ public:
     int count() const { return m_entries.size(); }
     int updatesCount() const;
     int failedCount() const;
+    int installedCount() const;
+    QDateTime lastChecked() const;
 
     void setEntries(QList<Entry> entries);
     // Inserts or replaces by id. oldId: the previous id when it changed.
@@ -76,6 +82,8 @@ public:
     static State toState(UpdateState state);
 
 signals:
+    // installedCount or lastChecked may have changed.
+    void summaryChanged();
     void countChanged();
     void updatesCountChanged();
     // One app's record or busy state changed (pages showing one app listen

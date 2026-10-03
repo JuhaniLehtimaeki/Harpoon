@@ -620,6 +620,34 @@ private slots:
         QVERIFY(m_controller->loaded());
     }
 
+    void listSummary()
+    {
+        AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
+        const QDateTime older = QDateTime::currentDateTimeUtc().addSecs(-3600);
+        const QDateTime newer = QDateTime::currentDateTimeUtc().addSecs(-60);
+        for (int i = 0; i < 3; ++i) {
+            App app = App::fromUrl(QStringLiteral("https://github.com/me/app%1").arg(i));
+            app.id = QStringLiteral("harbour-app%1").arg(i);
+            app.temporaryId = false;
+            if (i == 1)
+                app.lastCheck = older;
+            if (i == 2)
+                app.lastCheck = newer;
+            QVERIFY(store.save(app).ok());
+        }
+        RpmInfo installed;
+        installed.name = QStringLiteral("harbour-app0");
+        installed.evr = parseEvr(QStringLiteral("1.0-1"));
+        installed.arch = QStringLiteral("noarch");
+        m_db->installed.insert(installed.name, installed);
+        AppListModel *model = m_controller->apps();
+        QSignalSpy summary(model, &AppListModel::summaryChanged);
+        m_controller->reload();
+        QVERIFY(summary.count() >= 1);
+        QCOMPARE(model->property("installedCount").toInt(), 1);
+        QCOMPARE(model->property("lastChecked").toDateTime().toSecsSinceEpoch(), newer.toSecsSinceEpoch());
+    }
+
     void installedStateIsAskedWithoutBlocking()
     {
         AppStore store(m_dir->filePath(QStringLiteral("data/apps")));

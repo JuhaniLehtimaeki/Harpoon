@@ -6,6 +6,9 @@ import "../components"
 Page {
     id: page
 
+    // The add dialog's last request, until harpoon reports how it went.
+    property var pendingAdd: null
+
     objectName: "appListPage"
     allowedOrientations: Orientation.All
 
@@ -19,9 +22,23 @@ Page {
             }
         }
         onAddFinished: {
-            if (!ok) {
-                banner.show(qsTr("Could not add app: %1").arg(idOrError))
+            var request = page.pendingAdd
+            page.pendingAdd = null
+            if (ok) {
+                return
             }
+            if (!request) {
+                banner.show(qsTr("Could not add app: %1").arg(idOrError))
+                return
+            }
+            // Back to the form as it was, to fix the address or options.
+            pageStack.push(Qt.resolvedUrl("AddAppDialog.qml"), {
+                               initialUrl: request.url,
+                               initialSourceId: request.sourceId,
+                               initialPackage: request.packageName,
+                               initialSettings: request.settings,
+                               errorText: idOrError
+                           })
         }
         onBackgroundError: banner.show(qsTr("Background checks: %1").arg(message))
     }
@@ -37,38 +54,75 @@ Page {
 
             PageHeader {
                 title: qsTr("Harpoon")
-                description: harpoon.checking ? qsTr("Checking for updates…") : ""
             }
 
-            // Updates waiting: one tap installs them all.
+            StatusHero {
+                width: parent.width
+                visible: harpoon.apps.count > 0
+                active: page.status === PageStatus.Active
+            }
+        }
+
+        // Under a short list: a way to add more, a tip, and the sea filling
+        // the rest of the screen.
+        footer: Item {
+            width: listView.width
+            visible: listView.count > 0
+            height: visible ? Math.max(footerColumn.height + Theme.itemSizeLarge,
+                                       listView.height - (y - listView.originY))
+                            : 0
+
+            Waves {
+                anchors.bottom: parent.bottom
+                width: parent.width
+                height: Theme.itemSizeMedium
+                color: Theme.highlightBackgroundColor
+                opacity: Theme.opacityLow
+                animated: page.status === PageStatus.Active
+            }
+
+        Column {
+            id: footerColumn
+
+            width: parent.width
+
+            Item {
+                width: 1
+                height: Theme.paddingLarge
+            }
+
             BackgroundItem {
-                id: updatesCard
+                id: addItem
 
                 width: parent.width
-                height: Theme.itemSizeLarge
-                visible: harpoon.apps.updatesCount > 0 && !harpoon.checking
-                onClicked: harpoon.updateAll()
+                height: Theme.itemSizeMedium
+                onClicked: pageStack.push(Qt.resolvedUrl("AddAppDialog.qml"))
 
                 Rectangle {
-                    anchors.fill: parent
-                    color: Theme.rgba(Theme.highlightBackgroundColor, Theme.opacityFaint)
-                }
-
-                Icon {
-                    id: updatesIcon
+                    id: addCircle
 
                     anchors {
                         left: parent.left
                         leftMargin: Theme.horizontalPageMargin
                         verticalCenter: parent.verticalCenter
                     }
-                    source: "image://theme/icon-m-device-download"
-                    color: Theme.highlightColor
+                    width: Theme.iconSizeMedium
+                    height: width
+                    radius: width / 2
+                    color: "transparent"
+                    border.width: Math.max(1, Math.round(Theme.paddingSmall / 3))
+                    border.color: addItem.highlighted ? Theme.highlightColor : Theme.secondaryHighlightColor
+
+                    Icon {
+                        anchors.centerIn: parent
+                        source: "image://theme/icon-m-add"
+                        color: addItem.highlighted ? Theme.highlightColor : Theme.primaryColor
+                    }
                 }
 
                 Column {
                     anchors {
-                        left: updatesIcon.right
+                        left: addCircle.right
                         leftMargin: Theme.paddingLarge
                         right: parent.right
                         rightMargin: Theme.horizontalPageMargin
@@ -78,18 +132,23 @@ Page {
                     Label {
                         width: parent.width
                         truncationMode: TruncationMode.Fade
-                        color: Theme.highlightColor
-                        text: qsTr("%n update(s) ready", "", harpoon.apps.updatesCount)
+                        color: addItem.highlighted ? Theme.highlightColor : Theme.primaryColor
+                        text: qsTr("Add another app")
                     }
                     Label {
                         width: parent.width
                         truncationMode: TruncationMode.Fade
                         font.pixelSize: Theme.fontSizeExtraSmall
-                        color: Theme.secondaryHighlightColor
-                        text: qsTr("Tap to install them all")
+                        color: addItem.highlighted ? Theme.secondaryHighlightColor : Theme.secondaryColor
+                        text: qsTr("From a link or a QR code")
                     }
                 }
             }
+
+            TipCard {
+                width: parent.width
+            }
+        }
         }
 
         PullDownMenu {

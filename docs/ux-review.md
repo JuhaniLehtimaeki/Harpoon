@@ -73,3 +73,25 @@ monochrome PNG (`gui/art/*.svg` rendered to `gui/qml/images/`) drawn with
 Only platform icons that exist in SailfishOS 5.1 are used (checked against the SDK's
 icon theme). `HARPOON_SCREENSHOTS=<dir>` makes the QML smoke test save rough layout
 screenshots for checking alignment.
+
+## A list that looks finished with a few apps
+
+Most people track two or three apps, so the list must not look empty then.
+
+- **Status hero** (`components/StatusHero.qml`): the harpoon over the sea and one line on
+  where things stand: "All caught up", "2 updates ready" (tap installs them),
+  "1 check needs attention" or "Checking for updates…", during which the harpoon bobs.
+  Under it: how many apps, how many installed, and when they were last checked.
+- **Footer**: an "Add another app" row, a tip card (tap for the next tip; tips depend on
+  the settings, and one suggests tracking Harpoon itself until it is), and the sea filling
+  the rest of the screen.
+
+## Adding apps
+
+- **Shortcuts** under the address field (`components/HostShortcuts.qml`): github.com,
+  codeberg.org and codefloe.com fill in `https://<host>/` with one tap, keeping an
+  `owner/repo` already typed, or the path after another host. "Paste link" appears when
+  the clipboard holds a link.
+- **A failed add keeps the form.** If the first check fails (a typo, no release yet), the
+  dialog comes back with the address and options as they were, the error on top, the
+  keyboard open, and "Add it anyway" for apps that have no release yet.

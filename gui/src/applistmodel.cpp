@@ -82,6 +82,24 @@ int AppListModel::failedCount() const
     return n;
 }
 
+int AppListModel::installedCount() const
+{
+    int n = 0;
+    for (const Entry &e : m_entries)
+        if (!e.installed.name.isEmpty())
+            ++n;
+    return n;
+}
+
+QDateTime AppListModel::lastChecked() const
+{
+    QDateTime newest;
+    for (const Entry &e : m_entries)
+        if (e.app.lastCheck.isValid() && (!newest.isValid() || e.app.lastCheck > newest))
+            newest = e.app.lastCheck;
+    return newest;
+}
+
 int AppListModel::updatesCount() const
 {
     int n = 0;
@@ -111,6 +129,7 @@ void AppListModel::setEntries(QList<Entry> entries)
     endResetModel();
     emit countChanged();
     emit updatesCountChanged();
+    emit summaryChanged();
 }
 
 int AppListModel::indexOf(const QString &id) const
@@ -178,6 +197,7 @@ void AppListModel::upsert(const Entry &entry, const QString &oldId)
     }
     if (updatesCount() != previousUpdates || failedCount() != previousFailed)
         emit updatesCountChanged();
+    emit summaryChanged();
 }
 
 void AppListModel::remove(const QString &id)
@@ -193,6 +213,7 @@ void AppListModel::remove(const QString &id)
     emit countChanged();
     if (updatesCount() != previousUpdates || failedCount() != previousFailed)
         emit updatesCountChanged();
+    emit summaryChanged();
 }
 
 void AppListModel::setBusy(const QString &id, bool busy, const QString &stage, qreal progress)

@@ -435,6 +435,53 @@ private slots:
         popToList();
     }
 
+    void hostShortcutsFillTheAddress()
+    {
+        QObject *dialog = push(QStringLiteral("AddAppDialog.qml"));
+        QObject *field = findByProperty(dialog, "label", QStringLiteral("Repository URL"));
+        QObject *shortcuts = nullptr;
+        for (QObject *o : dialog->findChildren<QObject *>())
+            if (o->property("hosts").isValid())
+                shortcuts = o;
+        QVERIFY(field && shortcuts);
+        auto use = [&](const char *host) {
+            QVERIFY(QMetaObject::invokeMethod(shortcuts, "useHost", Q_ARG(QVariant, QString::fromLatin1(host))));
+        };
+        use("github.com");
+        QCOMPARE(field->property("text").toString(), QStringLiteral("https://github.com/"));
+        // A typed owner/repo is kept, and so is the path after another host.
+        field->setProperty("text", QStringLiteral("someone/thing"));
+        use("codeberg.org");
+        QCOMPARE(field->property("text").toString(), QStringLiteral("https://codeberg.org/someone/thing"));
+        use("codefloe.com");
+        QCOMPARE(field->property("text").toString(), QStringLiteral("https://codefloe.com/someone/thing"));
+        expectClean("using the shortcuts");
+        QVERIFY(dialog->property("canAccept").toBool());
+        popToList();
+    }
+
+    void failedAddKeepsTheForm()
+    {
+        QObject *dialog = push(QStringLiteral("AddAppDialog.qml"));
+        QObject *field = findByProperty(dialog, "label", QStringLiteral("Repository URL"));
+        QVERIFY(field);
+        // A typo: no such repository (the fake server answers 404).
+        field->setProperty("text", QStringLiteral("https://github.com/someone/harbour-typo"));
+        findByProperty(dialog, "text", QStringLiteral("Track only"))->setProperty("checked", true);
+        expectClean("filling in the form");
+        QVERIFY(QMetaObject::invokeMethod(dialog, "accept"));
+        QTRY_VERIFY(currentPage() != dialog && currentPage()->property("errorText").toString().length() > 0);
+        expectClean("the add failed");
+        shot(QStringLiteral("add-failed"));
+        QObject *again = currentPage();
+        QObject *againField = findByProperty(again, "label", QStringLiteral("Repository URL"));
+        QCOMPARE(againField->property("text").toString(), QStringLiteral("https://github.com/someone/harbour-typo"));
+        QVERIFY(findByProperty(again, "text", QStringLiteral("Track only"))->property("checked").toBool());
+        QVERIFY(findByProperty(again, "text", QStringLiteral("Add it anyway"))->property("visible").toBool());
+        popToList();
+        expectClean("leaving the form");
+    }
+
     QObject *findByProperty(QObject *root, const char *name, const QString &value)
     {
         for (QObject *o : root->findChildren<QObject *>())
@@ -683,6 +730,11 @@ private slots:
         QStringList ids;
         for (const AppListModel::Entry &e : m_controller->apps()->entries())
             ids << e.app.id;
+        // A typical phone tracks only a few apps.
+        while (ids.size() > 2)
+            m_controller->removeApp(ids.takeFirst());
+        expectClean("a short list");
+        shot(QStringLiteral("list-few"));
         for (const QString &id : ids)
             m_controller->removeApp(id);
         expectClean("removing every app");
