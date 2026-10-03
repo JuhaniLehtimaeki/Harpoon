@@ -27,6 +27,10 @@ public:
 protected:
     QByteArray authorizationHeader(const QString &token) const override;
     Error errorForResponse(const HttpResponse &response) const override;
+    // A 404 for the releases also comes from a repository whose Releases are
+    // turned off; the repository itself says which.
+    void explainReleasesNotFound(const QString &api, HttpTransport &transport, const Error &error,
+                                 std::function<void(const Error &)> done) override;
 };
 
 } // namespace Harpoon

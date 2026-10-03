@@ -2,7 +2,11 @@
 
 #include "net/ratelimit.h"
 
+#include "sources/sourceutil.h"
+
 #include <QDateTime>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QUrl>
 
 namespace Harpoon {
@@ -34,6 +38,22 @@ Error ForgejoSource::errorForResponse(const HttpResponse &response) const
                                                  .arg(response.reasonPhrase));
     e.httpStatus = response.status;
     return e;
+}
+
+void ForgejoSource::explainReleasesNotFound(const QString &api, HttpTransport &transport, const Error &error,
+                                            std::function<void(const Error &)> done)
+{
+    getJson(api, transport, true, [error, done](const Result<QByteArray> &repo) {
+        const QJsonObject info = repo.ok() ? QJsonDocument::fromJson(repo.value).object() : QJsonObject();
+        // Older Gitea has no has_releases: then the 404 stays unexplained.
+        if (info.value(QStringLiteral("has_releases")).isBool() && !info.value(QStringLiteral("has_releases")).toBool()) {
+            const QString website = info.value(QStringLiteral("website")).toString().trimmed();
+            const bool webLink = website.startsWith(QLatin1String("https://")) || website.startsWith(QLatin1String("http://"));
+            done(Error::make(Error::NoReleases, releasesTurnedOffMessage(webLink ? website : QString())));
+            return;
+        }
+        done(error);
+    });
 }
 
 } // namespace Harpoon

@@ -126,7 +126,7 @@ void GitLabSource::fetchReleases(const QString &standardUrl, const AppSettings &
                           if (releases.error.ok() && releases.releases.isEmpty())
                               releases.error = Error::make(Error::NoReleases,
                                                            trackOnly ? QStringLiteral("The project has no tags")
-                                                                     : QStringLiteral("The project has no releases"));
+                                                                     : noReleasesMessage());
                           done(releases);
                       });
     });

@@ -160,6 +160,9 @@ Result<Selection> selectRelease(const QList<Release> &newestFirst, const AppSett
             break;
         }
     }
+    message += QStringLiteral(". If you are the app's developer: attach an .rpm built for %1, or a noarch one, "
+                              "to the release.")
+                   .arg(device.arch.isEmpty() ? QStringLiteral("this phone") : device.arch);
     return Result<Selection>::failure(Error::make(Error::NoAsset, message));
 }
 

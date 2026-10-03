@@ -218,6 +218,61 @@ private slots:
         QCOMPARE(int(fetch(gh, t, "https://github.com/a/b").error.kind), int(Error::Parse));
     }
 
+    // A repository with Releases turned off answers 404 for its releases,
+    // like a missing one; Harpoon says which, and how a developer fixes it.
+    void forgejoReleasesTurnedOff()
+    {
+        const QString releases = QStringLiteral("https://codeberg.org/api/v1/repos/aevare/harbour-reis/releases?per_page=100");
+        const QString repo = QStringLiteral("https://codeberg.org/api/v1/repos/aevare/harbour-reis");
+        ForgejoSource fj;
+        {
+            FakeTransport t;
+            t.respondJson(releases, "{\"message\":\"The target couldn't be found.\"}", 404);
+            t.respondJson(repo, "{\"full_name\":\"aevare/harbour-reis\",\"has_releases\":false,"
+                                "\"website\":\"https://openrepos.net/content/aegg/reis\"}");
+            const FetchResult r = fetch(fj, t, "https://codeberg.org/aevare/harbour-reis");
+            QCOMPARE(int(r.error.kind), int(Error::NoReleases));
+            QVERIFY(r.error.message.contains(QLatin1String("Releases are turned off")));
+            QVERIFY(r.error.message.contains(QLatin1String("https://openrepos.net/content/aegg/reis")));
+            QVERIFY(r.error.message.contains(QLatin1String("If you are the app's developer")));
+        }
+        {
+            // A website that is not a web link is left out.
+            FakeTransport t;
+            t.respondJson(releases, "{}", 404);
+            t.respondJson(repo, "{\"has_releases\":false,\"website\":\"javascript:alert(1)\"}");
+            const FetchResult r = fetch(fj, t, "https://codeberg.org/aevare/harbour-reis");
+            QCOMPARE(int(r.error.kind), int(Error::NoReleases));
+            QVERIFY(!r.error.message.contains(QLatin1String("javascript")));
+        }
+        {
+            // Missing for real: the repository is not there either.
+            FakeTransport t;
+            t.respondJson(releases, "{}", 404);
+            const FetchResult r = fetch(fj, t, "https://codeberg.org/aevare/harbour-reis");
+            QCOMPARE(int(r.error.kind), int(Error::NotFound));
+            QCOMPARE(r.error.message, QStringLiteral("Repository not found"));
+        }
+        {
+            // Releases on, yet 404 (or an old Gitea without has_releases): unexplained.
+            FakeTransport t;
+            t.respondJson(releases, "{}", 404);
+            t.respondJson(repo, "{\"has_releases\":true}");
+            QCOMPARE(int(fetch(fj, t, "https://codeberg.org/aevare/harbour-reis").error.kind), int(Error::NotFound));
+        }
+    }
+
+    void emptyReleaseListExplainsTheFix()
+    {
+        FakeTransport t;
+        t.respondJson("https://api.github.com/repos/a/b/releases?per_page=100", "[]");
+        GitHubSource gh;
+        const FetchResult r = fetch(gh, t, "https://github.com/a/b");
+        QCOMPARE(int(r.error.kind), int(Error::NoReleases));
+        QVERIFY(r.error.message.contains(QLatin1String("no releases yet")));
+        QVERIFY(r.error.message.contains(QLatin1String("attach the app's .rpm packages")));
+    }
+
     void forgejoFetchAndPipeline()
     {
         FakeTransport t;

@@ -113,6 +113,9 @@ To make it even easier for people:
 
   For a self-hosted server, a Jenkins job or an RPM repository, use a `harpoon://add` link
   instead. [docs/add-to-harpoon.md](docs/add-to-harpoon.md) explains both.
+- **Keep Releases turned on.** On Codeberg and other Forgejo or Gitea servers, Releases can
+  be switched off in the repository's settings (Settings, Units). Then there is nothing for
+  Harpoon to find, even if your code and tags are there; Harpoon tells its users so.
 - **Use standard package file names**, `name-version-release.arch.rpm`, and attach a package
   for every architecture you support (`aarch64`, `armv7hl`, `i486`, or `noarch`). If you
   build separately for different Sailfish OS versions, put a tag such as `sfos5.1` in the

@@ -1,4 +1,5 @@
 #include "sources/githubsource.h"
+#include "sources/sourceutil.h"
 
 #include "net/ratelimit.h"
 
@@ -185,6 +186,12 @@ void GitHubSource::getJson(const QString &url, HttpTransport &transport, bool wi
     });
 }
 
+void GitHubSource::explainReleasesNotFound(const QString &, HttpTransport &, const Error &error,
+                                            std::function<void(const Error &)> done)
+{
+    done(error);
+}
+
 void GitHubSource::fetchReleases(const QString &standardUrl, const AppSettings &settings,
                                  HttpTransport &transport, Callback done)
 {
@@ -194,6 +201,14 @@ void GitHubSource::fetchReleases(const QString &standardUrl, const AppSettings &
     getJson(api + QStringLiteral("/releases?per_page=100"), transport, true,
             [this, api, trackOnly, &transport, done](const Result<QByteArray> &body) {
                 FetchResult result;
+                if (!body.ok() && body.error.kind == Error::NotFound) {
+                    explainReleasesNotFound(api, transport, body.error, [done](const Error &error) {
+                        FetchResult explained;
+                        explained.error = error;
+                        done(explained);
+                    });
+                    return;
+                }
                 if (!body.ok()) {
                     result.error = body.error;
                     done(result);
@@ -204,7 +219,7 @@ void GitHubSource::fetchReleases(const QString &standardUrl, const AppSettings &
                     result.releases = parsed.value;
                     result.error = parsed.error;
                     if (result.error.ok() && result.releases.isEmpty())
-                        result.error = Error::make(Error::NoReleases, QStringLiteral("The repository has no releases"));
+                        result.error = Error::make(Error::NoReleases, noReleasesMessage());
                     done(result);
                     return;
                 }

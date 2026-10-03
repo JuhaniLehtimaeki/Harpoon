@@ -162,13 +162,13 @@ Page {
                         trackOnly: details.trackOnly === true
                     }
 
-                    Label {
+                    LinkedLabel {
                         x: Theme.horizontalPageMargin
                         width: parent.width - 2 * Theme.horizontalPageMargin
                         visible: details.lastError !== undefined && details.lastError.length > 0
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
-                        text: details.lastError || ""
+                        plainText: details.lastError || ""
                         font.pixelSize: Theme.fontSizeSmall
                         color: Theme.errorColor
                     }

@@ -19,6 +19,14 @@ namespace Harpoon {
 // NotFound (404, using notFoundMessage) or Http.
 Error httpErrorFor(const HttpResponse &response, const QString &sourceName, const QString &notFoundMessage);
 
+// Explanations for a repository that answers but has nothing to install.
+// Users read them in the app, and so may the app's developer, so each says
+// what is wrong and how a developer fixes it.
+QString noReleasesMessage();
+// Releases are turned off in a Forgejo/Gitea repository's settings.
+// website: where the app may be published instead; empty if unknown.
+QString releasesTurnedOffMessage(const QString &website);
+
 // ObtainX ensureAbsoluteUrl: an absolute URL is returned as-is (trimmed),
 // anything else is resolved against base.
 QString resolveUrl(const QString &base, const QString &reference);

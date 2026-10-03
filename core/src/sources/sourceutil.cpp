@@ -9,6 +9,25 @@
 
 namespace Harpoon {
 
+QString noReleasesMessage()
+{
+    return QStringLiteral("This repository has no releases yet, so there is nothing to install. "
+                          "If you are the app's developer: create a release for a version tag and attach the "
+                          "app's .rpm packages to it.");
+}
+
+QString releasesTurnedOffMessage(const QString &website)
+{
+    QString message = QStringLiteral("This repository does not publish releases: Releases are turned off in its "
+                                     "settings, so there is nothing for Harpoon to install.");
+    if (!website.isEmpty())
+        message += QStringLiteral(" The app may be available from its website: %1").arg(website);
+    message += QStringLiteral(" If you are the app's developer: turn on Releases in the repository's settings "
+                              "(Settings, Units), then create a release for a version tag and attach the app's "
+                              ".rpm packages to it.");
+    return message;
+}
+
 Error httpErrorFor(const HttpResponse &response, const QString &sourceName, const QString &notFoundMessage)
 {
     if (response.isNetworkError())

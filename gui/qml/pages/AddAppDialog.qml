@@ -120,7 +120,8 @@ Dialog {
                     color: Theme.errorColor
                 }
 
-                Label {
+                // Explanations can name the app's website: keep it tappable.
+                LinkedLabel {
                     id: errorLabel
 
                     anchors {
@@ -131,7 +132,7 @@ Dialog {
                     wrapMode: Text.Wrap
                     font.pixelSize: Theme.fontSizeSmall
                     color: Theme.errorColor
-                    text: qsTr("Could not add the app: %1").arg(dialog.errorText)
+                    plainText: qsTr("Could not add the app: %1").arg(dialog.errorText)
                 }
             }
 

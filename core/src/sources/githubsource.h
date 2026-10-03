@@ -37,8 +37,12 @@ public:
 protected:
     virtual QByteArray authorizationHeader(const QString &token) const;
     virtual Error errorForResponse(const HttpResponse &response) const;
+    // The releases request answered 404. On GitHub that means the
+    // repository does not exist (or is private), which `error` says; other
+    // forges can tell more, such as a repository with releases turned off.
+    virtual void explainReleasesNotFound(const QString &api, HttpTransport &transport, const Error &error,
+                                         std::function<void(const Error &)> done);
 
-private:
     void getJson(const QString &url, HttpTransport &transport, bool withToken,
                  std::function<void(const Result<QByteArray> &)> done);
 };
