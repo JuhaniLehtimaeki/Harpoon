@@ -62,5 +62,11 @@ jobs:
                         assets: [.assets[]? | {name, size, browser_download_url}]}]' body.json 2>/dev/null \
               || head -c 2000 body.json
           done
+          echo "=== Repository"
+          curl -sS -L -A "Harpoon-probe" "$host/api/v1/repos/$owner/$repo" \
+            | jq '{full_name, private, archived, mirror, original_url, has_releases, has_packages, website, description}' 2>/dev/null || true
+          echo "=== Packages of $owner"
+          curl -sS -L -A "Harpoon-probe" "$host/api/v1/packages/$owner?limit=20" \
+            | jq '[.[]? | {type, name, version, html_url}]' 2>/dev/null || true
           echo "=== Tags"
           curl -sS -L -A "Harpoon-probe" "$host/api/v1/repos/$owner/$repo/tags?limit=5" | jq '[.[]? | .name]' 2>/dev/null || true
