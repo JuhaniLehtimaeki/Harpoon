@@ -32,12 +32,64 @@ Page {
         anchors.fill: parent
         model: harpoon.apps
 
-        header: PageHeader {
-            title: qsTr("Harpoon")
-            description: harpoon.checking ? qsTr("Checking for updates…")
-                                          : harpoon.apps.updatesCount > 0
-                                            ? qsTr("%n update(s) available", "", harpoon.apps.updatesCount)
-                                            : ""
+        header: Column {
+            width: listView.width
+
+            PageHeader {
+                title: qsTr("Harpoon")
+                description: harpoon.checking ? qsTr("Checking for updates…") : ""
+            }
+
+            // Updates waiting: one tap installs them all.
+            BackgroundItem {
+                id: updatesCard
+
+                width: parent.width
+                height: Theme.itemSizeLarge
+                visible: harpoon.apps.updatesCount > 0 && !harpoon.checking
+                onClicked: harpoon.updateAll()
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: Theme.rgba(Theme.highlightBackgroundColor, Theme.opacityFaint)
+                }
+
+                Icon {
+                    id: updatesIcon
+
+                    anchors {
+                        left: parent.left
+                        leftMargin: Theme.horizontalPageMargin
+                        verticalCenter: parent.verticalCenter
+                    }
+                    source: "image://theme/icon-m-device-download"
+                    color: Theme.highlightColor
+                }
+
+                Column {
+                    anchors {
+                        left: updatesIcon.right
+                        leftMargin: Theme.paddingLarge
+                        right: parent.right
+                        rightMargin: Theme.horizontalPageMargin
+                        verticalCenter: parent.verticalCenter
+                    }
+
+                    Label {
+                        width: parent.width
+                        truncationMode: TruncationMode.Fade
+                        color: Theme.highlightColor
+                        text: qsTr("%n update(s) ready", "", harpoon.apps.updatesCount)
+                    }
+                    Label {
+                        width: parent.width
+                        truncationMode: TruncationMode.Fade
+                        font.pixelSize: Theme.fontSizeExtraSmall
+                        color: Theme.secondaryHighlightColor
+                        text: qsTr("Tap to install them all")
+                    }
+                }
+            }
         }
 
         PullDownMenu {
@@ -106,11 +158,9 @@ Page {
 
             onClicked: pageStack.push(Qt.resolvedUrl("AppPage.qml"), { appId: model.appId })
 
-            // The installed app's own launcher icon, else a generic package.
-            Image {
+            // The installed app's own launcher icon, else its initial.
+            AppIcon {
                 id: icon
-
-                property bool _failed
 
                 anchors {
                     left: parent.left
@@ -119,19 +169,17 @@ Page {
                 }
                 width: Theme.iconSizeMedium
                 height: Theme.iconSizeMedium
-                sourceSize { width: width; height: height }
-                source: model.icon && !_failed
-                        ? model.icon
-                        : "image://theme/icon-m-file-rpm?" + (item.highlighted ? Theme.highlightColor : Theme.primaryColor)
-                onStatusChanged: if (status === Image.Error) _failed = true
+                source: model.icon
+                name: model.name
+                highlighted: item.highlighted
             }
 
             Column {
                 anchors {
                     left: icon.right
-                    right: busyIndicator.visible ? busyIndicator.left : parent.right
+                    right: statusIcon.visible ? statusIcon.left : parent.right
                     leftMargin: Theme.paddingLarge
-                    rightMargin: busyIndicator.visible ? Theme.paddingMedium : Theme.horizontalPageMargin
+                    rightMargin: statusIcon.visible ? Theme.paddingMedium : Theme.horizontalPageMargin
                     verticalCenter: parent.verticalCenter
                 }
 
@@ -171,23 +219,41 @@ Page {
                 }
             }
 
-            BusyIndicator {
-                id: busyIndicator
+            // Right edge: busy, an update waiting, or a failed check.
+            Item {
+                id: statusIcon
 
                 anchors {
                     right: parent.right
                     rightMargin: Theme.horizontalPageMargin
                     verticalCenter: parent.verticalCenter
                 }
-                size: BusyIndicatorSize.Small
-                running: model.busy
-                visible: running
+                width: Theme.iconSizeSmall
+                height: Theme.iconSizeSmall
+                visible: model.busy || model.hasUpdate === true || model.lastError.length > 0
+
+                BusyIndicator {
+                    anchors.centerIn: parent
+                    size: BusyIndicatorSize.Small
+                    running: model.busy
+                    visible: running
+                }
+                Icon {
+                    anchors.centerIn: parent
+                    visible: !model.busy
+                    source: model.lastError.length > 0 ? "image://theme/icon-s-filled-warning"
+                                                        : "image://theme/icon-s-update"
+                    color: model.lastError.length > 0 ? Theme.errorColor : Theme.highlightColor
+                }
             }
         }
 
-        ViewPlaceholder {
-            enabled: listView.count === 0 && harpoon.loaded
-            text: qsTr("No apps yet")
+        EmptyState {
+            y: Math.max(listView.headerItem ? listView.headerItem.height : 0,
+                        (listView.height - height) / 2 - Theme.itemSizeLarge)
+            visible: listView.count === 0 && harpoon.loaded
+            active: visible && page.status === PageStatus.Active
+            text: qsTr("Nothing on the line yet")
             hintText: qsTr("Pull down to add an app by its link or QR code, from GitHub, Codeberg or another forge")
         }
 

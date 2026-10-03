@@ -66,7 +66,8 @@ Page {
 
             SectionHeader { text: qsTr("Updates") }
 
-            TextSwitch {
+            IconTextSwitch {
+                icon.source: "image://theme/icon-m-sync"
                 text: qsTr("Check in the background")
                 description: qsTr("Checks for new releases even when Harpoon is closed")
                 checked: harpoon.settings.backgroundChecks
@@ -90,16 +91,19 @@ Page {
                 }
             }
 
-            TextSwitch {
+            IconTextSwitch {
                 enabled: harpoon.settings.backgroundChecks
+                icon.source: "image://theme/icon-m-notifications"
                 text: qsTr("Notify about updates")
+                description: qsTr("A notification when new releases are found")
                 checked: harpoon.settings.notifyUpdates
                 automaticCheck: false
                 onClicked: harpoon.settings.notifyUpdates = !checked
             }
 
-            TextSwitch {
+            IconTextSwitch {
                 enabled: harpoon.settings.backgroundChecks && harpoon.settings.installBackend === "packagekit"
+                icon.source: "image://theme/icon-m-device-download"
                 text: qsTr("Install updates automatically")
                 description: qsTr("Updates apps that Harpoon installed during background checks. Apps can be excluded in their settings.")
                 checked: harpoon.settings.autoUpdate
@@ -130,25 +134,20 @@ Page {
 
             SectionHeader { text: qsTr("Access tokens") }
 
-            Label {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                wrapMode: Text.Wrap
-                font.pixelSize: Theme.fontSizeExtraSmall
-                color: Theme.secondaryHighlightColor
+            HintLabel {
                 text: qsTr("Optional. A token raises GitHub's limit of 60 checks per hour and allows private repositories. Self-hosted servers get their own field once you track an app on them. Tokens are stored unencrypted in Harpoon's private settings file.")
+            }
+
+            Item {
+                width: 1
+                height: Theme.paddingMedium
             }
 
             // A fine-grained token with no permissions is enough for public
             // repositories; it only raises the rate limit.
-            Label {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                wrapMode: Text.Wrap
+            HintLabel {
                 textFormat: Text.StyledText
-                font.pixelSize: Theme.fontSizeExtraSmall
-                color: Theme.secondaryHighlightColor
-                linkColor: Theme.highlightColor
+                linkColor: Theme.primaryColor
                 text: "<a href=\"https://github.com/settings/personal-access-tokens/new\">"
                       + qsTr("Create a GitHub token") + "</a>"
                 onLinkActivated: Qt.openUrlExternally(link)
@@ -156,7 +155,7 @@ Page {
 
             Item {
                 width: 1
-                height: Theme.paddingMedium
+                height: Theme.paddingLarge
             }
 
             Repeater {

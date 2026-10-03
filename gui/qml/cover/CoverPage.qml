@@ -1,23 +1,36 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
+import "../components"
 
 // Summary for the Home screen: how many updates there are and for which apps.
 CoverBackground {
     readonly property int _updates: harpoon.apps.updatesCount
 
-    // A faint harpoon in the corner, as Sailfish covers usually carry.
-    Image {
+    // A tinted harpoon over the sea, in the ambience's colours.
+    Waves {
+        anchors {
+            bottom: parent.bottom
+            bottomMargin: Theme.itemSizeSmall // clear of the cover action
+        }
+        width: parent.width
+        height: Theme.itemSizeSmall
+        color: Theme.highlightBackgroundColor
+        opacity: Theme.opacityLow
+    }
+
+    HighlightImage {
         visible: harpoon.apps.count > 0
         anchors {
             right: parent.right
+            rightMargin: Theme.paddingMedium
             bottom: parent.bottom
-            rightMargin: -Theme.paddingLarge
-            bottomMargin: Theme.itemSizeLarge
+            bottomMargin: Theme.itemSizeSmall + Theme.paddingLarge
         }
-        width: parent.width * 0.6
+        width: parent.width * 0.45
         height: width
         sourceSize { width: width; height: height }
-        source: "/usr/share/icons/hicolor/172x172/apps/harpoon.png"
+        source: Qt.resolvedUrl("../images/harpoon-mark.png")
+        color: Theme.highlightColor
         opacity: Theme.opacityFaint
     }
 

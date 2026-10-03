@@ -22,6 +22,7 @@
 #include <QQuickItem>
 #include <QQuickImageProvider>
 #include <QQuickItemGrabResult>
+#include <QDir>
 #include <QQuickView>
 #include <QTemporaryDir>
 #include <QtQml>
@@ -99,7 +100,8 @@ void registerStubs()
                             "BusyIndicator", "TextField", "PasswordField", "ComboBox", "TextSwitch", "ProgressBar",
                             "Button", "DetailItem", "CoverBackground", "CoverPlaceholder", "CoverActionList",
                             "CoverAction", "Orientation", "TruncationMode", "BusyIndicatorSize", "PageStatus",
-                            "PageStackAction", "Formatter"};
+                            "PageStackAction", "Formatter", "BackgroundItem", "HighlightImage", "Icon",
+                            "IconTextSwitch"};
     for (const QString &t : types)
         qmlRegisterType(QUrl::fromLocalFile(kStubDir + QLatin1Char('/') + t + QStringLiteral(".qml")), silica, 1, 0,
                         qPrintable(t));
@@ -195,6 +197,24 @@ class TestQmlSmoke : public QObject
             g_messages.clear();
             QFAIL(qPrintable(QStringLiteral("%1:\n%2").arg(QLatin1String(step), all)));
         }
+    }
+
+    // With HARPOON_SCREENSHOTS=<dir>, saves the window (stand-in components
+    // drawn roughly) for checking layouts by eye.
+    void shot(const QString &name)
+    {
+        const QString dir = qEnvironmentVariable("HARPOON_SCREENSHOTS");
+        if (dir.isEmpty())
+            return;
+        settle();
+        QDir().mkpath(dir);
+        QQuickItem *item = name.startsWith(QLatin1String("cover"))
+                               ? eval(QStringLiteral("coverItem")).value<QQuickItem *>()
+                               : m_view->contentItem();
+        QSharedPointer<QQuickItemGrabResult> grab = item->grabToImage();
+        QSignalSpy ready(grab.data(), &QQuickItemGrabResult::ready);
+        if (ready.wait(5000))
+            grab->image().save(dir + QLatin1Char('/') + name + QStringLiteral(".png"));
     }
 
     QObject *currentPage() { return eval(QStringLiteral("pageStack.currentPage")).value<QObject *>(); }
@@ -301,6 +321,8 @@ private slots:
         m_controller->checkStale(60);
         QTRY_VERIFY(!m_controller->checking());
         expectClean("after the startup check");
+        shot(QStringLiteral("list"));
+        shot(QStringLiteral("cover"));
     }
 
     void appPages_data()
@@ -319,12 +341,14 @@ private slots:
         QVERIFY(m_controller->apps()->indexOf(appId) >= 0);
         push(QStringLiteral("AppPage.qml"), QStringLiteral("{ appId: '%1' }").arg(appId));
         expectClean("AppPage");
+        shot(QStringLiteral("app-") + appId);
         QCOMPARE(currentPage()->property("details").toMap().value(QStringLiteral("appId")).toString(), appId);
 
         QObject *settingsPage = push(QStringLiteral("AppSettingsPage.qml"), QStringLiteral("{ appId: '%1' }").arg(appId));
         expectClean("AppSettingsPage");
         QCOMPARE(settingsPage->property("_isWebPage").toBool(), appId == QLatin1String("webapp"));
         QCOMPARE(settingsPage->property("_isRepo").toBool(), appId == QLatin1String("repoapp"));
+        shot(QStringLiteral("appsettings-") + appId);
         settingsPage->setProperty("_advanced", true);
         expectClean("advanced settings");
         popToList();
@@ -369,6 +393,7 @@ private slots:
     {
         QObject *dialog = push(QStringLiteral("AddAppDialog.qml"));
         expectClean("AddAppDialog");
+        shot(QStringLiteral("add"));
         QVERIFY(dialog);
         QVERIFY(!dialog->property("canAccept").toBool());
         QObject *field = nullptr;
@@ -432,6 +457,7 @@ private slots:
     {
         QObject *dialog = push(QStringLiteral("AddAppDialog.qml"));
         expectClean("AddAppDialog");
+        shot(QStringLiteral("add"));
         QObject *scanButton = findByProperty(dialog, "text", QStringLiteral("Scan QR code"));
         QVERIFY(scanButton);
         QVERIFY(QMetaObject::invokeMethod(scanButton, "clicked"));
@@ -563,6 +589,7 @@ private slots:
 
         push(QStringLiteral("SettingsPage.qml"));
         expectClean("SettingsPage");
+        shot(QStringLiteral("settings"));
         m_settings->setInstallBackend(QStringLiteral("handler"));
         m_settings->setBackgroundChecks(false);
         expectClean("settings changed");
@@ -573,6 +600,7 @@ private slots:
                                         [](const QString &m) { return m.contains(QLatin1String("harpoon.png")); }),
                          g_messages.end());
         expectClean("AboutPage");
+        shot(QStringLiteral("about"));
         popToList();
     }
 
@@ -647,6 +675,27 @@ private slots:
         m_controller->removeApp(QStringLiteral("beta"));
         expectClean("removing an app");
         QCOMPARE(m_controller->apps()->count(), 5);
+    }
+
+    // Last: with every app gone, the list shows its illustrated empty state.
+    void emptyList()
+    {
+        QStringList ids;
+        for (const AppListModel::Entry &e : m_controller->apps()->entries())
+            ids << e.app.id;
+        for (const QString &id : ids)
+            m_controller->removeApp(id);
+        expectClean("removing every app");
+        shot(QStringLiteral("list-empty"));
+        shot(QStringLiteral("cover-empty"));
+        QCOMPARE(m_controller->apps()->count(), 0);
+        QObject *list = currentPage();
+        QCOMPARE(list->objectName(), QStringLiteral("appListPage"));
+        bool shown = false;
+        for (QQuickItem *item : list->findChildren<QQuickItem *>())
+            if (item->property("hintText").isValid() && item->isVisible())
+                shown = true;
+        QVERIFY(shown);
     }
 };
 

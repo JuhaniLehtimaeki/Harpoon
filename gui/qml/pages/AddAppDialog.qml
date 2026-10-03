@@ -1,5 +1,6 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
+import "../components"
 
 Dialog {
     id: dialog
@@ -97,16 +98,36 @@ Dialog {
                 EnterKey.onClicked: dialog.accept()
             }
 
-            Label {
+            // What the address was recognised as, or why not.
+            Item {
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
-                wrapMode: Text.Wrap
-                font.pixelSize: Theme.fontSizeExtraSmall
-                color: _inspected.ok ? Theme.highlightColor : Theme.secondaryHighlightColor
-                text: urlField.text.trim().length === 0
-                      ? qsTr("The address of the app's repository or releases page, for example on GitHub or Codeberg")
-                      : _inspected.ok ? qsTr("%1: %2").arg(_inspected.sourceName).arg(_inspected.standardUrl)
-                                      : _inspected.error
+                height: Math.max(detectIcon.visible ? detectIcon.height : 0, detectLabel.height)
+
+                Icon {
+                    id: detectIcon
+
+                    visible: urlField.text.trim().length > 0
+                    source: _inspected.ok ? "image://theme/icon-s-accept" : "image://theme/icon-s-warning"
+                    color: _inspected.ok ? Theme.highlightColor : Theme.secondaryHighlightColor
+                }
+
+                Label {
+                    id: detectLabel
+
+                    anchors {
+                        left: detectIcon.visible ? detectIcon.right : parent.left
+                        leftMargin: detectIcon.visible ? Theme.paddingSmall : 0
+                        right: parent.right
+                    }
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Theme.fontSizeExtraSmall
+                    color: _inspected.ok ? Theme.highlightColor : Theme.secondaryHighlightColor
+                    text: urlField.text.trim().length === 0
+                          ? qsTr("The address of the app's repository or releases page, for example on GitHub or Codeberg")
+                          : _inspected.ok ? qsTr("%1: %2").arg(_inspected.sourceName).arg(_inspected.standardUrl)
+                                          : _inspected.error
+                }
             }
 
             Item {
@@ -116,6 +137,8 @@ Dialog {
 
             Button {
                 anchors.horizontalCenter: parent.horizontalCenter
+                preferredWidth: Theme.buttonWidthMedium
+                icon.source: "image://theme/icon-m-qr"
                 text: qsTr("Scan QR code")
                 onClicked: dialog._scan()
             }
@@ -174,12 +197,7 @@ Dialog {
                 EnterKey.onClicked: focus = false
             }
 
-            Label {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                wrapMode: Text.Wrap
-                font.pixelSize: Theme.fontSizeExtraSmall
-                color: Theme.secondaryHighlightColor
+            HintLabel {
                 text: qsTr("Harpoon picks the RPM for this device (%1) automatically. A filter is only needed when a release contains several packages.").arg(harpoon.deviceArch)
             }
 

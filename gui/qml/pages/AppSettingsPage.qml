@@ -159,12 +159,7 @@ Page {
                     label: qsTr("Signed only from refs matching")
                     placeholderText: qsTr("Any branch or tag, or for example refs/tags/.*")
                 }
-                Label {
-                    x: Theme.horizontalPageMargin
-                    width: parent.width - 2 * Theme.horizontalPageMargin
-                    wrapMode: Text.Wrap
-                    font.pixelSize: Theme.fontSizeExtraSmall
-                    color: Theme.secondaryHighlightColor
+                HintLabel {
                     text: qsTr("Limits accepted builds to the release workflow, or to tags, so a build from a test branch or another workflow of the repository is not accepted. The ref is a regular expression.")
                 }
             }
@@ -178,6 +173,8 @@ Page {
             Button {
                 anchors.horizontalCenter: parent.horizontalCenter
                 visible: !page._advanced
+                preferredWidth: Theme.buttonWidthLarge
+                icon.source: "image://theme/icon-m-setting"
                 text: qsTr("Show advanced settings")
                 onClicked: page._advanced = true
             }
@@ -188,14 +185,9 @@ Page {
                 visible: !page._advanced
             }
 
-            Label {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
+            HintLabel {
                 visible: !page._advanced
-                wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
-                font.pixelSize: Theme.fontSizeExtraSmall
-                color: Theme.secondaryHighlightColor
                 text: qsTr("Choosing releases and packages, and reading versions. Most apps need none of it.")
             }
 
@@ -242,12 +234,7 @@ Page {
                             { value: "linkHash", text: qsTr("Link address") }
                         ]
                     }
-                    Label {
-                        x: Theme.horizontalPageMargin
-                        width: parent.width - 2 * Theme.horizontalPageMargin
-                        wrapMode: Text.Wrap
-                        font.pixelSize: Theme.fontSizeExtraSmall
-                        color: Theme.secondaryHighlightColor
+                    HintLabel {
                         text: qsTr("Multi-page link chains and request headers can be set with harpoon-cli.")
                     }
                 }

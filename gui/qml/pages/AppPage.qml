@@ -91,47 +91,71 @@ Page {
             id: column
 
             width: parent.width
-            spacing: Theme.paddingMedium
 
-            PageHeader {
-                title: details.name || ""
-                description: details.author || ""
-            }
-
-            // The app's own launcher icon next to where it stands.
+            // Hero: the app's icon and name over a calm sea, and where it stands.
             Item {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                height: Math.max(appIcon.height, statusColumn.height)
+                width: parent.width
+                height: heroColumn.height + Theme.itemSizeSmall
 
-                Image {
-                    id: appIcon
-
-                    property bool _failed
-
-                    width: Theme.iconSizeLarge
-                    height: Theme.iconSizeLarge
-                    sourceSize { width: width; height: height }
-                    source: details.icon && !_failed ? details.icon
-                                                     : "image://theme/icon-m-file-rpm?" + Theme.highlightColor
-                    onStatusChanged: if (status === Image.Error) _failed = true
+                Waves {
+                    anchors.bottom: parent.bottom
+                    width: parent.width
+                    height: Theme.itemSizeSmall
+                    color: Theme.highlightBackgroundColor
+                    opacity: Theme.opacityLow
                 }
 
                 Column {
-                    id: statusColumn
+                    id: heroColumn
 
-                    anchors {
-                        left: appIcon.right
-                        leftMargin: Theme.paddingLarge
-                        right: parent.right
-                        verticalCenter: appIcon.verticalCenter
+                    width: parent.width
+                    spacing: Theme.paddingMedium
+
+                    Item {
+                        width: 1
+                        height: Theme.paddingLarge * 2
+                    }
+
+                    AppIcon {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: Theme.iconSizeExtraLarge
+                        height: Theme.iconSizeExtraLarge
+                        source: details.icon || ""
+                        name: details.name || ""
+                    }
+
+                    Label {
+                        x: Theme.horizontalPageMargin
+                        width: parent.width - 2 * Theme.horizontalPageMargin
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                        font.family: Theme.fontFamilyHeading
+                        font.pixelSize: Theme.fontSizeExtraLarge
+                        color: Theme.highlightColor
+                        text: details.name || ""
+                    }
+
+                    Label {
+                        x: Theme.horizontalPageMargin
+                        width: parent.width - 2 * Theme.horizontalPageMargin
+                        visible: text.length > 0
+                        horizontalAlignment: Text.AlignHCenter
+                        truncationMode: TruncationMode.Fade
+                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.secondaryHighlightColor
+                        text: details.author ? qsTr("by %1").arg(details.author) : ""
                     }
 
                     StateLabel {
                         // A failed first check has nothing to summarise; the error says it.
                         visible: !(appState === AppListModel.NotChecked && details.lastError !== undefined
                                    && details.lastError.length > 0)
-                        width: parent.width
+                        x: Theme.horizontalPageMargin
+                        width: parent.width - 2 * Theme.horizontalPageMargin
+                        horizontalAlignment: Text.AlignHCenter
+                        font.pixelSize: Theme.fontSizeSmall
                         appState: details.state !== undefined ? details.state : AppListModel.NotChecked
                         installedVersion: details.installedVersion || ""
                         latestVersion: details.latestVersion || ""
@@ -139,14 +163,21 @@ Page {
                     }
 
                     Label {
-                        width: parent.width
+                        x: Theme.horizontalPageMargin
+                        width: parent.width - 2 * Theme.horizontalPageMargin
                         visible: details.lastError !== undefined && details.lastError.length > 0
+                        horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
                         text: details.lastError || ""
                         font.pixelSize: Theme.fontSizeSmall
                         color: Theme.errorColor
                     }
                 }
+            }
+
+            Item {
+                width: 1
+                height: Theme.paddingLarge
             }
 
             ProgressBar {
@@ -159,6 +190,8 @@ Page {
 
             Button {
                 anchors.horizontalCenter: parent.horizontalCenter
+                preferredWidth: Theme.buttonWidthMedium
+                icon.source: "image://theme/icon-m-device-download"
                 visible: !details.busy && !details.trackOnly
                          && (details.state === AppListModel.UpdateAvailable
                              || details.state === AppListModel.NotInstalled)
@@ -168,9 +201,85 @@ Page {
 
             Button {
                 anchors.horizontalCenter: parent.horizontalCenter
+                preferredWidth: Theme.buttonWidthMedium
+                icon.source: "image://theme/icon-m-acknowledge"
                 visible: !details.busy && details.trackOnly === true && details.state === AppListModel.UpdateAvailable
                 text: qsTr("Mark as seen")
                 onClicked: harpoon.acknowledge(appId)
+            }
+
+            Item {
+                width: 1
+                height: Theme.paddingLarge
+                visible: notesCard.visible
+            }
+
+            // What changed, first: that is what decides an update. Markdown
+            // from the forge, as styled text with working links.
+            Item {
+                id: notesCard
+
+                property bool expanded
+
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                height: notesColumn.height + 2 * Theme.paddingLarge
+                visible: changelogLabel.text.length > 0
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.paddingMedium
+                    color: Theme.rgba(Theme.highlightBackgroundColor, Theme.opacityFaint)
+                }
+
+                Column {
+                    id: notesColumn
+
+                    x: Theme.paddingLarge
+                    y: Theme.paddingLarge
+                    width: parent.width - 2 * Theme.paddingLarge
+                    spacing: Theme.paddingMedium
+
+                    Label {
+                        width: parent.width
+                        truncationMode: TruncationMode.Fade
+                        font.family: Theme.fontFamilyHeading
+                        color: Theme.highlightColor
+                        text: details.latestVersion ? qsTr("What's new in %1").arg(details.latestVersion)
+                                                    : qsTr("What's new")
+                    }
+
+                    Label {
+                        id: changelogLabel
+
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        textFormat: Text.StyledText
+                        maximumLineCount: notesCard.expanded ? 100000 : 8
+                        elide: Text.ElideRight
+                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.highlightColor
+                        linkColor: Theme.primaryColor
+                        text: details.changelogText || ""
+                        onLinkActivated: Qt.openUrlExternally(link)
+                    }
+
+                    Label {
+                        visible: changelogLabel.truncated || notesCard.expanded
+                        anchors.right: parent.right
+                        font.pixelSize: Theme.fontSizeExtraSmall
+                        color: moreArea.pressed ? Theme.highlightColor : Theme.primaryColor
+                        text: notesCard.expanded ? qsTr("Show less") : qsTr("Show all")
+
+                        MouseArea {
+                            id: moreArea
+
+                            anchors.fill: parent
+                            anchors.margins: -Theme.paddingMedium
+                            onClicked: notesCard.expanded = !notesCard.expanded
+                        }
+                    }
+                }
             }
 
             SectionHeader { text: qsTr("Latest release") }
@@ -254,25 +363,6 @@ Page {
                 plainText: details.url || ""
             }
 
-            SectionHeader {
-                visible: changelogLabel.text.length > 0
-                text: qsTr("Release notes")
-            }
-
-            // Markdown from the forge, shown as styled text with working links.
-            Label {
-                id: changelogLabel
-
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                wrapMode: Text.Wrap
-                textFormat: Text.StyledText
-                font.pixelSize: Theme.fontSizeSmall
-                color: Theme.highlightColor
-                linkColor: Theme.primaryColor
-                text: details.changelogText || ""
-                onLinkActivated: Qt.openUrlExternally(link)
-            }
         }
 
         VerticalScrollDecorator { }

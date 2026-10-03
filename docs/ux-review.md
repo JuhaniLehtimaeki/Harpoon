@@ -44,3 +44,32 @@ What changed, and what was looked at and left alone.
 - The list header could show when apps were last checked, but the
   controller only knows the time of the last manual "check all"; the
   per-app "Last check" on the app page is the reliable place for it.
+
+## Visual refresh
+
+Harpoon's look comes from its name: a harpoon over the sea. Every graphic is a
+monochrome PNG (`gui/art/*.svg` rendered to `gui/qml/images/`) drawn with
+`HighlightImage`, so it takes the colours of the user's ambience, light or dark.
+
+- **Waves** (`components/Waves.qml`): layered, seamless waves. They drift slowly on the
+  About page and the empty list, only while the page is shown and the app is in front,
+  and stay still on the cover.
+- **Empty list:** a harpoon bobbing over the waves, "Nothing on the line yet", and what to do.
+- **List:** an "updates ready" band under the header installs all updates with one tap.
+  Rows end in a status icon (update waiting, check failed, busy). Apps that are not
+  installed get a round tile with their initial instead of a generic package icon.
+- **App page:** a centred hero (large icon, name, author, state) over a calm sea; the
+  install button carries an icon; "What's new in X" comes first, as a card that folds
+  long notes (Show all / Show less).
+- **About:** the icon over moving waves, the name in large type, buttons for the source
+  code and for reporting a problem, then thanks and licence.
+- **Settings:** icon switches for the background options; every explanatory text uses
+  one `HintLabel` (page margin, extra-small, secondary highlight colour), so hints line
+  up and read the same on every page.
+- **Add dialog:** a check mark or warning next to what the address was recognised as;
+  the scan button has the QR icon.
+- **Cover:** tinted waves and harpoon behind the update count.
+
+Only platform icons that exist in SailfishOS 5.1 are used (checked against the SDK's
+icon theme). `HARPOON_SCREENSHOTS=<dir>` makes the QML smoke test save rough layout
+screenshots for checking alignment.
