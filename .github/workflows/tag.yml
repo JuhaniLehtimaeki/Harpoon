@@ -1,0 +1,32 @@
+name: Tag release
+
+# Creates the version tag for the version in rpm/harpoon.spec on the chosen
+# branch, for when pushing a tag from a local clone is not possible. A tag made
+# here does not start the Release workflow by itself (GitHub does not run
+# workflows for pushes made with the workflow token): run "Release" on the new
+# tag afterwards.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create and push the tag
+        run: |
+          version=$(sed -n 's/^Version:[[:space:]]*//p' rpm/harpoon.spec)
+          if git rev-parse -q --verify "refs/tags/$version" > /dev/null; then
+            echo "::error::Tag $version already exists"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$version" -m "Harpoon $version"
+          git push origin "refs/tags/$version"
+          echo "Tagged $(git rev-parse --short HEAD) as $version" >> "$GITHUB_STEP_SUMMARY"

@@ -20,6 +20,8 @@ sfdk deploy --sdk               # or copy the RPM and: devel-su pkcon install-lo
    and add an entry to `rpm/harpoon.changes` (its newest entry becomes the release notes).
 2. Tag the commit with the bare version, for example `0.2.0`, and push the tag. A tag with a
    suffix, such as `0.3.0-rc1`, makes a prerelease.
+   Without a local clone: run Actions → Tag release on `main` (it tags the spec's version),
+   then run Actions → Release on the new tag.
 
 `.github/workflows/release.yml` then:
 - checks that the tag matches the spec's version;
