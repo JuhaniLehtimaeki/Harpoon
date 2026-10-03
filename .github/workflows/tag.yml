@@ -7,6 +7,11 @@ name: Tag release
 # tag afterwards.
 on:
   workflow_dispatch:
+    inputs:
+      replace:
+        description: Delete an existing release and tag of this version first (only for a release nobody has installed yet)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -19,11 +24,18 @@ jobs:
         with:
           fetch-depth: 0
       - name: Create and push the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           version=$(sed -n 's/^Version:[[:space:]]*//p' rpm/harpoon.spec)
           if git rev-parse -q --verify "refs/tags/$version" > /dev/null; then
-            echo "::error::Tag $version already exists"
-            exit 1
+            if [ "${{ inputs.replace }}" != "true" ]; then
+              echo "::error::Tag $version already exists"
+              exit 1
+            fi
+            gh release delete "$version" -y || true
+            git push origin ":refs/tags/$version"
+            git tag -d "$version"
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

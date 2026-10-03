@@ -60,7 +60,9 @@ jobs:
               mkdir -p ~/build
               cp -r /workspace/. ~/build/
               cd ~/build
-              rm -rf RPMS
+              # Without git, mb2 takes the version from the spec as it is;
+              # with it, mb2 makes one up from the tags and the (edited) tree.
+              rm -rf RPMS .git
               mb2 -t SailfishOS-${{ matrix.target.release }}-${{ matrix.arch }} build
               for f in RPMS/*.rpm; do
                 case "$f" in *-debuginfo-*|*-debugsource-*) ;; *) cp "$f" /workspace/RPMS/ ;; esac
@@ -70,9 +72,13 @@ jobs:
       - name: Check the package
         run: |
           sudo apt-get install -y --no-install-recommends rpm > /dev/null
+          version=$(sed -n 's/^Version:[[:space:]]*//p' rpm/harpoon.spec)
           for f in RPMS/*.rpm; do
             rpm -qp --qf '%{NAME} %{VERSION}-%{RELEASE} %{ARCH}\n' "$f"
-            case "$f" in *.${{ matrix.target.tag }}.${{ matrix.arch }}.rpm) ;; *) echo "::error::unexpected file name $f"; exit 1 ;; esac
+            case "$f" in
+              RPMS/harpoon-$version-*.${{ matrix.target.tag }}.${{ matrix.arch }}.rpm) ;;
+              *) echo "::error::$f is not harpoon-$version-*.${{ matrix.target.tag }}.${{ matrix.arch }}.rpm"; exit 1 ;;
+            esac
           done
 
       - uses: actions/upload-artifact@v4
@@ -137,7 +143,11 @@ jobs:
           prerelease=
           case "$GITHUB_REF_NAME" in *-*) prerelease=--prerelease ;; esac
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" RPMS/*.rpm RPMS/SHA256SUMS --clobber
+            # A re-run replaces the release's files.
+            gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name' |
+              while read -r asset; do gh release delete-asset "$GITHUB_REF_NAME" "$asset" -y; done
+            gh release upload "$GITHUB_REF_NAME" RPMS/*.rpm RPMS/SHA256SUMS
+            gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
           else
             gh release create "$GITHUB_REF_NAME" RPMS/*.rpm RPMS/SHA256SUMS \
               --title "Harpoon $GITHUB_REF_NAME" --notes-file notes.md --verify-tag $prerelease
