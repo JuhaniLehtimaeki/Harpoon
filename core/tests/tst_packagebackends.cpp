@@ -28,6 +28,7 @@ public slots:
     void InstallFiles(qulonglong flags, const QStringList &paths);
     void Resolve(qulonglong filter, const QStringList &names);
     void RemovePackages(qulonglong flags, const QStringList &ids, bool allowDeps, bool autoremove);
+    void Cancel();
 
 private:
     bool refuseIfConfigured();
@@ -110,6 +111,12 @@ void MockPkTransaction::finishLater(QList<QPair<uint, QString>> packages)
         --pk->active;
         pk->emitSignal(path, QStringLiteral("Finished"), {exit, uint(5)});
     });
+}
+
+void MockPkTransaction::Cancel()
+{
+    m_pk->calls << MockPackageKit::Call{QStringLiteral("Cancel"), 0, {}};
+    m_pk->emitSignal(m_path, QStringLiteral("Finished"), {uint(PackageKitBackend::ExitCancelled), uint(1)});
 }
 
 void MockPkTransaction::InstallFiles(qulonglong flags, const QStringList &paths)
@@ -322,7 +329,7 @@ private slots:
     {
         PackageKitBackend backend(client());
         m_pk->installedIds.insert(QStringLiteral("harbour-demo"), QStringLiteral("harbour-demo;1.0-1;aarch64;installed"));
-        const Error e = waitFor([&](PackageBackend::Done d) { backend.removePackage(QStringLiteral("harbour-demo"), d); });
+        const Error e = waitFor([&](PackageBackend::Done d) { backend.removePackages({QStringLiteral("harbour-demo")}, d); });
         QVERIFY2(e.ok(), qPrintable(e.message));
         QCOMPARE(m_pk->calls.size(), 2);
         QCOMPARE(m_pk->calls.at(0).method, QStringLiteral("Resolve"));
@@ -334,7 +341,7 @@ private slots:
     void removeNotInstalled()
     {
         PackageKitBackend backend(client());
-        const Error e = waitFor([&](PackageBackend::Done d) { backend.removePackage(QStringLiteral("nothing"), d); });
+        const Error e = waitFor([&](PackageBackend::Done d) { backend.removePackages({QStringLiteral("nothing")}, d); });
         QCOMPARE(int(e.kind), int(Error::Package));
         QCOMPARE(m_pk->calls.size(), 1); // no RemovePackages
     }
@@ -356,8 +363,28 @@ private slots:
                      }).kind),
                  int(Error::Install));
         InstallHandlerBackend handler(QDBusConnection(QStringLiteral("none")));
-        QCOMPARE(int(waitFor([&](PackageBackend::Done d) { handler.removePackage(QStringLiteral("x"), d); }).kind),
+        QCOMPARE(int(waitFor([&](PackageBackend::Done d) { handler.removePackages({QStringLiteral("x")}, d); }).kind),
                  int(Error::Install));
+    }
+
+    void timeoutCancelsTheTransaction()
+    {
+        PackageKitBackend backend(client());
+        backend.setTransactionTimeoutMs(100);
+        m_pk->finishDelayMs = 3000; // PackageKit "hangs"
+        m_pk->calls.clear();
+        QElapsedTimer timer;
+        timer.start();
+        const Error e = waitFor([&](PackageBackend::Done d) {
+            backend.installFiles({QStringLiteral("/tmp/a.rpm")}, InstallOptions(), d);
+        });
+        m_pk->finishDelayMs = 20;
+        // Cancelled, and reported once PackageKit confirmed it, not after a
+        // fixed grace period.
+        QCOMPARE(int(e.kind), int(Error::Cancelled));
+        QVERIFY(timer.elapsed() < 2000);
+        QCOMPARE(m_pk->calls.last().method, QStringLiteral("Cancel"));
+        QTest::qWait(3200); // let the stray Finished pass
     }
 
     void installHandler()
@@ -377,7 +404,7 @@ private slots:
         QCOMPARE(declined.message, QStringLiteral("User declined"));
 
         m_handler->succeed = true;
-        QVERIFY(waitFor([&](PackageBackend::Done d) { backend.removePackage(QStringLiteral("harbour-demo"), d); }).ok());
+        QVERIFY(waitFor([&](PackageBackend::Done d) { backend.removePackages({QStringLiteral("harbour-demo")}, d); }).ok());
         QCOMPARE(m_handler->removals.last(), QStringList{"harbour-demo"});
     }
 
@@ -438,7 +465,7 @@ private slots:
         QElapsedTimer timer;
         timer.start();
         QVERIFY(waitFor([&](PackageBackend::Done d) {
-                    backend.removePackage(QStringLiteral("harbour-demo"), d);
+                    backend.removePackages({QStringLiteral("harbour-demo")}, d);
                 }).ok());
         QVERIFY(timer.elapsed() < 1000);
         QTest::qWait(1600); // let the stray signal pass

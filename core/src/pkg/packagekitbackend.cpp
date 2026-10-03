@@ -56,8 +56,20 @@ public:
                          SLOT(onPackage(uint, QString, QString)));
     }
 
-    // Ends the transaction early (call failure, timeout). Idempotent.
+    // Ends the transaction early (call failure). Idempotent.
     void fail(const Error &error) { finish(error); }
+
+    // Asks PackageKit to cancel a transaction that took too long, and gives
+    // it a moment to stop before reporting, so the files it is installing
+    // are not deleted under it.
+    void cancel(int graceMs)
+    {
+        m_bus.asyncCall(QDBusMessage::createMethodCall(m_service, m_path, kTransactionInterface,
+                                                       QStringLiteral("Cancel")));
+        QTimer::singleShot(graceMs, this, [this]() {
+            fail(Error::make(Error::Install, QStringLiteral("PackageKit transaction timed out")));
+        });
+    }
 
 public slots:
     void onFinished(uint exit, uint /*runtimeMs*/)
@@ -181,7 +193,7 @@ void PackageKitBackend::runTransaction(const QString &method, const QList<QVaria
                 QPointer<PkTransactionWatcher> guard(tx);
                 QTimer::singleShot(m_timeoutMs, tx, [guard]() {
                     if (guard)
-                        guard->fail(Error::make(Error::Install, QStringLiteral("PackageKit transaction timed out")));
+                        guard->cancel(30000);
                 });
 
                 QDBusMessage call = QDBusMessage::createMethodCall(m_service, path, kTransactionInterface, method);
@@ -212,16 +224,17 @@ void PackageKitBackend::installFiles(const QStringList &paths, const InstallOpti
     });
 }
 
-void PackageKitBackend::removePackage(const QString &name, Done done)
+void PackageKitBackend::removePackages(const QStringList &names, Done done)
 {
-    enqueue([this, name, done](std::function<void()> next) {
+    enqueue([this, names, done](std::function<void()> next) {
         runTransaction(QStringLiteral("Resolve"),
-                       {QVariant::fromValue<qulonglong>(FilterInstalled), QStringList{name}},
-                       [this, name, done, next](const TransactionResult &resolved) {
+                       {QVariant::fromValue<qulonglong>(FilterInstalled), names},
+                       [this, names, done, next](const TransactionResult &resolved) {
                            if (!resolved.error.ok() || resolved.packageIds.isEmpty()) {
                                done(!resolved.error.ok()
                                         ? resolved.error
-                                        : Error::make(Error::Package, QStringLiteral("%1 is not installed").arg(name)));
+                                        : Error::make(Error::Package, QStringLiteral("%1 is not installed")
+                                                                          .arg(names.join(QStringLiteral(", ")))));
                                next();
                                return;
                            }

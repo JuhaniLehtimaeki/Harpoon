@@ -175,39 +175,57 @@ void AppInstaller::verifyAndInstall(std::shared_ptr<InstallJob> job)
     }
     const RpmInfo main = packages.at(mainIndex);
 
-    const auto installed = m_inspector.installedPackage(main.name);
-    if (!installed.ok()) {
-        abort(Result<InstallResult>::failure(installed.error));
-        return;
+    // Every other package must belong to the app (harbour-foo-data for
+    // harbour-foo): a release must not be able to replace an unrelated
+    // package, such as a system one, alongside the app.
+    QStringList packageNames{main.name};
+    for (const RpmInfo &p : packages) {
+        if (p.name == main.name)
+            continue;
+        if (!p.name.startsWith(main.name + QLatin1Char('-'))) {
+            abort(fail(Error::InvalidSetting,
+                       QStringLiteral("The release also contains %1, which is not part of %2; set a package filter")
+                           .arg(p.name, main.name)));
+            return;
+        }
+        packageNames << p.name;
     }
+
     QStringList warnings;
-    if (!installed.value.name.isEmpty()) {
-        const int c = compareEvr(main.evr, installed.value.evr);
+    for (const RpmInfo &p : packages) {
+        const auto installed = m_inspector.installedPackage(p.name);
+        if (!installed.ok()) {
+            abort(Result<InstallResult>::failure(installed.error));
+            return;
+        }
+        if (installed.value.name.isEmpty())
+            continue;
+        const int c = compareEvr(p.evr, installed.value.evr);
         if (c < 0 && !job->options.allowDowngrade) {
             abort(fail(Error::Downgrade, QStringLiteral("%1 %2 is older than the installed %3")
-                                             .arg(main.name, main.evr.toString(), installed.value.evr.toString())));
+                                             .arg(p.name, p.evr.toString(), installed.value.evr.toString())));
             return;
         }
-        if (c == 0 && !job->options.allowReinstall) {
+        if (c == 0 && p.name == main.name && !job->options.allowReinstall) {
             abort(fail(Error::AlreadyInstalled,
-                       QStringLiteral("%1 %2 is already installed").arg(main.name, main.evr.toString())));
+                       QStringLiteral("%1 %2 is already installed").arg(p.name, p.evr.toString())));
             return;
         }
-        if (!installed.value.vendor.isEmpty() && installed.value.vendor != main.vendor)
-            warnings << QStringLiteral("Vendor changes from \"%1\" to \"%2\"; the package manager may refuse the update")
-                            .arg(installed.value.vendor, main.vendor);
+        if (!installed.value.vendor.isEmpty() && installed.value.vendor != p.vendor)
+            warnings << QStringLiteral("Vendor of %1 changes from \"%2\" to \"%3\"; the package manager may refuse the update")
+                            .arg(p.name, installed.value.vendor, p.vendor);
     }
 
     QStringList sha256s;
     for (const QString &file : job->files)
         sha256s << Downloader::sha256OfFile(file);
 
-    auto install = [this, job, main, abort, sha256s](QStringList warnings, const QString &verification) {
+    auto install = [this, job, main, packageNames, abort, sha256s](QStringList warnings, const QString &verification) {
         if (job->progress)
             job->progress(QStringLiteral("Installing %1").arg(main.nevra()), 0, -1);
 
         m_backend.installFiles(job->files, job->options,
-                               [this, job, main, warnings, abort, sha256s, verification](const Error &error) {
+                               [this, job, main, packageNames, warnings, abort, sha256s, verification](const Error &error) {
             if (!error.ok()) {
                 abort(Result<InstallResult>::failure(error));
                 return;
@@ -233,6 +251,7 @@ void AppInstaller::verifyAndInstall(std::shared_ptr<InstallJob> job)
             for (int i = 0; i < job->files.size(); ++i)
                 result.app.receipt.assetNames << job->app.latestAssets.at(i).name;
             result.app.receipt.sha256s = sha256s;
+            result.app.receipt.packageNames = packageNames;
             result.app.receipt.installedAt = QDateTime::currentDateTimeUtc();
             cleanUp(job->files);
             job->done(Result<InstallResult>::success(result));
@@ -260,7 +279,11 @@ void AppInstaller::uninstall(const App &app, std::function<void(const Error &)> 
         done(Error::make(Error::Package, QStringLiteral("%1 has never been installed by Harpoon").arg(app.name)));
         return;
     }
-    m_backend.removePackage(app.id, done);
+    // Everything that was installed with the app, in one transaction.
+    QStringList names = app.receipt.packageNames;
+    if (!names.contains(app.id))
+        names.prepend(app.id);
+    m_backend.removePackages(names, done);
 }
 
 } // namespace Harpoon

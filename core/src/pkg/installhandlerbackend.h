@@ -34,7 +34,7 @@ public:
     // The handler has no reinstall/downgrade flags; options are ignored and
     // the system dialog decides.
     void installFiles(const QStringList &paths, const InstallOptions &options, Done done) override;
-    void removePackage(const QString &name, Done done) override;
+    void removePackages(const QStringList &names, Done done) override;
 
     // Waiting for the user is open-ended, but not forever.
     void setTimeoutMs(int ms) { m_timeoutMs = ms; }

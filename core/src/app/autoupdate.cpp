@@ -1,5 +1,7 @@
 #include "app/autoupdate.h"
 
+#include "app/installedmatch.h"
+
 #include <QCoreApplication>
 
 namespace Harpoon {
@@ -19,6 +21,18 @@ bool autoUpdateEligible(const App &app, const UpdateStatus &status, QString *why
         reason = QStringLiteral("may change its package name");
     else if (app.latestAssets.isEmpty())
         reason = QStringLiteral("no package in the latest release");
+    else if (!app.receipt.packageNames.isEmpty()) {
+        // A release that brings different packages than the installed one
+        // needs the user's eyes.
+        QStringList names;
+        for (const Asset &asset : app.latestAssets)
+            names << rpmNameFromFileName(asset.name);
+        QStringList installed = app.receipt.packageNames;
+        names.sort();
+        installed.sort();
+        if (names != installed)
+            reason = QStringLiteral("the release's packages changed");
+    }
     if (why)
         *why = reason;
     return reason.isEmpty();

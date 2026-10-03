@@ -58,10 +58,11 @@ public:
         done(Error());
     }
 
-    void removePackage(const QString &name, Done done) override
+    void removePackages(const QStringList &names, Done done) override
     {
-        removals << name;
-        m_db.installed.remove(name);
+        removals << names;
+        for (const QString &name : names)
+            m_db.installed.remove(name);
         done(Error());
     }
 
@@ -185,6 +186,9 @@ private slots:
                       m_factory.build(QStringLiteral("tool"), QStringLiteral("2.0"), QStringLiteral("1"), QStringLiteral("armv7hl")));
         m_rpms.insert(QStringLiteral("tool-data-2.0-noarch"),
                       m_factory.build(QStringLiteral("tool-data"), QStringLiteral("2.0"), QStringLiteral("1"), QStringLiteral("noarch")));
+        m_rpms.insert(QStringLiteral("browser-99-noarch"),
+                      m_factory.build(QStringLiteral("sailfish-browser"), QStringLiteral("99"), QStringLiteral("1"),
+                                      QStringLiteral("noarch")));
         m_rpms.insert(QStringLiteral("tool-2.0-meego"),
                       m_factory.build(QStringLiteral("tool"), QStringLiteral("2.0"), QStringLiteral("1"), QStringLiteral("aarch64"),
                                       QStringLiteral("meego")));
@@ -308,6 +312,31 @@ private slots:
         QCOMPARE(m_backend->installs.size(), 1);
         QCOMPARE(m_backend->installs.first().size(), 2);
         QVERIFY(m_db.installed.contains(QStringLiteral("tool-data")));
+        QCOMPARE(r.value.app.receipt.packageNames, (QStringList{"tool", "tool-data"}));
+
+        // Uninstalling removes everything that came with the app, together.
+        Downloader downloader;
+        RpmInspector inspector(m_db);
+        AppInstaller installer(downloader, inspector, *m_backend, m_downloads->path(), m_device);
+        Error e;
+        installer.uninstall(r.value.app, [&](const Error &err) { e = err; });
+        QVERIFY(e.ok());
+        QCOMPARE(m_backend->removals, (QStringList{"tool", "tool-data"}));
+    }
+
+    void unrelatedPackagesRefused()
+    {
+        // A release must not replace another package (here a system one)
+        // alongside the app.
+        serveRelease(QStringLiteral("v2.0"), {QStringLiteral("browser-99-noarch"), QStringLiteral("tool-2.0-aarch64")});
+        App app = checkedApp();
+        app.settings.set(Keys::autoAssetFilterByArch, false);
+        app = checkedApp(app);
+        QCOMPARE(app.latestAssets.size(), 2);
+        const auto r = install(app);
+        QCOMPARE(int(r.error.kind), int(Error::InvalidSetting));
+        QVERIFY(r.error.message.contains(QLatin1String("sailfish-browser")));
+        QVERIFY(m_backend->installs.isEmpty());
     }
 
     void wrongArchRejected()

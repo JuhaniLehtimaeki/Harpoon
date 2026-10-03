@@ -39,9 +39,9 @@ void InstallHandlerBackend::installFiles(const QStringList &paths, const Install
         runNext();
 }
 
-void InstallHandlerBackend::removePackage(const QString &name, Done done)
+void InstallHandlerBackend::removePackages(const QStringList &names, Done done)
 {
-    m_queue.push_back({Op::Remove, QStringList{name}, std::move(done)});
+    m_queue.push_back({Op::Remove, names, std::move(done)});
     if (!m_busy)
         runNext();
 }

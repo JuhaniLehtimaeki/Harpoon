@@ -71,6 +71,17 @@ private slots:
         App noPackage = installedApp();
         noPackage.latestAssets.clear();
         QVERIFY(!autoUpdateEligible(noPackage, updateAvailable()));
+
+        // Same packages as installed: fine. Another package appears: ask.
+        App same = installedApp();
+        same.receipt.packageNames = QStringList{QStringLiteral("harbour-tool")};
+        QVERIFY(autoUpdateEligible(same, updateAvailable()));
+        App more = same;
+        Asset extra;
+        extra.name = QStringLiteral("sailfish-browser-99-1.noarch.rpm");
+        more.latestAssets << extra;
+        QVERIFY(!autoUpdateEligible(more, updateAvailable(), &why));
+        QCOMPARE(why, QStringLiteral("the release's packages changed"));
     }
 
     void notification()

@@ -104,6 +104,7 @@ QJsonObject App::toJson() const
         r.insert(QStringLiteral("tag"), receipt.tag);
         r.insert(QStringLiteral("evr"), receipt.evr);
         r.insert(QStringLiteral("assetNames"), toArray(receipt.assetNames));
+        r.insert(QStringLiteral("packageNames"), toArray(receipt.packageNames));
         r.insert(QStringLiteral("sha256s"), toArray(receipt.sha256s));
         r.insert(QStringLiteral("installedAt"), dateToJson(receipt.installedAt));
         if (!receipt.verification.isEmpty())
@@ -160,6 +161,7 @@ Result<App> App::fromJson(const QJsonObject &o)
     app.receipt.tag = r.value(QStringLiteral("tag")).toString();
     app.receipt.evr = r.value(QStringLiteral("evr")).toString();
     app.receipt.assetNames = fromArray(r.value(QStringLiteral("assetNames")));
+    app.receipt.packageNames = fromArray(r.value(QStringLiteral("packageNames")));
     app.receipt.sha256s = fromArray(r.value(QStringLiteral("sha256s")));
     app.receipt.installedAt = dateFromJson(r.value(QStringLiteral("installedAt")));
     app.receipt.verification = r.value(QStringLiteral("verification")).toString();

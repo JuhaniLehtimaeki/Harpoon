@@ -40,7 +40,7 @@ public:
     bool isSilent() const override { return true; }
 
     void installFiles(const QStringList &paths, const InstallOptions &options, Done done) override;
-    void removePackage(const QString &name, Done done) override;
+    void removePackages(const QStringList &names, Done done) override;
 
     // Abort a transaction that has not finished after this long.
     void setTransactionTimeoutMs(int ms) { m_timeoutMs = ms; }

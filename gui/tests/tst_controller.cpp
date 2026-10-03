@@ -37,10 +37,11 @@ public:
         }
         done(Error());
     }
-    void removePackage(const QString &name, Done done) override
+    void removePackages(const QStringList &names, Done done) override
     {
-        removals << name;
-        m_db.installed.remove(name);
+        removals << names;
+        for (const QString &name : names)
+            m_db.installed.remove(name);
         done(Error());
     }
     QList<QStringList> installs;

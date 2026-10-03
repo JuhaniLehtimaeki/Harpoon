@@ -30,8 +30,9 @@ public:
 
     // Installs every file in one transaction. Paths must be absolute.
     virtual void installFiles(const QStringList &paths, const InstallOptions &options, Done done) = 0;
-    // Removes an installed package by name.
-    virtual void removePackage(const QString &name, Done done) = 0;
+    // Removes installed packages by name, in one transaction (an app's
+    // packages may depend on each other).
+    virtual void removePackages(const QStringList &names, Done done) = 0;
 };
 
 } // namespace Harpoon

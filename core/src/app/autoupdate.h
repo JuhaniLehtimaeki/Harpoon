@@ -9,7 +9,7 @@ namespace Harpoon {
 // Whether a background run may install this app's update without asking.
 // Only plain updates of packages Harpoon installed itself qualify: not
 // track-only or excluded apps, not first installs, not a change of package
-// name. Downgrades and reinstalls are refused by the installer anyway.
+// name or of the set of packages. Downgrades and reinstalls are refused by the installer anyway.
 // `why` receives the reason when the answer is no.
 bool autoUpdateEligible(const App &app, const UpdateStatus &status, QString *why = nullptr);
 

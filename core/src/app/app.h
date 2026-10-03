@@ -19,6 +19,7 @@ struct InstallReceipt
     QString tag;
     QString evr;           // RPM EVR of the main package
     QStringList assetNames;
+    QStringList packageNames; // every RPM installed with the app, main first
     QStringList sha256s;
     QString verification;  // e.g. "attestation:verified"; empty when not checked
     QDateTime installedAt;
