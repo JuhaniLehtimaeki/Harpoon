@@ -35,6 +35,8 @@ struct ControllerEnvironment
     HarpoonSettings *settings = nullptr;
     BackgroundScheduler *scheduler = nullptr;
     QString backupDir;                   // exports; empty: DocumentsLocation
+    QString applicationsDir;             // .desktop files; empty: /usr/share/applications
+    QString iconsDir;                    // launcher icons; empty: /usr/share/icons/hicolor
 };
 
 // The QML-facing API. Owns the core objects and keeps AppListModel in sync
@@ -131,6 +133,8 @@ private:
     void endCheck();
 
     QString m_cacheDir;
+    QString m_applicationsDir;
+    QString m_iconsDir;
     DeviceInfo m_device;
     AppStore m_store;
     SourceRegistry m_registry;

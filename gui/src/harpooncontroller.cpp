@@ -4,6 +4,7 @@
 #include "app/appinstaller.h"
 #include "app/backup.h"
 #include "app/installedmatch.h"
+#include "app/appidentity.h"
 #include "net/networktransport.h"
 #include "pkg/installhandlerbackend.h"
 #include "pkg/packagekitbackend.h"
@@ -40,6 +41,8 @@ QVariantMap assetToVariant(const Asset &a)
 HarpoonController::HarpoonController(ControllerEnvironment env, QObject *parent)
     : QObject(parent)
     , m_cacheDir(env.cacheDir.isEmpty() ? defaultCacheDir() : env.cacheDir)
+    , m_applicationsDir(env.applicationsDir.isEmpty() ? QStringLiteral("/usr/share/applications") : env.applicationsDir)
+    , m_iconsDir(env.iconsDir.isEmpty() ? QStringLiteral("/usr/share/icons/hicolor") : env.iconsDir)
     , m_device(env.device.arch.isEmpty() ? DeviceInfo::detect() : env.device)
     , m_store(env.dataDir.isEmpty() ? AppStore::defaultDirectory() : env.dataDir)
     , m_transport(env.transport)
@@ -165,6 +168,14 @@ AppListModel::Entry HarpoonController::makeEntry(const App &app) const
             e.installed = installed.value;
     }
     e.status = updateStatusFor(app, e.installed);
+    // A name the user chose wins; otherwise the installed app's own name,
+    // else a tidied repository name.
+    const bool renamed = app.name != App::fromUrl(app.url).name;
+    const DesktopEntry desktop = e.installed.name.isEmpty()
+                                     ? DesktopEntry()
+                                     : findDesktopEntry(app.id, m_applicationsDir, m_iconsDir);
+    e.displayName = renamed ? app.name : desktop.isValid() ? desktop.name : prettyAppName(app.name);
+    e.iconPath = desktop.iconPath;
     return e;
 }
 
@@ -469,10 +480,11 @@ void HarpoonController::setAppSetting(const QString &id, const QString &key, con
 void HarpoonController::setAppName(const QString &id, const QString &name)
 {
     const AppListModel::Entry *e = m_model.entry(id);
-    if (!e || name.trimmed().isEmpty())
+    if (!e)
         return;
     App app = e->app;
-    app.name = name.trimmed();
+    // Empty: back to the automatic name.
+    app.name = name.trimmed().isEmpty() ? App::fromUrl(app.url).name : name.trimmed();
     storeAndShow(app);
 }
 
@@ -495,7 +507,10 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
     return {
         {QStringLiteral("appId"), a.id},
         {QStringLiteral("temporaryId"), a.temporaryId},
-        {QStringLiteral("name"), a.name},
+        {QStringLiteral("name"), e->displayName.isEmpty() ? a.name : e->displayName},
+        // The stored name: the automatic one unless the user renamed the app.
+        {QStringLiteral("customName"), a.name != App::fromUrl(a.url).name ? a.name : QString()},
+        {QStringLiteral("icon"), e->iconPath},
         {QStringLiteral("author"), a.author},
         {QStringLiteral("url"), a.url},
         {QStringLiteral("sourceId"), a.sourceId},

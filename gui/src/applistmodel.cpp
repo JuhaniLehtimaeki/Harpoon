@@ -18,7 +18,8 @@ QVariant AppListModel::data(const QModelIndex &index, int role) const
     const Entry &e = m_entries.at(index.row());
     switch (role) {
     case IdRole: return e.app.id;
-    case NameRole: return e.app.name;
+    case NameRole: return e.displayName.isEmpty() ? e.app.name : e.displayName;
+    case IconRole: return e.iconPath;
     case AuthorRole: return e.app.author;
     case UrlRole: return e.app.url;
     case SourceRole: return e.app.sourceId;
@@ -56,6 +57,7 @@ QHash<int, QByteArray> AppListModel::roleNames() const
         {StageRole, "stage"},
         {ProgressRole, "progress"},
         {HasUpdateRole, "hasUpdate"},
+        {IconRole, "icon"},
     };
 }
 
@@ -95,7 +97,9 @@ bool AppListModel::lessThan(const Entry &a, const Entry &b)
     const bool bUpdate = b.status.state == UpdateState::UpdateAvailable;
     if (aUpdate != bUpdate)
         return aUpdate;
-    const int byName = a.app.name.compare(b.app.name, Qt::CaseInsensitive);
+    const QString aName = a.displayName.isEmpty() ? a.app.name : a.displayName;
+    const QString bName = b.displayName.isEmpty() ? b.app.name : b.displayName;
+    const int byName = QString::localeAwareCompare(aName.toLower(), bName.toLower());
     return byName != 0 ? byName < 0 : a.app.id < b.app.id;
 }
 

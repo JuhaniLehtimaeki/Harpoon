@@ -113,7 +113,7 @@ Page {
             Image {
                 id: icon
 
-                property bool _missing: !model.installedVersion
+                property bool _failed
 
                 anchors {
                     left: parent.left
@@ -123,10 +123,10 @@ Page {
                 width: Theme.iconSizeMedium
                 height: Theme.iconSizeMedium
                 sourceSize { width: width; height: height }
-                source: _missing
-                        ? "image://theme/icon-m-file-rpm?" + (item.highlighted ? Theme.highlightColor : Theme.primaryColor)
-                        : "/usr/share/icons/hicolor/86x86/apps/" + model.appId + ".png"
-                onStatusChanged: if (status === Image.Error) _missing = true
+                source: model.icon && !_failed
+                        ? model.icon
+                        : "image://theme/icon-m-file-rpm?" + (item.highlighted ? Theme.highlightColor : Theme.primaryColor)
+                onStatusChanged: if (status === Image.Error) _failed = true
             }
 
             Column {

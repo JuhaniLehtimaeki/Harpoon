@@ -50,19 +50,15 @@ Page {
             TextField {
                 width: parent.width
                 label: qsTr("Name")
-                placeholderText: qsTr("Name")
-                text: details.name || ""
+                // Empty means automatic: the installed app's own name, or one
+                // made from the repository name.
+                placeholderText: details.name || qsTr("Name")
+                text: details.customName || ""
                 EnterKey.iconSource: "image://theme/icon-m-enter-close"
                 EnterKey.onClicked: focus = false
                 onActiveFocusChanged: {
-                    if (activeFocus) {
-                        return
-                    }
-                    // An empty name would leave nothing to show in the list.
-                    if (text.trim().length === 0) {
-                        text = details.name || ""
-                    } else if (text !== details.name) {
-                        harpoon.setAppName(appId, text.trim())
+                    if (!activeFocus && text.trim() !== (details.customName || "")) {
+                        harpoon.setAppName(appId, text)
                     }
                 }
             }

@@ -95,6 +95,8 @@ add_library(harpoon-core STATIC
     src/app/autoupdate.cpp
     src/app/installedmatch.h
     src/app/installedmatch.cpp
+    src/app/appidentity.h
+    src/app/appidentity.cpp
     src/notify/notifier.h
     src/notify/notifier.cpp
     src/verify/sigstore.h

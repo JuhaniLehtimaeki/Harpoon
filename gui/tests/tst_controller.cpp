@@ -6,6 +6,9 @@
 #include "harpooncontroller.h"
 
 #include <QCryptographicHash>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -104,6 +107,8 @@ class TestController : public QObject
         env.settings = m_settings.get();
         env.scheduler = m_scheduler.get();
         env.backupDir = m_dir->filePath(QStringLiteral("documents"));
+        env.applicationsDir = m_dir->filePath(QStringLiteral("applications"));
+        env.iconsDir = m_dir->filePath(QStringLiteral("icons"));
         m_controller.reset(new HarpoonController(env));
         m_controller->reload();
     }
@@ -165,7 +170,8 @@ private slots:
         QCOMPARE(model->count(), 1);
         const QModelIndex idx = model->index(0);
         QCOMPARE(model->data(idx, AppListModel::IdRole).toString(), id);
-        QCOMPARE(model->data(idx, AppListModel::NameRole).toString(), QStringLiteral("sailfishos-chum-gui"));
+        // Not installed: a name tidied from the repository's.
+        QCOMPARE(model->data(idx, AppListModel::NameRole).toString(), QStringLiteral("Sailfishos Chum Gui"));
         QCOMPARE(model->data(idx, AppListModel::LatestVersionRole).toString(), QStringLiteral("0.6.12-1"));
         QCOMPARE(model->data(idx, AppListModel::StateRole).toInt(), int(AppListModel::NotInstalled));
 
@@ -529,6 +535,41 @@ private slots:
         // The field goes away with the last app on that server.
         m_controller->removeApp(selfHosted.id);
         QCOMPARE(keys().size(), 3);
+    }
+
+    void installedAppsUseTheirOwnNameAndIcon()
+    {
+        RpmInfo installed;
+        installed.name = QStringLiteral("sailfishos-chum-gui");
+        installed.evr = parseEvr(QStringLiteral("0.6.13-1"));
+        installed.arch = QStringLiteral("aarch64");
+        m_db->installed.insert(installed.name, installed);
+        QDir().mkpath(m_dir->filePath(QStringLiteral("applications")));
+        QFile desktop(m_dir->filePath(QStringLiteral("applications/sailfishos-chum-gui.desktop")));
+        QVERIFY(desktop.open(QIODevice::WriteOnly));
+        desktop.write("[Desktop Entry]\nName=Chum\nIcon=sailfishos-chum-gui\n");
+        desktop.close();
+        const QString icon = m_dir->filePath(QStringLiteral("icons/172x172/apps/sailfishos-chum-gui.png"));
+        QDir().mkpath(QFileInfo(icon).absolutePath());
+        QFile iconFile(icon);
+        QVERIFY(iconFile.open(QIODevice::WriteOnly));
+        iconFile.close();
+
+        QString id;
+        QVERIFY(addApp(QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui"), {}, &id));
+        AppListModel *model = m_controller->apps();
+        const QModelIndex idx = model->index(model->indexOf(id));
+        QCOMPARE(model->data(idx, AppListModel::NameRole).toString(), QStringLiteral("Chum"));
+        QCOMPARE(model->data(idx, AppListModel::IconRole).toString(), icon);
+        QCOMPARE(m_controller->appDetails(id).value(QStringLiteral("customName")).toString(), QString());
+
+        // A name the user picks wins; clearing it goes back to the automatic one.
+        m_controller->setAppName(id, QStringLiteral("  Chum client "));
+        QCOMPARE(model->data(model->index(model->indexOf(id)), AppListModel::NameRole).toString(),
+                 QStringLiteral("Chum client"));
+        QCOMPARE(m_controller->appDetails(id).value(QStringLiteral("customName")).toString(), QStringLiteral("Chum client"));
+        m_controller->setAppName(id, QString());
+        QCOMPARE(model->data(model->index(model->indexOf(id)), AppListModel::NameRole).toString(), QStringLiteral("Chum"));
     }
 
     void sourcesListed()

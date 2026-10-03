@@ -7,7 +7,7 @@
 
 namespace Harpoon {
 
-// Tracked apps for the UI, sorted: updates first, then by name.
+// Tracked apps for the UI, sorted: updates first, then by displayed name.
 class AppListModel : public QAbstractListModel
 {
     Q_OBJECT
@@ -38,11 +38,14 @@ public:
         StageRole,
         ProgressRole,
         HasUpdateRole,
+        IconRole,
     };
 
     struct Entry
     {
         App app;
+        QString displayName; // what the UI shows; app.name when empty
+        QString iconPath;    // the installed app's launcher icon; empty: none
         RpmInfo installed;
         UpdateStatus status;
         bool busy = false;
