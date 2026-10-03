@@ -26,9 +26,12 @@ apps that install other apps.
    (`armv7l` means `armv7hl`).
 3. Open the download (from the browser's downloads, or **Settings → Transfers**) and confirm
    the installation. From a terminal: `devel-su pkcon install-local harpoon-*.rpm`.
-4. Open Harpoon and add `https://github.com/JuhaniLehtimaeki/Harpoon`. Harpoon recognises
-   itself as installed and from then on updates itself, picking the right package for the
-   phone.
+4. Open Harpoon and add `https://github.com/JuhaniLehtimaeki/Harpoon`: pull down, choose
+   **Add app**, then **Scan QR code** and scan the code below (or type the address). Harpoon
+   recognises itself as installed and from then on updates itself, picking the right
+   package for the phone.
+
+   <img src="docs/images/add-harpoon-qr.png" alt="QR code: https://github.com/JuhaniLehtimaeki/Harpoon" width="200">
 
 For the strictest check of Harpoon's own updates, set the app's **Check build provenance**
 to "Refuse unless verified", the workflow to `release.yml` and the refs to `refs/tags/.*`:
