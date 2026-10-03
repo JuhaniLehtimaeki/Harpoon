@@ -177,6 +177,13 @@ Page {
                 }
             }
 
+            // Keeps the card below off the hero's waves.
+            Item {
+                width: 1
+                height: Theme.paddingLarge
+                visible: waitingCard.visible
+            }
+
             // Tracked, but nothing to install yet: say why, and that it is fine.
             Item {
                 id: waitingCard

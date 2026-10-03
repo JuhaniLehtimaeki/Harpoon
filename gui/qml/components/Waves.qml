@@ -1,43 +1,40 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
 
-// Layered waves, tinted with an ambience colour. When animated they drift
-// slowly sideways, only while the app is in front.
+// The sea: three layers of waves. When animated, each layer drifts at its own
+// slow pace, the farthest slowest, so the sea moves without drawing the eye.
 Item {
     id: root
 
     property color color: Theme.highlightColor
     property bool animated
-    property int duration: 30000
 
-    readonly property real _tileWidth: height * 5 // waves.png is 5:1 and tiles seamlessly
+    readonly property bool _running: animated && visible
+                                     && Qt.application.state === Qt.ApplicationActive
 
     clip: true
 
-    Row {
-        id: tiles
+    WaveLayer {
+        anchors.fill: parent
+        image: "back"
+        color: root.color
+        running: root._running
+        duration: 140000
+    }
 
-        height: parent.height
+    WaveLayer {
+        anchors.fill: parent
+        image: "middle"
+        color: root.color
+        running: root._running
+        duration: 95000
+    }
 
-        Repeater {
-            model: Math.ceil(root.width / Math.max(1, root._tileWidth)) + 1
-
-            HighlightImage {
-                width: root._tileWidth
-                height: root.height
-                sourceSize { width: root._tileWidth; height: root.height }
-                source: Qt.resolvedUrl("../images/waves.png")
-                color: root.color
-            }
-        }
-
-        NumberAnimation on x {
-            from: 0
-            to: -root._tileWidth
-            duration: root.duration
-            loops: Animation.Infinite
-            running: root.animated && root.visible && root._tileWidth > 0
-                     && Qt.application.state === Qt.ApplicationActive
-        }
+    WaveLayer {
+        anchors.fill: parent
+        image: "front"
+        color: root.color
+        running: root._running
+        duration: 65000
     }
 }
