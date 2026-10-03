@@ -1,3 +1,12 @@
+* Sat Oct 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.4.1-1
+- Apps whose repository has no builds yet can be added: Harpoon shows
+  them as waiting for builds, explains why, and offers them as soon as
+  the developer publishes a release with packages.
+- Clearer errors: a Codeberg/Forgejo repository with Releases turned off
+  is no longer reported as "Repository not found"; the message says what
+  is wrong, links the developer's website and tells developers how to fix
+  it. "No releases" and "no package for this phone" explain the fix too.
+
 * Sat Oct 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.4.0-1
 - The app list looks finished with only a few apps: a status header that
   says where things stand ("All caught up", "2 updates ready"), when apps
