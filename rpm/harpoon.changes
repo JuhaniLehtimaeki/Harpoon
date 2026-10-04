@@ -1,3 +1,12 @@
+* Sun Oct 04 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.5.0-1
+- Harpoon puts itself on the list on first start, so it keeps itself up
+  to date. If you stop tracking it, it is not added again.
+- An app's address can be changed in its settings, for example when its
+  repository moves to another forge. Harpoon checks the new address first
+  and keeps the app's settings, name and installed version.
+- App settings are also in the list's long-press menu.
+- The cover no longer says "No apps tracked" while apps are tracked.
+
 * Sat Oct 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.4.2-1
 - The three layers of the animated sea each drift at their own, slower
   pace, so the waves have depth without drawing the eye.
