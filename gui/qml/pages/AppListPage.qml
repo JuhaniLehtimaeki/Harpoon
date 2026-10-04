@@ -206,6 +206,10 @@ Page {
                     onClicked: harpoon.check(model.appId)
                 }
                 MenuItem {
+                    text: qsTr("App settings")
+                    onClicked: pageStack.push(Qt.resolvedUrl("AppSettingsPage.qml"), { appId: model.appId })
+                }
+                MenuItem {
                     visible: !model.busy
                     text: qsTr("Stop tracking")
                     onClicked: {

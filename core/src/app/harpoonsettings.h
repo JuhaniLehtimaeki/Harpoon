@@ -35,6 +35,10 @@ public:
     // Install updates during background checks (PackageKit only). Default off.
     bool autoUpdate() const;
     void setAutoUpdate(bool enabled);
+    // Whether Harpoon has put itself on the list once; it is not added again
+    // after the user stops tracking it. Not part of backups.
+    bool selfAdded() const;
+    void setSelfAdded(bool added);
 
     // API tokens per source id ("GitHub", "Forgejo", ...). Plain text in the
     // app's private config folder; not a secure store.

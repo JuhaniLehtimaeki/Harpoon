@@ -109,6 +109,13 @@ public:
     // Changes one per-app setting; an empty string or null removes it.
     Q_INVOKABLE void setAppSetting(const QString &id, const QString &key, const QVariant &value);
     Q_INVOKABLE void setAppName(const QString &id, const QString &name);
+    // Points the app at another address (sourceId empty: by host) after a
+    // check of it, keeping its settings and installed package. Emits
+    // addressChangeFinished.
+    Q_INVOKABLE void setAppAddress(const QString &id, const QString &url, const QString &sourceId);
+    // Puts Harpoon itself on the list, once: if the user stops tracking it,
+    // it stays off.
+    void trackSelfOnce();
     // All details of one app for the details page.
     Q_INVOKABLE QVariantMap appDetails(const QString &id) const;
 
@@ -124,6 +131,8 @@ signals:
     void checkingChanged();
     void loadedChanged();
     void addFinished(bool ok, const QString &idOrError);
+    // id is the app's id afterwards; error is empty on success.
+    void addressChangeFinished(const QString &id, bool ok, const QString &error);
     // An install, uninstall or check finished. message is user-presentable.
     void operationFinished(const QString &id, bool ok, const QString &message);
     // Emitted after an id changed (temporary id -> RPM name).

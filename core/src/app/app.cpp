@@ -203,4 +203,22 @@ App App::fromUrl(const QString &standardUrl, const QString &sourceId)
     return app;
 }
 
+App App::movedTo(const QString &standardUrl, const QString &sourceId) const
+{
+    const App before = fromUrl(url, this->sourceId);
+    App moved = fromUrl(standardUrl, sourceId);
+    if (!temporaryId) {
+        moved.id = id;
+        moved.temporaryId = false;
+    }
+    if (name != before.name)
+        moved.name = name;
+    if (author != before.author)
+        moved.author = author;
+    moved.settings = settings;
+    moved.addedAt = addedAt;
+    moved.receipt = receipt;
+    return moved;
+}
+
 } // namespace Harpoon

@@ -28,6 +28,7 @@ Page {
         return false
     }
 
+    objectName: "appSettingsPage"
     allowedOrientations: Orientation.All
     // Not a binding: clearing an advanced setting must not hide it.
     Component.onCompleted: _advanced = _usesAdvanced()
@@ -36,12 +37,40 @@ Page {
     // when leaving the page.
     onStatusChanged: {
         if (status === PageStatus.Deactivating && _changed) {
+            _changed = false
             harpoon.check(appId)
         }
     }
 
     // After a first install the app gets its package name as its id.
     onAppIdChanged: details = harpoon.appDetails(appId)
+
+    function _changeAddress(url, sourceId, errorText) {
+        pageStack.push(Qt.resolvedUrl("ChangeAddressDialog.qml"), {
+                           appId: appId,
+                           initialUrl: url,
+                           initialSourceId: sourceId,
+                           errorText: errorText || ""
+                       })
+    }
+
+    Connections {
+        target: harpoon
+        // A new address that did not check out: back to the form as it was.
+        onAddressChangeFinished: {
+            var request = page._pendingAddress
+            if (id !== page.appId || !request) {
+                return
+            }
+            page._pendingAddress = null
+            if (!ok) {
+                page._changeAddress(request.url, request.sourceId, error)
+            }
+        }
+    }
+
+    // The address dialog's last request, until harpoon reports how it went.
+    property var _pendingAddress: null
 
     Connections {
         target: harpoon.apps
@@ -88,6 +117,15 @@ Page {
                         harpoon.setAppName(appId, text)
                     }
                 }
+            }
+
+            ValueButton {
+                label: qsTr("Address")
+                value: details.url || ""
+                description: page._pendingAddress ? qsTr("Checking the new address…")
+                                          : qsTr("Change it when the app has moved, for example to another forge")
+                enabled: !details.busy
+                onClicked: page._changeAddress(details.url, details.sourceId || "")
             }
 
             SectionHeader {

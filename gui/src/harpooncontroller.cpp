@@ -603,6 +603,56 @@ void HarpoonController::setAppName(const QString &id, const QString &name)
     storeAndShow(app);
 }
 
+void HarpoonController::setAppAddress(const QString &id, const QString &url, const QString &sourceId)
+{
+    const AppListModel::Entry *e = m_model.entry(id);
+    if (!e || e->busy) {
+        emit addressChangeFinished(id, false, tr("The app is busy; try again."));
+        return;
+    }
+    const QVariantMap inspected = inspectUrl(url, sourceId);
+    const QString existing = inspected.value(QStringLiteral("existingId")).toString();
+    if (!inspected.value(QStringLiteral("ok")).toBool() && (existing.isEmpty() || existing != id)) {
+        emit addressChangeFinished(id, false, inspected.value(QStringLiteral("error")).toString());
+        return;
+    }
+    const QString standardUrl = inspected.value(QStringLiteral("standardUrl")).toString();
+    m_model.setBusy(id, true, tr("Checking"));
+    beginCheck();
+    checker().check(e->app.movedTo(standardUrl, sourceId), [this, id, standardUrl, sourceId](const App &checked,
+                                                                                             const Error &error) {
+        endCheck();
+        if (!error.ok() && !isWaitingForBuilds(error)) {
+            m_model.setBusy(id, false);
+            emit addressChangeFinished(id, false, error.message);
+            return;
+        }
+        installedCandidates(checked, [this, id, standardUrl, sourceId, checked](const QSet<QString> &installed) {
+            const AppListModel::Entry *current = m_model.entry(id);
+            if (!current)
+                return; // removed while the check ran
+            // Settings or the name may have been edited meanwhile.
+            App moved = applyCheckResult(current->app.movedTo(standardUrl, sourceId), checked);
+            adoptInstalled(moved, installed);
+            storeAndShow(moved, id);
+            m_model.setBusy(moved.id, false);
+            emit addressChangeFinished(moved.id, true, QString());
+        });
+    });
+}
+
+void HarpoonController::trackSelfOnce()
+{
+    if (m_settings->selfAdded())
+        return;
+    m_settings->setSelfAdded(true);
+    const QString self = QStringLiteral("https://github.com/JuhaniLehtimaeki/Harpoon");
+    if (!inspectUrl(self).value(QStringLiteral("existingId")).toString().isEmpty())
+        return; // added by hand already
+    // Added even when offline: the next check finds its releases.
+    addApp(self, QString(), QVariantMap(), true);
+}
+
 QVariantMap HarpoonController::appDetails(const QString &id) const
 {
     const AppListModel::Entry *e = m_model.entry(id);

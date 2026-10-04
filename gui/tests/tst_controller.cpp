@@ -649,6 +649,69 @@ private slots:
         QVERIFY(!e->app.latestVersion.isEmpty());
     }
 
+    void harpoonTracksItselfOnce()
+    {
+        const QString self = QStringLiteral("https://github.com/JuhaniLehtimaeki/Harpoon");
+        AppListModel *model = m_controller->apps();
+        QSignalSpy added(m_controller.get(), &HarpoonController::addFinished);
+        // Offline (the fake answers 404): it is added anyway.
+        m_controller->trackSelfOnce();
+        QTRY_COMPARE(added.count(), 1);
+        QVERIFY(added.first().at(0).toBool());
+        QCOMPARE(model->count(), 1);
+        QCOMPARE(model->entries().first().app.url, self);
+
+        // Stopped tracking: not added again.
+        m_controller->removeApp(added.first().at(1).toString());
+        m_controller->trackSelfOnce();
+        QTest::qWait(50);
+        QCOMPARE(added.count(), 1);
+        QCOMPARE(model->count(), 0);
+
+        // Added by hand before: not added twice.
+        m_settings->setSelfAdded(false);
+        m_controller->addApp(self, QString(), QVariantMap(), true);
+        QTRY_COMPARE(model->count(), 1);
+        const int before = added.count();
+        m_controller->trackSelfOnce();
+        QTest::qWait(50);
+        QCOMPARE(added.count(), before);
+        QCOMPARE(model->count(), 1);
+    }
+
+    void changingAnAppsAddress()
+    {
+        QString id;
+        QVERIFY(addApp(QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui"),
+                       {{QStringLiteral("includePrereleases"), true}}, &id));
+        AppListModel *model = m_controller->apps();
+        QVERIFY(!model->entry(id)->app.latestVersion.isEmpty());
+        QSignalSpy finished(m_controller.get(), &HarpoonController::addressChangeFinished);
+
+        // A wrong address (404) changes nothing.
+        m_controller->setAppAddress(id, QStringLiteral("https://github.com/someone/typo"), QString());
+        QTRY_COMPARE(finished.count(), 1);
+        QVERIFY(!finished.first().at(1).toBool());
+        QVERIFY(!finished.first().at(2).toString().isEmpty());
+        QCOMPARE(model->entry(id)->app.url, QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui"));
+        QVERIFY(!model->entry(id)->busy);
+
+        // Moved to Codeberg, where nothing is published yet.
+        m_transport->respondJson(QStringLiteral("https://codeberg.org/api/v1/repos/someone/chum-gui/releases?per_page=100"),
+                                 "[]");
+        m_controller->setAppAddress(id, QStringLiteral("https://codeberg.org/someone/chum-gui"), QString());
+        QTRY_COMPARE(finished.count(), 2);
+        QVERIFY2(finished.at(1).at(1).toBool(), qPrintable(finished.at(1).at(2).toString()));
+        const QString newId = finished.at(1).at(0).toString();
+        QCOMPARE(model->count(), 1);
+        const App &moved = model->entry(newId)->app;
+        QCOMPARE(moved.url, QStringLiteral("https://codeberg.org/someone/chum-gui"));
+        QVERIFY(moved.settings.getBool("includePrereleases"));
+        QVERIFY(moved.waitingForBuilds);
+        QVERIFY(moved.latestVersion.isEmpty()); // nothing from the old address
+        QVERIFY(!model->entry(newId)->busy);
+    }
+
     void listSummary()
     {
         AppStore store(m_dir->filePath(QStringLiteral("data/apps")));

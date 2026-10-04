@@ -91,8 +91,9 @@ CoverBackground {
         }
     }
 
+    // CoverPlaceholder has no "enabled" switch, unlike ViewPlaceholder.
     CoverPlaceholder {
-        enabled: harpoon.apps.count === 0
+        visible: harpoon.apps.count === 0
         icon.source: "/usr/share/icons/hicolor/86x86/apps/harpoon.png"
         text: qsTr("No apps tracked")
     }

@@ -60,6 +60,8 @@ int main(int argc, char *argv[])
     // moment, and the launcher animation should not wait for it.
     QTimer::singleShot(0, &controller, [&controller]() {
         controller.reload();
+        // Harpoon keeps itself up to date like any other app.
+        controller.trackSelfOnce();
         // Refresh apps that have not been checked within the last hour.
         controller.checkStale(60);
         // Make the systemd timer match the settings (also enables it on first run).

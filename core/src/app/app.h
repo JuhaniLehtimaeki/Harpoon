@@ -72,6 +72,10 @@ struct App
     static bool isValidId(const QString &id, bool temporary);
     // Default name/author from a forge URL: https://host/owner/repo.
     static App fromUrl(const QString &standardUrl, const QString &sourceId = QString());
+    // The same app at another address, for example after its repository
+    // moved: keeps the id (unless temporary), settings, a chosen name and
+    // what is installed, and forgets what the old address published.
+    App movedTo(const QString &standardUrl, const QString &sourceId) const;
 };
 
 } // namespace Harpoon

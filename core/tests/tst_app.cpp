@@ -25,6 +25,34 @@ class TestApp : public QObject
 {
     Q_OBJECT
 private slots:
+    void movedToAnotherAddress()
+    {
+        App app = App::fromUrl(QStringLiteral("https://github.com/me/harbour-thing"));
+        app.id = QStringLiteral("harbour-thing");
+        app.temporaryId = false;
+        app.settings.set("trackOnly", true);
+        app.latestVersion = QStringLiteral("1.0");
+        app.receipt.evr = QStringLiteral("1.0-1");
+        App moved = app.movedTo(QStringLiteral("https://codeberg.org/you/thing"), QStringLiteral("Forgejo"));
+        QCOMPARE(moved.id, QStringLiteral("harbour-thing"));
+        QVERIFY(!moved.temporaryId);
+        QCOMPARE(moved.url, QStringLiteral("https://codeberg.org/you/thing"));
+        QCOMPARE(moved.sourceId, QStringLiteral("Forgejo"));
+        QCOMPARE(moved.name, QStringLiteral("thing")); // the automatic name follows
+        QCOMPARE(moved.author, QStringLiteral("you"));
+        QVERIFY(moved.settings.getBool("trackOnly"));
+        QCOMPARE(moved.receipt.evr, QStringLiteral("1.0-1"));
+        QVERIFY(moved.latestVersion.isEmpty());
+
+        // A chosen name stays; a temporary id follows the address.
+        App temp = App::fromUrl(QStringLiteral("https://github.com/me/harbour-thing"));
+        temp.name = QStringLiteral("My thing");
+        moved = temp.movedTo(QStringLiteral("https://codeberg.org/you/thing"), QString());
+        QCOMPARE(moved.name, QStringLiteral("My thing"));
+        QVERIFY(moved.temporaryId);
+        QCOMPARE(moved.id, App::temporaryIdFor(QStringLiteral("https://codeberg.org/you/thing")));
+    }
+
     void fromUrl()
     {
         const App a = App::fromUrl(QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui"));

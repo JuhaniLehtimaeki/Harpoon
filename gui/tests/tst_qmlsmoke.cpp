@@ -101,7 +101,7 @@ void registerStubs()
                             "Button", "DetailItem", "CoverBackground", "CoverPlaceholder", "CoverActionList",
                             "CoverAction", "Orientation", "TruncationMode", "BusyIndicatorSize", "PageStatus",
                             "PageStackAction", "Formatter", "BackgroundItem", "HighlightImage", "Icon",
-                            "IconTextSwitch"};
+                            "IconTextSwitch", "ValueButton"};
     for (const QString &t : types)
         qmlRegisterType(QUrl::fromLocalFile(kStubDir + QLatin1Char('/') + t + QStringLiteral(".qml")), silica, 1, 0,
                         qPrintable(t));
@@ -323,6 +323,15 @@ private slots:
         expectClean("after the startup check");
         shot(QStringLiteral("list"));
         shot(QStringLiteral("cover"));
+        // With apps tracked, the cover does not also say there are none.
+        QVERIFY(!coverPlaceholder()->isVisible());
+    }
+
+    QQuickItem *coverPlaceholder()
+    {
+        QObject *cover = qvariant_cast<QObject *>(eval(QStringLiteral("coverItem")));
+        return cover ? qobject_cast<QQuickItem *>(findByProperty(cover, "text", QStringLiteral("No apps tracked")))
+                     : nullptr;
     }
 
     void appPages_data()
@@ -745,6 +754,56 @@ private slots:
     }
 
     // Last: with every app gone, the list shows its illustrated empty state.
+    void changeAddress()
+    {
+        const QString id = QStringLiteral("harbour-alpha");
+        const QString oldUrl = m_controller->apps()->entry(id)->app.url;
+        QObject *settingsPage = push(QStringLiteral("AppSettingsPage.qml"), QStringLiteral("{ appId: '%1' }").arg(id));
+        QObject *addressButton = findByProperty(settingsPage, "label", QStringLiteral("Address"));
+        QVERIFY(addressButton);
+        QCOMPARE(addressButton->property("value").toString(), oldUrl);
+        QQmlExpression click(qmlContext(addressButton), addressButton, QStringLiteral("clicked(null)"));
+        click.evaluate();
+        QVERIFY2(!click.hasError(), qPrintable(click.error().toString()));
+        QObject *dialog = currentPage();
+        QCOMPARE(dialog->property("appId").toString(), id);
+        expectClean("ChangeAddressDialog");
+        shot(QStringLiteral("change-address"));
+        // Its own address is no change.
+        QVERIFY(!dialog->property("canAccept").toBool());
+
+        // A typo: the check fails and the form comes back with the reason.
+        QObject *field = findByProperty(dialog, "label", QStringLiteral("Repository URL"));
+        field->setProperty("text", QStringLiteral("https://github.com/someone/harbour-typo"));
+        QVERIFY(dialog->property("canAccept").toBool());
+        QVERIFY(QMetaObject::invokeMethod(dialog, "accept"));
+        QTRY_VERIFY(currentPage() != dialog && currentPage()->property("errorText").toString().length() > 0);
+        expectClean("the change failed");
+        QCOMPARE(findByProperty(currentPage(), "label", QStringLiteral("Repository URL"))->property("text").toString(),
+                 QStringLiteral("https://github.com/someone/harbour-typo"));
+        QCOMPARE(m_controller->apps()->entry(id)->app.url, oldUrl);
+
+        // Moved to Codeberg: same app, same settings, new address.
+        m_transport.respondJson(QStringLiteral("https://codeberg.org/api/v1/repos/someone/harbour-alpha/releases?per_page=100"),
+                                "[]");
+        const QVariantMap settingsBefore = m_controller->appDetails(id).value(QStringLiteral("settings")).toMap();
+        QObject *again = currentPage();
+        findByProperty(again, "label", QStringLiteral("Repository URL"))
+            ->setProperty("text", QStringLiteral("https://codeberg.org/someone/harbour-alpha"));
+        QSignalSpy finished(m_controller.get(), &HarpoonController::addressChangeFinished);
+        QVERIFY(QMetaObject::invokeMethod(again, "accept"));
+        QTRY_COMPARE(finished.count(), 1);
+        QVERIFY2(finished.first().at(1).toBool(), qPrintable(finished.first().at(2).toString()));
+        QCOMPARE(finished.first().at(0).toString(), id);
+        expectClean("the address changed");
+        const App &moved = m_controller->apps()->entry(id)->app;
+        QCOMPARE(moved.url, QStringLiteral("https://codeberg.org/someone/harbour-alpha"));
+        QCOMPARE(m_controller->appDetails(id).value(QStringLiteral("settings")).toMap(), settingsBefore);
+        QCOMPARE(addressButton->property("value").toString(), moved.url);
+        popToList();
+        expectClean("leaving the settings");
+    }
+
     void emptyList()
     {
         QStringList ids;
@@ -761,6 +820,7 @@ private slots:
         shot(QStringLiteral("list-empty"));
         shot(QStringLiteral("cover-empty"));
         QCOMPARE(m_controller->apps()->count(), 0);
+        QVERIFY(coverPlaceholder()->isVisible());
         QObject *list = currentPage();
         QCOMPARE(list->objectName(), QStringLiteral("appListPage"));
         bool shown = false;

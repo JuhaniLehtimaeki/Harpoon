@@ -13,6 +13,7 @@ const QString kBackgroundChecks = QStringLiteral("updates/backgroundChecks");
 const QString kInterval = QStringLiteral("updates/intervalHours");
 const QString kNotify = QStringLiteral("updates/notify");
 const QString kAutoUpdate = QStringLiteral("updates/autoUpdate");
+const QString kSelfAdded = QStringLiteral("app/selfAdded");
 const QString kTokenGroup = QStringLiteral("tokens");
 } // namespace
 
@@ -108,6 +109,17 @@ void HarpoonSettings::setAutoUpdate(bool enabled)
         return;
     m_settings->setValue(kAutoUpdate, enabled);
     emit changed();
+}
+
+bool HarpoonSettings::selfAdded() const
+{
+    return m_settings->value(kSelfAdded, false).toBool();
+}
+
+void HarpoonSettings::setSelfAdded(bool added)
+{
+    m_settings->setValue(kSelfAdded, added);
+    m_settings->sync();
 }
 
 QString HarpoonSettings::token(const QString &sourceId) const
