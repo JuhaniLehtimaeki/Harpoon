@@ -4,6 +4,7 @@
 #include "app/updatestatus.h"
 
 #include <QAbstractListModel>
+#include <QVariantMap>
 
 namespace Harpoon {
 
@@ -45,6 +46,7 @@ public:
         HasUpdateRole,
         IconRole,
         WaitingForBuildsRole,
+        InstallFailedRole,
     };
 
     struct Entry
@@ -57,6 +59,9 @@ public:
         bool busy = false;
         QString stage;
         qreal progress = -1; // < 0: indeterminate
+        // The last failed install or update (HarpoonController::installProblem());
+        // empty once one succeeds. Kept in memory only.
+        QVariantMap installProblem;
     };
 
     explicit AppListModel(QObject *parent = nullptr);
@@ -76,6 +81,7 @@ public:
     void upsert(const Entry &entry, const QString &oldId = QString());
     void remove(const QString &id);
     void setBusy(const QString &id, bool busy, const QString &stage = QString(), qreal progress = -1);
+    void setInstallProblem(const QString &id, const QVariantMap &problem);
 
     int indexOf(const QString &id) const;
     const Entry *entry(const QString &id) const;

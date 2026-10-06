@@ -99,6 +99,8 @@ add_library(harpoon-core STATIC
     src/app/appidentity.cpp
     src/app/appservice.h
     src/app/appservice.cpp
+    src/app/problemreport.h
+    src/app/problemreport.cpp
     src/notify/notifier.h
     src/notify/notifier.cpp
     src/verify/sigstore.h

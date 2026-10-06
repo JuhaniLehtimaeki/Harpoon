@@ -10,6 +10,7 @@
 #include "faketransport.h"
 #include "fakerpmdb.h"
 
+#include "app/problemreport.h"
 #include "applistmodel.h"
 #include "harpooncontroller.h"
 #include "harpoondbus.h"
@@ -754,6 +755,60 @@ private slots:
     }
 
     // Last: with every app gone, the list shows its illustrated empty state.
+    void installFailureShowsAReport()
+    {
+        const QString id = QStringLiteral("harbour-delta");
+        InstallProblem problem;
+        problem.app = m_controller->apps()->entry(id)->app;
+        problem.installedEvr = QStringLiteral("3.0-1");
+        problem.device.arch = QStringLiteral("aarch64");
+        problem.device.osVersion = QStringLiteral("5.0.0.62");
+        problem.backend = QStringLiteral("PackageKit");
+        problem.stage = QStringLiteral("Installing harbour-delta-3.1-1.aarch64.rpm");
+        problem.error = Error::make(Error::Install, QStringLiteral("PackageKit error 12: file /usr/bin/delta conflicts "
+                                                                   "between attempted installs of harbour-delta and harbour-other"));
+        problem.when = QDateTime::currentDateTimeUtc();
+        m_controller->apps()->setInstallProblem(id, {
+            {QStringLiteral("updating"), true},
+            {QStringLiteral("appName"), problem.app.name},
+            {QStringLiteral("message"), problem.error.message},
+            {QStringLiteral("advice"), QStringLiteral("The package manager did not install the package.")},
+            {QStringLiteral("appProblem"), false},
+            {QStringLiteral("report"), installProblemReport(problem)},
+            {QStringLiteral("issueUrl"), newIssueUrl(QStringLiteral("https://github.com/o/r"), installProblemTitle(problem),
+                                                     installProblemReport(problem)).toString()},
+            {QStringLiteral("appUrl"), problem.app.url},
+        });
+        expectClean("the list with a failed update");
+        shot(QStringLiteral("list-install-failed"));
+
+        // The failure opens its page, once.
+        QVERIFY(QMetaObject::invokeMethod(m_controller.get(), "installFailed", Q_ARG(QString, id)));
+        QVERIFY(QMetaObject::invokeMethod(m_controller.get(), "installFailed", Q_ARG(QString, id)));
+        expectClean("InstallErrorPage");
+        QObject *page = currentPage();
+        QCOMPARE(page->objectName(), QStringLiteral("installErrorPage"));
+        QCOMPARE(eval(QStringLiteral("pageStack.pages.length")).toInt(), 2);
+        shot(QStringLiteral("install-error"));
+        QObject *copy = findByProperty(page, "text", QStringLiteral("Copy report"));
+        QVERIFY(copy);
+        QQmlExpression click(qmlContext(copy), copy, QStringLiteral("clicked(null)"));
+        click.evaluate();
+        QVERIFY2(!click.hasError(), qPrintable(click.error().toString()));
+        QQmlExpression clipboard(qmlContext(page), page, QStringLiteral("Clipboard.text"));
+        QCOMPARE(clipboard.evaluate().toString(), installProblemReport(problem));
+        popToList();
+
+        // The app's page points to it too.
+        QObject *appPage = push(QStringLiteral("AppPage.qml"), QStringLiteral("{ appId: '%1' }").arg(id));
+        expectClean("AppPage with a failed update");
+        shot(QStringLiteral("app-install-failed"));
+        QVERIFY(findByProperty(appPage, "text", QStringLiteral("The update failed")));
+        m_controller->apps()->setInstallProblem(id, QVariantMap());
+        expectClean("the problem cleared");
+        popToList();
+    }
+
     void changeAddress()
     {
         const QString id = QStringLiteral("harbour-alpha");

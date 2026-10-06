@@ -257,12 +257,22 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppListPage.qml" line="334"/>
+        <location filename="../qml/pages/AppListPage.qml" line="280"/>
+        <source>Update failed, tap for details</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppListPage.qml" line="281"/>
+        <source>Installation failed, tap for details</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppListPage.qml" line="348"/>
         <source>Nothing on the line yet</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppListPage.qml" line="335"/>
+        <location filename="../qml/pages/AppListPage.qml" line="349"/>
         <source>Pull down to add an app by its link or QR code, from GitHub, Codeberg or another forge</source>
         <translation type="unfinished"></translation>
     </message>
@@ -295,17 +305,17 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="264"/>
+        <location filename="../qml/pages/AppPage.qml" line="334"/>
         <source>Update</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="264"/>
+        <location filename="../qml/pages/AppPage.qml" line="334"/>
         <source>Install</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="273"/>
+        <location filename="../qml/pages/AppPage.qml" line="343"/>
         <source>Mark as seen</source>
         <translation type="unfinished"></translation>
     </message>
@@ -325,138 +335,153 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="222"/>
+        <location filename="../qml/pages/AppPage.qml" line="224"/>
+        <source>The update failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppPage.qml" line="225"/>
+        <source>The installation failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppPage.qml" line="245"/>
+        <source>Tap for what to try and a report to send</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/AppPage.qml" line="292"/>
         <source>No builds yet</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="239"/>
+        <location filename="../qml/pages/AppPage.qml" line="309"/>
         <source>Harpoon keeps checking this app and offers it as soon as a build is published. You don&apos;t need to do anything.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="314"/>
+        <location filename="../qml/pages/AppPage.qml" line="384"/>
         <source>What&apos;s new in %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="315"/>
+        <location filename="../qml/pages/AppPage.qml" line="385"/>
         <source>What&apos;s new</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="338"/>
+        <location filename="../qml/pages/AppPage.qml" line="408"/>
         <source>Show less</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="338"/>
+        <location filename="../qml/pages/AppPage.qml" line="408"/>
         <source>Show all</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="353"/>
+        <location filename="../qml/pages/AppPage.qml" line="423"/>
         <source>Latest release</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="358"/>
-        <location filename="../qml/pages/AppPage.qml" line="395"/>
+        <location filename="../qml/pages/AppPage.qml" line="428"/>
+        <location filename="../qml/pages/AppPage.qml" line="465"/>
         <source>Version</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="364"/>
+        <location filename="../qml/pages/AppPage.qml" line="434"/>
         <source>Title</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="369"/>
+        <location filename="../qml/pages/AppPage.qml" line="439"/>
         <source>Published</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="374"/>
+        <location filename="../qml/pages/AppPage.qml" line="444"/>
         <source>Channel</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="375"/>
+        <location filename="../qml/pages/AppPage.qml" line="445"/>
         <source>Prerelease</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="379"/>
+        <location filename="../qml/pages/AppPage.qml" line="449"/>
         <source>Download size</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="385"/>
+        <location filename="../qml/pages/AppPage.qml" line="455"/>
         <source>Package</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="392"/>
+        <location filename="../qml/pages/AppPage.qml" line="462"/>
         <source>Installed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="397"/>
+        <location filename="../qml/pages/AppPage.qml" line="467"/>
         <source>Not installed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="401"/>
+        <location filename="../qml/pages/AppPage.qml" line="471"/>
         <source>Vendor</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="406"/>
+        <location filename="../qml/pages/AppPage.qml" line="476"/>
         <source>Installed by Harpoon</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="412"/>
+        <location filename="../qml/pages/AppPage.qml" line="482"/>
         <source>Build provenance</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="413"/>
+        <location filename="../qml/pages/AppPage.qml" line="483"/>
         <source>Signature verified</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="414"/>
+        <location filename="../qml/pages/AppPage.qml" line="484"/>
         <source>Reported by GitHub</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="415"/>
+        <location filename="../qml/pages/AppPage.qml" line="485"/>
         <source>No attestation</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="416"/>
+        <location filename="../qml/pages/AppPage.qml" line="486"/>
         <source>Could not check</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="419"/>
+        <location filename="../qml/pages/AppPage.qml" line="489"/>
         <source>Source</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="422"/>
+        <location filename="../qml/pages/AppPage.qml" line="492"/>
         <source>Type</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="426"/>
+        <location filename="../qml/pages/AppPage.qml" line="496"/>
         <source>Last check</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../qml/pages/AppPage.qml" line="427"/>
+        <location filename="../qml/pages/AppPage.qml" line="497"/>
         <source>Never</source>
         <translation type="unfinished"></translation>
     </message>
@@ -921,90 +946,130 @@
 <context>
     <name>Harpoon::HarpoonController</name>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="262"/>
+        <location filename="../src/harpooncontroller.cpp" line="264"/>
         <source>The app was changed in the background; try again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="284"/>
+        <location filename="../src/harpooncontroller.cpp" line="286"/>
         <source>Unknown source type: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="327"/>
+        <location filename="../src/harpooncontroller.cpp" line="329"/>
         <source>Already tracked as %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="375"/>
+        <location filename="../src/harpooncontroller.cpp" line="377"/>
         <source>Added %1. No builds yet: Harpoon will offer it as soon as they are published.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="417"/>
-        <location filename="../src/harpooncontroller.cpp" line="620"/>
+        <location filename="../src/harpooncontroller.cpp" line="419"/>
+        <location filename="../src/harpooncontroller.cpp" line="701"/>
         <source>Checking</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="462"/>
-        <location filename="../src/harpooncontroller.cpp" line="542"/>
+        <location filename="../src/harpooncontroller.cpp" line="464"/>
+        <location filename="../src/harpooncontroller.cpp" line="623"/>
         <source>%1 is busy: %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="466"/>
+        <location filename="../src/harpooncontroller.cpp" line="468"/>
         <source>Preparing</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="490"/>
-        <location filename="../src/harpooncontroller.cpp" line="493"/>
+        <location filename="../src/harpooncontroller.cpp" line="510"/>
+        <location filename="../src/harpooncontroller.cpp" line="513"/>
         <source>Installed %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="503"/>
+        <location filename="../src/harpooncontroller.cpp" line="523"/>
         <source>This package is also tracked as &quot;%1&quot;; remove one of the two.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="519"/>
+        <location filename="../src/harpooncontroller.cpp" line="548"/>
+        <source>The package could not be downloaded. Check the connection and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/harpooncontroller.cpp" line="550"/>
+        <source>The downloaded package does not match the checksum its developer published. Try again; if it happens again, tell the app&apos;s developer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/harpooncontroller.cpp" line="553"/>
+        <source>Harpoon could not confirm who built this package, and the app&apos;s settings refuse packages that are not verified. Tell the app&apos;s developer, or change Check build provenance in the app&apos;s settings.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/harpooncontroller.cpp" line="559"/>
+        <source>The release&apos;s package does not fit this phone or could not be read. This is most likely for the app&apos;s developer to fix: send them the report below.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/harpooncontroller.cpp" line="562"/>
+        <source>The system did not let Harpoon install the package. Check that Settings &gt; Untrusted software allows installing it, then try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/harpooncontroller.cpp" line="565"/>
+        <source>Another installation was running. Wait for it to finish and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/harpooncontroller.cpp" line="568"/>
+        <source>The package&apos;s version does not fit the installed one. Try Reinstall on the app&apos;s page.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/harpooncontroller.cpp" line="570"/>
+        <source>The package manager did not install the package. The report below says why; if it does not help, send it to Harpoon&apos;s maintainer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/harpooncontroller.cpp" line="600"/>
         <source>Downloading %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="521"/>
+        <location filename="../src/harpooncontroller.cpp" line="602"/>
         <source>Verifying %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="523"/>
+        <location filename="../src/harpooncontroller.cpp" line="604"/>
         <source>Installing %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="525"/>
+        <location filename="../src/harpooncontroller.cpp" line="606"/>
         <source>Checking packages</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="546"/>
+        <location filename="../src/harpooncontroller.cpp" line="627"/>
         <source>Uninstalling</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="556"/>
+        <location filename="../src/harpooncontroller.cpp" line="637"/>
         <source>Uninstalled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="610"/>
+        <location filename="../src/harpooncontroller.cpp" line="691"/>
         <source>The app is busy; try again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="745"/>
+        <location filename="../src/harpooncontroller.cpp" line="827"/>
         <source>Cannot read %1: %2</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1014,6 +1079,64 @@
     <message>
         <location filename="../qml/components/HostShortcuts.qml" line="54"/>
         <source>Paste link</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>InstallErrorPage</name>
+    <message>
+        <location filename="../qml/pages/InstallErrorPage.qml" line="40"/>
+        <source>Update failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/InstallErrorPage.qml" line="40"/>
+        <source>Installation failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/InstallErrorPage.qml" line="96"/>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/InstallErrorPage.qml" line="103"/>
+        <source>Report</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/InstallErrorPage.qml" line="107"/>
+        <source>Send this report to the app&apos;s developer, or to Harpoon&apos;s maintainer if you are not sure. It has no personal data: only versions, the app and the error.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/InstallErrorPage.qml" line="108"/>
+        <source>Send this report to Harpoon&apos;s maintainer. It has no personal data: only versions, the app and the error.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/InstallErrorPage.qml" line="148"/>
+        <source>Copied</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/InstallErrorPage.qml" line="148"/>
+        <source>Copy report</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/InstallErrorPage.qml" line="164"/>
+        <source>Report to Harpoon</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/InstallErrorPage.qml" line="181"/>
+        <source>Open the app&apos;s page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/pages/InstallErrorPage.qml" line="191"/>
+        <source>&quot;Report to Harpoon&quot; opens a new issue on GitHub with the report filled in; you need a GitHub account to send it. Without one, copy the report and send it another way.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

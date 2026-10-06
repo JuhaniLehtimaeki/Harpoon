@@ -28,6 +28,7 @@ QVariant AppListModel::data(const QModelIndex &index, int role) const
     case StateRole: return int(toState(e.status.state));
     case LastErrorRole: return e.app.lastError;
     case WaitingForBuildsRole: return e.app.waitingForBuilds;
+    case InstallFailedRole: return !e.installProblem.isEmpty();
     case TrackOnlyRole: return e.app.settings.getBool(Keys::trackOnly);
     case PrereleaseRole: return e.app.latestPrerelease;
     case ReleaseDateRole: return e.app.latestDate;
@@ -52,6 +53,7 @@ QHash<int, QByteArray> AppListModel::roleNames() const
         {StateRole, "state"},
         {LastErrorRole, "lastError"},
         {WaitingForBuildsRole, "waitingForBuilds"},
+        {InstallFailedRole, "installFailed"},
         {TrackOnlyRole, "trackOnly"},
         {PrereleaseRole, "prerelease"},
         {ReleaseDateRole, "releaseDate"},
@@ -192,6 +194,7 @@ void AppListModel::upsert(const Entry &entry, const QString &oldId)
         merged.busy = m_entries.at(row).busy;
         merged.stage = m_entries.at(row).stage;
         merged.progress = m_entries.at(row).progress;
+        merged.installProblem = m_entries.at(row).installProblem;
         m_entries[row] = merged;
         emit dataChanged(index(row), index(row));
         emit appChanged(merged.app.id, false);
@@ -216,6 +219,16 @@ void AppListModel::remove(const QString &id)
     if (updatesCount() != previousUpdates || failedCount() != previousFailed)
         emit updatesCountChanged();
     emit summaryChanged();
+}
+
+void AppListModel::setInstallProblem(const QString &id, const QVariantMap &problem)
+{
+    const int row = indexOf(id);
+    if (row < 0 || m_entries.at(row).installProblem == problem)
+        return;
+    m_entries[row].installProblem = problem;
+    emit dataChanged(index(row), index(row), {InstallFailedRole});
+    emit appChanged(id, false);
 }
 
 void AppListModel::setBusy(const QString &id, bool busy, const QString &stage, qreal progress)

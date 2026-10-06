@@ -255,7 +255,7 @@ Page {
 
                 StateLabel {
                     width: parent.width
-                    visible: !model.busy && model.lastError.length === 0
+                    visible: !model.busy && model.lastError.length === 0 && model.installFailed !== true
                     appState: model.state
                     installedVersion: model.installedVersion
                     latestVersion: model.latestVersion
@@ -273,9 +273,21 @@ Page {
                     color: item.highlighted ? Theme.secondaryHighlightColor : Theme.secondaryColor
                 }
 
+                // The last install or update failed; the app's page has the report.
+                Label {
+                    width: parent.width
+                    visible: !model.busy && model.installFailed === true
+                    text: model.installedVersion.length > 0 ? qsTr("Update failed, tap for details")
+                                                            : qsTr("Installation failed, tap for details")
+                    font.pixelSize: Theme.fontSizeExtraSmall
+                    truncationMode: TruncationMode.Fade
+                    color: Theme.errorColor
+                }
+
                 Label {
                     width: parent.width
                     visible: !model.busy && model.lastError.length > 0 && model.waitingForBuilds !== true
+                             && model.installFailed !== true
                     text: model.lastError
                     font.pixelSize: Theme.fontSizeExtraSmall
                     truncationMode: TruncationMode.Fade
@@ -305,6 +317,7 @@ Page {
                 width: Theme.iconSizeSmall
                 height: Theme.iconSizeSmall
                 visible: model.busy || model.hasUpdate === true || model.lastError.length > 0
+                         || model.installFailed === true
 
                 BusyIndicator {
                     anchors.centerIn: parent
@@ -314,7 +327,8 @@ Page {
                 }
                 Icon {
                     readonly property bool _waiting: model.waitingForBuilds === true
-                    readonly property bool _failed: model.lastError.length > 0 && !_waiting
+                    readonly property bool _failed: model.installFailed === true
+                                                    || (model.lastError.length > 0 && !_waiting)
 
                     anchors.centerIn: parent
                     visible: !model.busy

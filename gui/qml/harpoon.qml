@@ -58,6 +58,23 @@ ApplicationWindow {
 
     Connections {
         target: harpoon
+        // A failed install or update gets its own page with a report, unless
+        // one is already showing (Update all can fail several times) or
+        // Harpoon is in the background: then the list and the app's page
+        // point to it.
+        onInstallFailed: {
+            if (Qt.application.state !== Qt.ApplicationActive) {
+                return
+            }
+            var top = pageStack.currentPage
+            if (top && top.objectName === "installErrorPage") {
+                return
+            }
+            if (pageStack.busy) {
+                pageStack.completeAnimation()
+            }
+            pageStack.push(Qt.resolvedUrl("pages/InstallErrorPage.qml"), { appId: id })
+        }
         // A first install replaces the temporary id with the RPM name; every
         // page showing that app follows, not only the top one.
         onAppIdChanged: {

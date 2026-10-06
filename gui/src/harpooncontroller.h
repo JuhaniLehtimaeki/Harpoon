@@ -6,6 +6,7 @@
 #include "app/appchecker.h"
 #include "app/appstore.h"
 #include "app/backgroundscheduler.h"
+#include "app/problemreport.h"
 #include "net/downloader.h"
 #include "net/httptransport.h"
 #include "pipeline/deviceinfo.h"
@@ -118,6 +119,10 @@ public:
     void trackSelfOnce();
     // All details of one app for the details page.
     Q_INVOKABLE QVariantMap appDetails(const QString &id) const;
+    // The app's last failed install or update, for the error page: {updating,
+    // appName, version, message, kind, advice, appProblem, title, report,
+    // issueUrl, appUrl, when}. Empty when there is none.
+    Q_INVOKABLE QVariantMap installProblem(const QString &id) const;
 
     // Writes a backup to the documents folder: {ok, path, error}.
     Q_INVOKABLE QVariantMap exportBackup(bool includeTokens);
@@ -132,6 +137,8 @@ signals:
     void loadedChanged();
     void addFinished(bool ok, const QString &idOrError);
     // id is the app's id afterwards; error is empty on success.
+    // An install or update failed (not declined); installProblem() has the story.
+    void installFailed(const QString &id);
     void addressChangeFinished(const QString &id, bool ok, const QString &error);
     // An install, uninstall or check finished. message is user-presentable.
     void operationFinished(const QString &id, bool ok, const QString &message);
@@ -149,6 +156,8 @@ private:
     void show(const App &app, const QString &oldId = QString(), const RpmInfo *installed = nullptr);
     void queryInstalled(const QString &id);
     QString localizedStage(const QString &stage) const;
+    QString problemAdvice(const Error &error) const;
+    QVariantMap problemToVariant(const InstallProblem &problem) const;
     void storeAndShow(const App &app, const QString &oldId = QString(), const RpmInfo *installed = nullptr);
     // Which of the packages in a temporary-id app's release are installed
     // (empty for other apps), asked without blocking.

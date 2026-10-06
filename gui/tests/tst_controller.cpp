@@ -30,6 +30,12 @@ public:
     void installFiles(const QStringList &paths, const InstallOptions &, Done done) override
     {
         installs << paths;
+        if (!failNext.ok()) {
+            const Error e = failNext;
+            failNext = Error();
+            done(e);
+            return;
+        }
         for (const QString &p : paths) {
             const auto info = m_inspector.inspectFile(p);
             if (info.ok())
@@ -46,6 +52,7 @@ public:
     }
     QList<QStringList> installs;
     QStringList removals;
+    Error failNext; // the next install fails with this
 
 private:
     FakeRpmDb &m_db;
@@ -269,6 +276,73 @@ private slots:
 
         m_controller->setAppName(id, QStringLiteral("  Chum  "));
         QCOMPARE(m_controller->appDetails(id).value(QStringLiteral("name")).toString(), QStringLiteral("Chum"));
+    }
+
+    void failedInstallKeepsAReport()
+    {
+        if (!RpmFactory::available())
+            QSKIP("rpmbuild not installed");
+        RpmFactory factory;
+        const QString rpm = factory.build(QStringLiteral("harbour-tool"), QStringLiteral("1.1"), QStringLiteral("1"),
+                                          QStringLiteral("aarch64"));
+        QVERIFY(!rpm.isEmpty());
+        MiniHttpServer server;
+        const QByteArray bytes = readFile(rpm);
+        server.routeBody(QStringLiteral("/dl/harbour-tool-1.1-1.aarch64.rpm"), bytes);
+        QJsonObject asset{{QStringLiteral("name"), QStringLiteral("harbour-tool-1.1-1.aarch64.rpm")},
+                          {QStringLiteral("browser_download_url"), server.url(QStringLiteral("/dl/harbour-tool-1.1-1.aarch64.rpm"))},
+                          {QStringLiteral("size"), bytes.size()}};
+        QJsonObject release{{QStringLiteral("tag_name"), QStringLiteral("v1.1")},
+                            {QStringLiteral("published_at"), QStringLiteral("2026-09-01T00:00:00Z")},
+                            {QStringLiteral("assets"), QJsonArray{asset}}};
+        m_transport->respondJson(QStringLiteral("https://api.github.com/repos/me/harbour-tool/releases?per_page=100"),
+                                 QJsonDocument(QJsonArray{release}).toJson());
+        QString id;
+        QVERIFY(addApp(QStringLiteral("https://github.com/me/harbour-tool"), {}, &id));
+        AppListModel *model = m_controller->apps();
+        QSignalSpy finished(m_controller.get(), &HarpoonController::operationFinished);
+        QSignalSpy failed(m_controller.get(), &HarpoonController::installFailed);
+
+        // Declined in the system dialog: a banner, no report.
+        m_backend->failNext = Error::make(Error::Cancelled, QStringLiteral("Installation declined"));
+        m_controller->install(id);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 10000);
+        QCOMPARE(finished.last().at(2).toString(), QStringLiteral("Installation declined"));
+        QCOMPARE(failed.count(), 0);
+        QVERIFY(m_controller->installProblem(id).isEmpty());
+
+        // Refused by the package manager: a report, and no banner as well.
+        m_backend->failNext = Error::make(Error::Install, QStringLiteral("PackageKit error 12: file conflicts"));
+        m_controller->install(id);
+        QTRY_COMPARE_WITH_TIMEOUT(failed.count(), 1, 10000);
+        QCOMPARE(failed.first().at(0).toString(), id);
+        QVERIFY(finished.last().at(2).toString().isEmpty());
+        const QVariantMap problem = m_controller->installProblem(id);
+        QCOMPARE(problem.value(QStringLiteral("message")).toString(), QStringLiteral("PackageKit error 12: file conflicts"));
+        QCOMPARE(problem.value(QStringLiteral("kind")).toString(), QStringLiteral("Install"));
+        QVERIFY(!problem.value(QStringLiteral("updating")).toBool());
+        QVERIFY(!problem.value(QStringLiteral("appProblem")).toBool());
+        QVERIFY(!problem.value(QStringLiteral("advice")).toString().isEmpty());
+        const QString report = problem.value(QStringLiteral("report")).toString();
+        QVERIFY2(report.contains(QLatin1String("PackageKit error 12: file conflicts")), qPrintable(report));
+        QVERIFY2(report.contains(QLatin1String("Install of harbour-tool v1.1 failed at \"Installing harbour-tool-1.1-1.aarch64\"")), qPrintable(report));
+        QVERIFY(report.contains(QLatin1String("- Harpoon: " HARPOON_VERSION)));
+        QVERIFY(report.contains(QLatin1String("- SailfishOS: 5.0.0.62 (aarch64)")));
+        QVERIFY(report.contains(QLatin1String("- Source: https://github.com/me/harbour-tool")));
+        QVERIFY(report.contains(QLatin1String("- Packages: harbour-tool-1.1-1.aarch64.rpm")));
+        QVERIFY(problem.value(QStringLiteral("issueUrl")).toString().startsWith(
+            QLatin1String("https://github.com/JuhaniLehtimaeki/Harpoon/issues/new?title=")));
+        QVERIFY(model->data(model->index(model->indexOf(id)), AppListModel::InstallFailedRole).toBool());
+        QVERIFY(m_controller->appDetails(id).value(QStringLiteral("installProblem")).toMap().contains(QStringLiteral("report")));
+
+        // Installed after all: the report goes away.
+        QSignalSpy idChanged(m_controller.get(), &HarpoonController::appIdChanged);
+        m_controller->install(id);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 3, 10000);
+        QVERIFY2(finished.last().at(1).toBool(), qPrintable(finished.last().at(2).toString()));
+        QVERIFY(m_controller->installProblem(QStringLiteral("harbour-tool")).isEmpty());
+        QVERIFY(!model->data(model->index(model->indexOf(QStringLiteral("harbour-tool"))),
+                             AppListModel::InstallFailedRole).toBool());
     }
 
     void installUninstallRemove()

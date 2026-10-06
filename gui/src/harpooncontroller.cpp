@@ -23,6 +23,8 @@ namespace Harpoon {
 
 namespace {
 
+const QString kHarpoonRepository = QStringLiteral("https://github.com/JuhaniLehtimaeki/Harpoon");
+
 QVariantMap assetToVariant(const Asset &a)
 {
     return {{QStringLiteral("name"), a.name},
@@ -464,6 +466,13 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
     }
     const App app = e->app;
     m_model.setBusy(id, true, tr("Preparing"));
+    // What a report of a failure needs; the stage follows the installer.
+    auto problem = std::make_shared<InstallProblem>();
+    problem->app = app;
+    if (!e->installed.name.isEmpty())
+        problem->installedEvr = e->installed.evr.toString();
+    problem->device = m_device;
+    problem->backend = backend().name();
 
     auto *installer = new AppInstaller(m_downloader, *m_inspector, backend(), m_cacheDir, m_device, this);
     installer->setDownloadPreparer(checker().downloadPreparer(app));
@@ -473,14 +482,25 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
     options.allowDowngrade = downgrade;
     installer->install(
         app, options,
-        [this, id](const QString &stage, qint64 done, qint64 total) {
+        [this, id, problem](const QString &stage, qint64 done, qint64 total) {
+            problem->stage = stage;
             m_model.setBusy(id, true, localizedStage(stage), total > 0 ? qreal(done) / qreal(total) : -1);
         },
-        [this, id, installer](const Result<InstallResult> &result) {
+        [this, id, installer, problem](const Result<InstallResult> &result) {
             installer->deleteLater();
             m_model.setBusy(id, false);
             if (!result.ok()) {
-                emit operationFinished(id, false, result.error.message);
+                // Declined by the user: nothing to report.
+                if (result.error.kind == Error::Cancelled) {
+                    emit operationFinished(id, false, result.error.message);
+                    return;
+                }
+                problem->error = result.error;
+                problem->when = QDateTime::currentDateTimeUtc();
+                m_model.setInstallProblem(id, problemToVariant(*problem));
+                // The error page tells the whole story; no banner as well.
+                emit operationFinished(id, false, QString());
+                emit installFailed(id);
                 return;
             }
             const AppListModel::Entry *current = m_model.entry(id);
@@ -507,8 +527,69 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
                 return;
             }
             storeAndShow(merged, id, merged.id == result.value.installed.name ? &result.value.installed : nullptr);
+            m_model.setInstallProblem(newId, QVariantMap());
             emit operationFinished(newId, true, message);
         });
+}
+
+QVariantMap HarpoonController::installProblem(const QString &id) const
+{
+    const AppListModel::Entry *e = m_model.entry(id);
+    return e ? e->installProblem : QVariantMap();
+}
+
+QString HarpoonController::problemAdvice(const Error &error) const
+{
+    switch (error.kind) {
+    case Error::Network:
+    case Error::Http:
+    case Error::Download:
+    case Error::RateLimited:
+        return tr("The package could not be downloaded. Check the connection and try again.");
+    case Error::Checksum:
+        return tr("The downloaded package does not match the checksum its developer published. Try again; if it "
+                  "happens again, tell the app's developer.");
+    case Error::Verification:
+        return tr("Harpoon could not confirm who built this package, and the app's settings refuse packages that are "
+                  "not verified. Tell the app's developer, or change Check build provenance in the app's settings.");
+    case Error::WrongArch:
+    case Error::IdChanged:
+    case Error::Package:
+    case Error::NoAsset:
+        return tr("The release's package does not fit this phone or could not be read. This is most likely for the "
+                  "app's developer to fix: send them the report below.");
+    case Error::NotAuthorized:
+        return tr("The system did not let Harpoon install the package. Check that Settings > Untrusted software "
+                  "allows installing it, then try again.");
+    case Error::Busy:
+        return tr("Another installation was running. Wait for it to finish and try again.");
+    case Error::Downgrade:
+    case Error::AlreadyInstalled:
+        return tr("The package's version does not fit the installed one. Try Reinstall on the app's page.");
+    default:
+        return tr("The package manager did not install the package. The report below says why; if it does not "
+                  "help, send it to Harpoon's maintainer.");
+    }
+}
+
+QVariantMap HarpoonController::problemToVariant(const InstallProblem &problem) const
+{
+    const QString report = installProblemReport(problem);
+    const QString title = installProblemTitle(problem);
+    return {
+        {QStringLiteral("updating"), !problem.installedEvr.isEmpty()},
+        {QStringLiteral("appName"), problem.app.name},
+        {QStringLiteral("version"), problem.app.latestVersion},
+        {QStringLiteral("message"), problem.error.message},
+        {QStringLiteral("kind"), errorKindName(problem.error.kind)},
+        {QStringLiteral("advice"), problemAdvice(problem.error)},
+        {QStringLiteral("appProblem"), isAppPackageProblem(problem.error.kind)},
+        {QStringLiteral("title"), title},
+        {QStringLiteral("report"), report},
+        {QStringLiteral("issueUrl"), newIssueUrl(kHarpoonRepository, title, report).toString(QUrl::FullyEncoded)},
+        {QStringLiteral("appUrl"), problem.app.url},
+        {QStringLiteral("when"), problem.when},
+    };
 }
 
 QString HarpoonController::localizedStage(const QString &stage) const
@@ -646,7 +727,7 @@ void HarpoonController::trackSelfOnce()
     if (m_settings->selfAdded())
         return;
     m_settings->setSelfAdded(true);
-    const QString self = QStringLiteral("https://github.com/JuhaniLehtimaeki/Harpoon");
+    const QString self = kHarpoonRepository;
     if (!inspectUrl(self).value(QStringLiteral("existingId")).toString().isEmpty())
         return; // added by hand already
     // Added even when offline: the next check finds its releases.
@@ -696,6 +777,7 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
         {QStringLiteral("lastCheck"), a.lastCheck},
         {QStringLiteral("lastError"), a.lastError},
         {QStringLiteral("waitingForBuilds"), a.waitingForBuilds},
+        {QStringLiteral("installProblem"), e->installProblem},
         {QStringLiteral("trackOnly"), a.settings.getBool(Keys::trackOnly)},
         {QStringLiteral("acknowledgedVersion"), a.acknowledgedVersion},
         {QStringLiteral("receiptEvr"), a.receipt.evr},

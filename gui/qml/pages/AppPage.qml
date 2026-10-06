@@ -177,6 +177,76 @@ Page {
                 }
             }
 
+            // The last install or update failed: say so, with the way to the report.
+            Item {
+                width: 1
+                height: Theme.paddingLarge
+                visible: problemCard.visible
+            }
+
+            BackgroundItem {
+                id: problemCard
+
+                readonly property var _problem: details.installProblem || ({})
+
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                height: problemColumn.height + 2 * Theme.paddingLarge
+                visible: details.busy !== true && _problem.report !== undefined
+                onClicked: pageStack.push(Qt.resolvedUrl("InstallErrorPage.qml"), { appId: page.appId })
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.paddingMedium
+                    color: Theme.rgba(Theme.errorColor, Theme.opacityFaint)
+                }
+
+                Column {
+                    id: problemColumn
+
+                    x: Theme.paddingLarge
+                    y: Theme.paddingLarge
+                    width: parent.width - 2 * Theme.paddingLarge
+                    spacing: Theme.paddingSmall
+
+                    Row {
+                        spacing: Theme.paddingMedium
+
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            source: "image://theme/icon-s-filled-warning"
+                            color: Theme.errorColor
+                        }
+
+                        Label {
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: Theme.errorColor
+                            text: problemCard._problem.updating ? qsTr("The update failed")
+                                                                : qsTr("The installation failed")
+                        }
+                    }
+
+                    Label {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        maximumLineCount: 3
+                        elide: Text.ElideRight
+                        textFormat: Text.PlainText
+                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.highlightColor
+                        text: problemCard._problem.message || ""
+                    }
+
+                    Label {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        font.pixelSize: Theme.fontSizeExtraSmall
+                        color: Theme.secondaryHighlightColor
+                        text: qsTr("Tap for what to try and a report to send")
+                    }
+                }
+            }
+
             // Keeps the card below off the hero's waves.
             Item {
                 width: 1

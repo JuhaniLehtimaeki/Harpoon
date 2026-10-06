@@ -1,8 +1,10 @@
 #include "app/appinstaller.h"
 #include "app/appstore.h"
+#include "app/problemreport.h"
 #include "app/updatestatus.h"
 
 #include <QTemporaryDir>
+#include <QUrlQuery>
 #include <QtTest>
 
 using namespace Harpoon;
@@ -25,6 +27,46 @@ class TestApp : public QObject
 {
     Q_OBJECT
 private slots:
+    void problemReport()
+    {
+        InstallProblem p;
+        p.app = App::fromUrl(QStringLiteral("https://github.com/me/harbour-thing"));
+        p.app.id = QStringLiteral("harbour-thing");
+        p.app.latestVersion = QStringLiteral("1.2");
+        p.app.latestTag = QStringLiteral("v1.2");
+        Asset asset;
+        asset.name = QStringLiteral("harbour-thing-1.2-1.aarch64.rpm");
+        p.app.latestAssets << asset;
+        p.installedEvr = QStringLiteral("1.1-1");
+        p.device.arch = QStringLiteral("aarch64");
+        p.device.osVersion = QStringLiteral("5.0.0.62");
+        p.backend = QStringLiteral("packagekit");
+        p.stage = QStringLiteral("Installing harbour-thing-1.2-1.aarch64.rpm");
+        p.error = Error::make(Error::WrongArch, QStringLiteral("harbour-thing is built for armv7hl, this device is aarch64"));
+        p.when = QDateTime(QDate(2026, 10, 6), QTime(12, 0), Qt::UTC);
+
+        QCOMPARE(installAction(p), QStringLiteral("Update"));
+        QCOMPARE(installProblemTitle(p), QStringLiteral("Update of harbour-thing failed: WrongArch"));
+        QVERIFY(isAppPackageProblem(p.error.kind));
+        QVERIFY(!isAppPackageProblem(Error::Network));
+        const QString report = Harpoon::installProblemReport(p);
+        for (const char *line : {"failed at \"Installing harbour-thing-1.2-1.aarch64.rpm\".",
+                                 "harbour-thing is built for armv7hl, this device is aarch64",
+                                 "- SailfishOS: 5.0.0.62 (aarch64)", "- Install backend: packagekit",
+                                 "- App: harbour-thing (harbour-thing)", "- Installed: 1.1-1",
+                                 "- Release: 1.2 (tag v1.2)", "- Packages: harbour-thing-1.2-1.aarch64.rpm",
+                                 "- Error kind: WrongArch", "- Time: 2026-10-06T12:00:00Z"})
+            QVERIFY2(report.contains(QLatin1String(line)), line);
+
+        // Title and body survive the trip through the URL, newlines and all.
+        const QUrl url = newIssueUrl(QStringLiteral("https://github.com/o/r"), QStringLiteral("A & B"), report);
+        QCOMPARE(url.host(), QStringLiteral("github.com"));
+        QCOMPARE(url.path(), QStringLiteral("/o/r/issues/new"));
+        const QUrlQuery query(url);
+        QCOMPARE(query.queryItemValue(QStringLiteral("title"), QUrl::FullyDecoded), QStringLiteral("A & B"));
+        QCOMPARE(query.queryItemValue(QStringLiteral("body"), QUrl::FullyDecoded), report);
+    }
+
     void movedToAnotherAddress()
     {
         App app = App::fromUrl(QStringLiteral("https://github.com/me/harbour-thing"));
