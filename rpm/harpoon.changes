@@ -1,3 +1,13 @@
+* Tue Oct 06 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.6.0-1
+- A failed install or update opens a page that says what went wrong and
+  what to try, with Try again.
+- The page shows a report to send to whoever can fix the problem:
+  versions, phone, the app and its package, the step that failed and the
+  exact error. Copy it, or open a GitHub issue with it filled in. When
+  the app's package looks wrong, the page leads to its developer.
+- Until an install succeeds, the list and the app's page show that it
+  failed and lead back to the report.
+
 * Sun Oct 04 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.5.0-1
 - Harpoon puts itself on the list on first start, so it keeps itself up
   to date. If you stop tracking it, it is not added again.
