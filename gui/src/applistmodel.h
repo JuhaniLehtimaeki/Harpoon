@@ -17,6 +17,9 @@ class AppListModel : public QAbstractListModel
     // Apps whose last check failed (not those only waiting for builds).
     // Shares updatesCount's change signal.
     Q_PROPERTY(int failedCount READ failedCount NOTIFY updatesCountChanged)
+    // Updates that Update all installs: not track-only, no build to choose.
+    // Shares updatesCount's change signal.
+    Q_PROPERTY(int installableUpdatesCount READ installableUpdatesCount NOTIFY updatesCountChanged)
     // For the list's summary: apps that are installed, and the most recent
     // check of any app (invalid: never checked).
     Q_PROPERTY(int installedCount READ installedCount NOTIFY summaryChanged)
@@ -47,6 +50,7 @@ public:
         IconRole,
         WaitingForBuildsRole,
         InstallFailedRole,
+        NeedsBuildChoiceRole,
     };
 
     struct Entry
@@ -72,6 +76,7 @@ public:
 
     int count() const { return m_entries.size(); }
     int updatesCount() const;
+    int installableUpdatesCount() const;
     int failedCount() const;
     int installedCount() const;
     QDateTime lastChecked() const;

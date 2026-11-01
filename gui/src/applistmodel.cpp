@@ -1,5 +1,7 @@
 #include "applistmodel.h"
 
+#include "app/packagebuilds.h"
+
 #include <algorithm>
 
 namespace Harpoon {
@@ -29,6 +31,7 @@ QVariant AppListModel::data(const QModelIndex &index, int role) const
     case LastErrorRole: return e.app.lastError;
     case WaitingForBuildsRole: return e.app.waitingForBuilds;
     case InstallFailedRole: return !e.installProblem.isEmpty();
+    case NeedsBuildChoiceRole: return !buildChoices(e.app.latestAssets).isEmpty();
     case TrackOnlyRole: return e.app.settings.getBool(Keys::trackOnly);
     case PrereleaseRole: return e.app.latestPrerelease;
     case ReleaseDateRole: return e.app.latestDate;
@@ -54,6 +57,7 @@ QHash<int, QByteArray> AppListModel::roleNames() const
         {LastErrorRole, "lastError"},
         {WaitingForBuildsRole, "waitingForBuilds"},
         {InstallFailedRole, "installFailed"},
+        {NeedsBuildChoiceRole, "needsBuildChoice"},
         {TrackOnlyRole, "trackOnly"},
         {PrereleaseRole, "prerelease"},
         {ReleaseDateRole, "releaseDate"},
@@ -102,6 +106,16 @@ QDateTime AppListModel::lastChecked() const
         if (e.app.lastCheck.isValid() && (!newest.isValid() || e.app.lastCheck > newest))
             newest = e.app.lastCheck;
     return newest;
+}
+
+int AppListModel::installableUpdatesCount() const
+{
+    int n = 0;
+    for (const Entry &e : m_entries)
+        if (e.status.state == UpdateState::UpdateAvailable && !e.app.settings.getBool(Keys::trackOnly)
+            && buildChoices(e.app.latestAssets).isEmpty())
+            ++n;
+    return n;
 }
 
 int AppListModel::updatesCount() const
@@ -176,6 +190,7 @@ void AppListModel::resort()
 void AppListModel::upsert(const Entry &entry, const QString &oldId)
 {
     const int previousUpdates = updatesCount();
+    const int previousInstallable = installableUpdatesCount();
     const int previousFailed = failedCount();
     int row = indexOf(oldId.isEmpty() ? entry.app.id : oldId);
     if (row < 0)
@@ -200,7 +215,8 @@ void AppListModel::upsert(const Entry &entry, const QString &oldId)
         emit appChanged(merged.app.id, false);
         resort();
     }
-    if (updatesCount() != previousUpdates || failedCount() != previousFailed)
+    if (updatesCount() != previousUpdates || failedCount() != previousFailed
+        || installableUpdatesCount() != previousInstallable)
         emit updatesCountChanged();
     emit summaryChanged();
 }
@@ -211,12 +227,14 @@ void AppListModel::remove(const QString &id)
     if (row < 0)
         return;
     const int previousUpdates = updatesCount();
+    const int previousInstallable = installableUpdatesCount();
     const int previousFailed = failedCount();
     beginRemoveRows(QModelIndex(), row, row);
     m_entries.removeAt(row);
     endRemoveRows();
     emit countChanged();
-    if (updatesCount() != previousUpdates || failedCount() != previousFailed)
+    if (updatesCount() != previousUpdates || failedCount() != previousFailed
+        || installableUpdatesCount() != previousInstallable)
         emit updatesCountChanged();
     emit summaryChanged();
 }

@@ -10,6 +10,8 @@ BackgroundItem {
 
     readonly property int _apps: harpoon.apps.count
     readonly property int _updates: harpoon.apps.updatesCount
+    // What Update all installs: not track-only apps, nor one waiting for a build choice.
+    readonly property int _installable: harpoon.apps.installableUpdatesCount
     readonly property int _failed: harpoon.apps.failedCount
     readonly property bool _checking: harpoon.checking
 
@@ -19,7 +21,7 @@ BackgroundItem {
     }
 
     height: Math.max(Theme.iconSizeExtraLarge, textColumn.height) + Theme.itemSizeSmall + Theme.paddingLarge
-    enabled: _updates > 0 && !_checking
+    enabled: _installable > 0 && !_checking
     onClicked: harpoon.updateAll()
 
     Waves {
@@ -83,7 +85,7 @@ BackgroundItem {
             font.pixelSize: Theme.fontSizeExtraSmall
             color: Theme.secondaryHighlightColor
             text: {
-                if (root._updates > 0 && !root._checking)
+                if (root._installable > 0 && !root._checking)
                     return qsTr("Tap to install them all")
                 var parts = [qsTr("%n app(s)", "", root._apps)]
                 if (harpoon.apps.installedCount > 0)

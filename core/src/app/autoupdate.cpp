@@ -1,6 +1,7 @@
 #include "app/autoupdate.h"
 
 #include "app/installedmatch.h"
+#include "app/packagebuilds.h"
 
 #include <QCoreApplication>
 
@@ -21,6 +22,8 @@ bool autoUpdateEligible(const App &app, const UpdateStatus &status, QString *why
         reason = QStringLiteral("may change its package name");
     else if (app.latestAssets.isEmpty())
         reason = QStringLiteral("no package in the latest release");
+    else if (!buildChoices(app.latestAssets).isEmpty())
+        reason = QStringLiteral("several builds to choose from");
     else if (!app.receipt.packageNames.isEmpty()) {
         // A release that brings different packages than the installed one
         // needs the user's eyes.

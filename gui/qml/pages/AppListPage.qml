@@ -186,10 +186,13 @@ Page {
         delegate: ListItem {
             id: item
 
+            readonly property bool _choosing: !model.busy && !model.trackOnly && model.needsBuildChoice === true
+                                              && model.lastError.length === 0 && model.installFailed !== true
+
             contentHeight: Theme.itemSizeMedium
             menu: ContextMenu {
                 MenuItem {
-                    visible: !model.trackOnly && !model.busy
+                    visible: !model.trackOnly && !model.busy && model.needsBuildChoice !== true
                              && (model.state === AppListModel.UpdateAvailable
                                  || model.state === AppListModel.NotInstalled)
                     text: model.state === AppListModel.UpdateAvailable ? qsTr("Update") : qsTr("Install")
@@ -256,6 +259,7 @@ Page {
                 StateLabel {
                     width: parent.width
                     visible: !model.busy && model.lastError.length === 0 && model.installFailed !== true
+                             && !item._choosing
                     appState: model.state
                     installedVersion: model.installedVersion
                     latestVersion: model.latestVersion
@@ -271,6 +275,16 @@ Page {
                     font.pixelSize: Theme.fontSizeExtraSmall
                     truncationMode: TruncationMode.Fade
                     color: item.highlighted ? Theme.secondaryHighlightColor : Theme.secondaryColor
+                }
+
+                // Several builds in the release: the app's page asks which one.
+                Label {
+                    width: parent.width
+                    visible: item._choosing
+                    text: qsTr("Several builds, tap to choose one")
+                    font.pixelSize: Theme.fontSizeExtraSmall
+                    truncationMode: TruncationMode.Fade
+                    color: item.highlighted ? Theme.highlightColor : Theme.secondaryHighlightColor
                 }
 
                 // The last install or update failed; the app's page has the report.

@@ -85,6 +85,9 @@ public:
     // Parses a scanned QR code or opened link (harpoon://add?... or a plain
     // http(s) URL): {ok, url, sourceId, packageName, error}.
     Q_INVOKABLE QVariantMap parseAddLink(const QString &text) const;
+    // Whether an opened link is for Harpoon: a harpoon:// link, or an address
+    // a source recognises (tracked already or not). Not an ordinary web page.
+    bool isAppLink(const QString &text) const;
     // What to put in a QR code so another Harpoon can add this app: the
     // plain URL when its host identifies the source, else a harpoon://add
     // link. Empty for an unknown id.
@@ -110,6 +113,9 @@ public:
     // Changes one per-app setting; an empty string or null removes it.
     Q_INVOKABLE void setAppSetting(const QString &id, const QString &key, const QVariant &value);
     Q_INVOKABLE void setAppName(const QString &id, const QString &name);
+    // For a release with several builds of the app (appDetails' buildChoices):
+    // keeps the chosen one through a package filter, then checks again.
+    Q_INVOKABLE void chooseBuild(const QString &id, const QString &assetName);
     // Points the app at another address (sourceId empty: by host) after a
     // check of it, keeping its settings and installed package. Emits
     // addressChangeFinished.

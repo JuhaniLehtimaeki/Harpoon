@@ -1,5 +1,6 @@
 #include "app/updatestatus.h"
 
+#include "app/packagebuilds.h"
 #include "version/versioncompare.h"
 
 namespace Harpoon {
@@ -16,7 +17,46 @@ QString updateStateName(UpdateState state)
     return QString();
 }
 
+namespace {
+
+// A release can be newer by its tag and still carry the installed package:
+// a build made before the version was raised. The package file names say so
+// before anything is downloaded. Only files named as the installed package
+// count, and every one of them must be no newer.
+bool releasePackageNotNewer(const App &app, const RpmInfo &installed, QString *offered)
+{
+    // File names carry no epoch: compare without it.
+    Evr installedEvr = installed.evr;
+    installedEvr.epoch = 0;
+    bool any = false;
+    for (const Asset &asset : app.latestAssets) {
+        const RpmFileName file = parseRpmFileName(asset.name);
+        if (file.name != installed.name)
+            continue;
+        if (compareEvr(file.evr, installedEvr) > 0)
+            return false;
+        any = true;
+        *offered = file.evr.toString();
+    }
+    return any;
+}
+
+} // namespace
+
 UpdateStatus updateStatusFor(const App &app, const RpmInfo &installed)
+{
+    UpdateStatus status = updateStatusByVersion(app, installed);
+    QString offered;
+    if (status.state == UpdateState::UpdateAvailable && !app.settings.getBool(Keys::trackOnly)
+        && releasePackageNotNewer(app, installed, &offered)) {
+        status.state = UpdateState::UpToDate;
+        status.reason = QStringLiteral("releasePackageNotNewer");
+        status.offeredPackageVersion = offered;
+    }
+    return status;
+}
+
+UpdateStatus updateStatusByVersion(const App &app, const RpmInfo &installed)
 {
     UpdateStatus status;
     status.latestVersion = app.latestVersion;

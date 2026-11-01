@@ -1,7 +1,10 @@
 #include "app/appinstaller.h"
 #include "app/appstore.h"
+#include "app/autoupdate.h"
+#include "app/packagebuilds.h"
 #include "app/problemreport.h"
 #include "app/updatestatus.h"
+#include "pipeline/assetfilter.h"
 
 #include <QTemporaryDir>
 #include <QUrlQuery>
@@ -27,6 +30,156 @@ class TestApp : public QObject
 {
     Q_OBJECT
 private slots:
+    void rpmFileNames_data()
+    {
+        QTest::addColumn<QString>("file");
+        QTest::addColumn<QString>("name");
+        QTest::addColumn<QString>("evr");
+        QTest::addColumn<QString>("arch");
+        QTest::newRow("plain") << "harbour-thing-1.2.3-1.aarch64.rpm" << "harbour-thing" << "1.2.3-1" << "aarch64";
+        QTest::newRow("dotted release") << "harpoon-0.6.0-1.sfos5.1.aarch64.rpm" << "harpoon" << "0.6.0-1.sfos5.1"
+                                        << "aarch64";
+        QTest::newRow("suffix after arch") << "harbour-bitsailor-1.8.1-1.aarch64-openrepos.rpm" << "harbour-bitsailor"
+                                           << "1.8.1-1" << "aarch64";
+        QTest::newRow("letters in version") << "rawfish-1.3.1.alpha.9.testing-9.aarch64.rpm" << "rawfish"
+                                            << "1.3.1.alpha.9.testing-9" << "aarch64";
+        QTest::newRow("git describe") << "harbour-x-0.7.0.6.g56b71a34.dirty-1.aarch64.rpm" << "harbour-x"
+                                      << "0.7.0.6.g56b71a34.dirty-1" << "aarch64";
+        QTest::newRow("noarch") << "harbour-x-data-2-1.noarch.rpm" << "harbour-x-data" << "2-1" << "noarch";
+        QTest::newRow("not nevra") << "harbour-x-arm64.rpm" << "" << "" << "";
+    }
+
+    void rpmFileNames()
+    {
+        QFETCH(QString, file);
+        QFETCH(QString, name);
+        QFETCH(QString, evr);
+        QFETCH(QString, arch);
+        const RpmFileName parsed = parseRpmFileName(file);
+        QCOMPARE(parsed.name, name);
+        QCOMPARE(parsed.isValid() ? parsed.evr.toString() : QString(), evr);
+        QCOMPARE(parsed.arch, arch);
+    }
+
+    void buildChoices_data()
+    {
+        QTest::addColumn<QStringList>("files");     // this release, for the device
+        QTest::addColumn<QStringList>("nextFiles"); // a later release, same builds in the same order
+        QTest::addColumn<QStringList>("labels");
+        QTest::addColumn<QString>("package");
+        QTest::newRow("bitsailor")
+            << QStringList{"harbour-bitsailor-1.8.1-1.aarch64-openrepos.rpm", "harbour-bitsailor-1.8.1-1.aarch64-store.rpm"}
+            << QStringList{"harbour-bitsailor-1.9.0-1.aarch64-openrepos.rpm", "harbour-bitsailor-1.9.0-1.aarch64-store.rpm"}
+            << QStringList{"openrepos", "store"} << "harbour-bitsailor";
+        QTest::newRow("rawfish")
+            << QStringList{"rawfish-1.3.1-9.aarch64.rpm", "rawfish-1.3.1.alpha.9.testing-9.aarch64.rpm"}
+            << QStringList{"rawfish-1.3.2-1.aarch64.rpm", "rawfish-1.3.2.alpha.1.testing-1.aarch64.rpm"}
+            << QStringList{"", "alpha testing"} << "rawfish";
+        // A companion package survives the choice when the builds can be told
+        // apart by leaving the others out.
+        QTest::newRow("with a companion")
+            << QStringList{"harbour-a-1-1.aarch64-openrepos.rpm", "harbour-a-1-1.aarch64-store.rpm", "harbour-a-data-1-1.noarch.rpm"}
+            << QStringList{"harbour-a-2-1.aarch64-openrepos.rpm", "harbour-a-2-1.aarch64-store.rpm", "harbour-a-data-2-1.noarch.rpm"}
+            << QStringList{"openrepos", "store"} << "harbour-a";
+    }
+
+    void buildChoices()
+    {
+        QFETCH(QStringList, files);
+        QFETCH(QStringList, nextFiles);
+        QFETCH(QStringList, labels);
+        QFETCH(QString, package);
+        auto assetsOf = [](const QStringList &names) {
+            QList<Asset> out;
+            for (const QString &n : names) {
+                Asset a;
+                a.name = n;
+                a.url = QStringLiteral("https://github.com/o/r/releases/download/v1/") + n;
+                out << a;
+            }
+            return out;
+        };
+        QString name;
+        const QList<BuildChoice> choices = Harpoon::buildChoices(assetsOf(files), &name);
+        QCOMPARE(name, package);
+        QCOMPARE(choices.size(), labels.size());
+        DeviceInfo device;
+        device.arch = QStringLiteral("aarch64");
+        for (int i = 0; i < choices.size(); ++i) {
+            QCOMPARE(choices.at(i).assetName, files.at(i));
+            QCOMPARE(choices.at(i).label, labels.at(i));
+            QVariantMap values{{QString::fromLatin1(Keys::assetFilterRegEx), choices.at(i).filter}};
+            if (choices.at(i).invert)
+                values.insert(QString::fromLatin1(Keys::invertAssetFilter), true);
+            const AppSettings settings(values);
+            // This release and the next: only the chosen build of the package
+            // is left, so there is nothing to choose any more.
+            for (const QStringList &release : {files, nextFiles}) {
+                const auto kept = filterAssets(assetsOf(release), settings, device);
+                QVERIFY(kept.ok());
+                QStringList keptNames;
+                for (const Asset &a : kept.value)
+                    keptNames << a.name;
+                QVERIFY2(keptNames.contains(release.at(i)), qPrintable(keptNames.join(QLatin1Char(' '))));
+                QVERIFY2(Harpoon::buildChoices(kept.value).isEmpty(), qPrintable(keptNames.join(QLatin1Char(' '))));
+            }
+        }
+        QVERIFY(Harpoon::buildChoices(assetsOf({files.first()})).isEmpty());
+    }
+
+    void releasePackageNotNewer()
+    {
+        // Issue #1: the release is newer by its tag, but its package was built
+        // with the installed version number.
+        App app = App::fromUrl(QStringLiteral("https://codeberg.org/me/harbour-x"));
+        app.id = QStringLiteral("harbour-x");
+        app.temporaryId = false;
+        app.latestVersion = QStringLiteral("v0.7.1-rc1");
+        Asset asset;
+        asset.name = QStringLiteral("harbour-x-0.7.0.6.g56b71a34.dirty-1.aarch64.rpm");
+        app.latestAssets << asset;
+        RpmInfo installed;
+        installed.name = QStringLiteral("harbour-x");
+        installed.evr = parseEvr(QStringLiteral("0.7.0.6.g56b71a34.dirty-1"));
+        QCOMPARE(updateStatusByVersion(app, installed).state, UpdateState::UpdateAvailable);
+        UpdateStatus s = updateStatusFor(app, installed);
+        QCOMPARE(s.state, UpdateState::UpToDate);
+        QCOMPARE(s.reason, QStringLiteral("releasePackageNotNewer"));
+        QCOMPARE(s.offeredPackageVersion, QStringLiteral("0.7.0.6.g56b71a34.dirty-1"));
+
+        // An epoch is not in file names, so it does not make them older.
+        RpmInfo withEpoch = installed;
+        withEpoch.evr.epoch = 1;
+        QCOMPARE(updateStatusFor(app, withEpoch).state, UpdateState::UpToDate);
+        app.latestAssets.first().name = QStringLiteral("harbour-x-0.7.1-1.aarch64.rpm");
+        QCOMPARE(updateStatusFor(app, withEpoch).state, UpdateState::UpdateAvailable);
+
+        // Fixed by the developer: an update again.
+        app.latestAssets.first().name = QStringLiteral("harbour-x-0.7.1~rc1-1.aarch64.rpm");
+        QCOMPARE(updateStatusFor(app, installed).state, UpdateState::UpdateAvailable);
+        // File names that say nothing about the package do not decide.
+        app.latestAssets.first().name = QStringLiteral("harbour-x-arm64.rpm");
+        QCOMPARE(updateStatusFor(app, installed).state, UpdateState::UpdateAvailable);
+    }
+
+    void severalBuildsAreNotUpdatedAutomatically()
+    {
+        App app = App::fromUrl(QStringLiteral("https://github.com/me/harbour-x"));
+        app.id = QStringLiteral("harbour-x");
+        app.temporaryId = false;
+        app.receipt.evr = QStringLiteral("1-1");
+        for (const char *n : {"harbour-x-2-1.aarch64-openrepos.rpm", "harbour-x-2-1.aarch64-store.rpm"}) {
+            Asset a;
+            a.name = QString::fromLatin1(n);
+            app.latestAssets << a;
+        }
+        UpdateStatus status;
+        status.state = UpdateState::UpdateAvailable;
+        QString why;
+        QVERIFY(!autoUpdateEligible(app, status, &why));
+        QCOMPARE(why, QStringLiteral("several builds to choose from"));
+    }
+
     void problemReport()
     {
         InstallProblem p;

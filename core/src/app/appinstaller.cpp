@@ -1,5 +1,7 @@
 #include "app/appinstaller.h"
 
+#include "app/packagebuilds.h"
+
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
@@ -80,6 +82,15 @@ void AppInstaller::install(const App &app, const InstallOptions &options, Progre
     }
     if (app.latestAssets.isEmpty()) {
         done(fail(Error::NoAsset, QStringLiteral("No installable package known for %1; check for updates first").arg(app.name)));
+        return;
+    }
+    // Known from the file names: no need to download them all to find out.
+    QString builtTwice;
+    if (!buildChoices(app.latestAssets, &builtTwice).isEmpty()) {
+        done(fail(Error::InvalidSetting,
+                  QStringLiteral("The release has several builds of %1; choose one on the app's page, or set a "
+                                 "package filter in its settings")
+                      .arg(builtTwice)));
         return;
     }
     QDir().mkpath(m_downloadDir);
@@ -169,7 +180,8 @@ void AppInstaller::verifyAndInstall(std::shared_ptr<InstallJob> job)
         }
         if (names.contains(info.value.name)) {
             abort(fail(Error::InvalidSetting,
-                       QStringLiteral("The release has several packages named %1; set an asset filter to pick one")
+                       QStringLiteral("The release has several builds of %1; choose one on the app's page, or set a "
+                                      "package filter in its settings")
                            .arg(info.value.name)));
             return;
         }
@@ -226,7 +238,9 @@ void AppInstaller::verifyAndInstall(std::shared_ptr<InstallJob> job)
         }
         if (c == 0 && p.name == main.name && !job->options.allowReinstall) {
             abort(fail(Error::AlreadyInstalled,
-                       QStringLiteral("%1 %2 is already installed").arg(p.name, p.evr.toString())));
+                       QStringLiteral("%1 %2 is already installed, and release %3 contains that same version: its "
+                                      "package was built with the old version number")
+                           .arg(p.name, p.evr.toString(), app.latestTag.isEmpty() ? app.latestVersion : app.latestTag)));
             return;
         }
         if (!installed.value.vendor.isEmpty() && installed.value.vendor != p.vendor)

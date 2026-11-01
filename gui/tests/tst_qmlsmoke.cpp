@@ -11,6 +11,7 @@
 #include "fakerpmdb.h"
 
 #include "app/problemreport.h"
+#include "app/updatestatus.h"
 #include "applistmodel.h"
 #include "harpooncontroller.h"
 #include "harpoondbus.h"
@@ -512,6 +513,18 @@ private slots:
         expectClean("leaving the form");
     }
 
+    QQuickItem *findItemByText(QQuickItem *root, const QString &text)
+    {
+        if (!root)
+            return nullptr;
+        if (root->property("text").toString() == text)
+            return root;
+        for (QQuickItem *child : root->childItems())
+            if (QQuickItem *found = findItemByText(child, text))
+                return found;
+        return nullptr;
+    }
+
     QObject *findByProperty(QObject *root, const char *name, const QString &value)
     {
         for (QObject *o : root->findChildren<QObject *>())
@@ -755,6 +768,52 @@ private slots:
     }
 
     // Last: with every app gone, the list shows its illustrated empty state.
+    void severalBuildsAskForAChoice()
+    {
+        const QString id = QStringLiteral("harbour-alpha");
+        const AppListModel::Entry original = *m_controller->apps()->entry(id);
+        AppListModel::Entry e = original;
+        e.app.latestAssets.clear();
+        for (const char *n : {"harbour-alpha-1.1-1.aarch64-openrepos.rpm", "harbour-alpha-1.1-1.aarch64-store.rpm"}) {
+            Asset a;
+            a.name = QString::fromLatin1(n);
+            a.url = QStringLiteral("https://github.com/someone/harbour-alpha/releases/download/v1.1/") + a.name;
+            e.app.latestAssets << a;
+        }
+        m_controller->apps()->upsert(e);
+        expectClean("the list with an app that has two builds");
+        shot(QStringLiteral("list-builds"));
+        QObject *page = push(QStringLiteral("AppPage.qml"), QStringLiteral("{ appId: '%1' }").arg(id));
+        expectClean("AppPage with two builds");
+        shot(QStringLiteral("app-builds"));
+        QVERIFY(page->property("_needsBuild").toBool());
+        QVERIFY(findByProperty(page, "text", QStringLiteral("Choose a build")));
+        // Repeater items are visual children only.
+        QVERIFY(findItemByText(qobject_cast<QQuickItem *>(page), QStringLiteral("openrepos")));
+        QVERIFY(findItemByText(qobject_cast<QQuickItem *>(page), QStringLiteral("store")));
+        QObject *install = findByProperty(page, "text", QStringLiteral("Update"));
+        QVERIFY(!install || !install->property("visible").toBool());
+        popToList();
+
+        // A release whose package is the installed version: no update, and why.
+        e = original;
+        e.app.latestAssets.first().name = QStringLiteral("harbour-alpha-1.0-1.aarch64.rpm");
+        e.status = updateStatusFor(e.app, e.installed);
+        QCOMPARE(e.status.reason, QStringLiteral("releasePackageNotNewer"));
+        m_controller->apps()->upsert(e);
+        page = push(QStringLiteral("AppPage.qml"), QStringLiteral("{ appId: '%1' }").arg(id));
+        expectClean("AppPage with an old package in a new release");
+        shot(QStringLiteral("app-not-newer"));
+        QObject *note = nullptr;
+        for (QObject *o : page->findChildren<QObject *>())
+            if (o->property("text").toString().contains(QLatin1String("not offered as an update")))
+                note = o;
+        QVERIFY(note && note->property("visible").toBool());
+        popToList();
+        m_controller->apps()->upsert(original);
+        expectClean("back as it was");
+    }
+
     void installFailureShowsAReport()
     {
         const QString id = QStringLiteral("harbour-delta");

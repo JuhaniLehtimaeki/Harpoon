@@ -4,6 +4,7 @@
 #include "rpmfactory.h"
 
 #include "harpooncontroller.h"
+#include "harpoondbus.h"
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -276,6 +277,79 @@ private slots:
 
         m_controller->setAppName(id, QStringLiteral("  Chum  "));
         QCOMPARE(m_controller->appDetails(id).value(QStringLiteral("name")).toString(), QStringLiteral("Chum"));
+    }
+
+    void choosingOneOfSeveralBuilds()
+    {
+        // Issue #5: every release has an "openrepos" and a "store" build.
+        QJsonArray assets;
+        for (const char *variant : {"openrepos", "store"}) {
+            const QString name = QStringLiteral("harbour-bitsailor-1.8.1-1.aarch64-%1.rpm").arg(QLatin1String(variant));
+            assets << QJsonObject{{QStringLiteral("name"), name},
+                                  {QStringLiteral("browser_download_url"),
+                                   QStringLiteral("https://github.com/RikudouSage/harbour-bitsailor/releases/download/v1.8.1/") + name},
+                                  {QStringLiteral("size"), 1000}};
+        }
+        QJsonObject release{{QStringLiteral("tag_name"), QStringLiteral("v1.8.1")},
+                            {QStringLiteral("published_at"), QStringLiteral("2026-10-01T00:00:00Z")},
+                            {QStringLiteral("assets"), assets}};
+        m_transport->respondJson(QStringLiteral("https://api.github.com/repos/RikudouSage/harbour-bitsailor/releases?per_page=100"),
+                                 QJsonDocument(QJsonArray{release}).toJson());
+        QString id;
+        QVERIFY(addApp(QStringLiteral("https://github.com/RikudouSage/harbour-bitsailor"), {}, &id));
+        AppListModel *model = m_controller->apps();
+        QVariantMap details = m_controller->appDetails(id);
+        QCOMPARE(details.value(QStringLiteral("buildPackage")).toString(), QStringLiteral("harbour-bitsailor"));
+        const QVariantList choices = details.value(QStringLiteral("buildChoices")).toList();
+        QCOMPARE(choices.size(), 2);
+        QCOMPARE(choices.first().toMap().value(QStringLiteral("label")).toString(), QStringLiteral("openrepos"));
+        QVERIFY(model->data(model->index(model->indexOf(id)), AppListModel::NeedsBuildChoiceRole).toBool());
+
+        // Installing anyway stops before downloading anything, saying why.
+        QSignalSpy failed(m_controller.get(), &HarpoonController::installFailed);
+        m_controller->install(id);
+        QTRY_COMPARE(failed.count(), 1);
+        QVERIFY(m_controller->installProblem(id).value(QStringLiteral("message")).toString()
+                    .contains(QLatin1String("several builds of harbour-bitsailor")));
+        QVERIFY(m_backend->installs.isEmpty());
+        // Update all leaves it for the user.
+        m_controller->updateAll();
+        QVERIFY(!model->entry(id)->busy);
+
+        // The choice becomes a filter, and the next check finds one build.
+        m_controller->chooseBuild(id, choices.first().toMap().value(QStringLiteral("assetName")).toString());
+        QTRY_VERIFY(!m_controller->checking());
+        const App &app = model->entry(id)->app;
+        QVERIFY(app.settings.getBool(Keys::invertAssetFilter));
+        QCOMPARE(app.latestAssets.size(), 1);
+        QCOMPARE(app.latestAssets.first().name, QStringLiteral("harbour-bitsailor-1.8.1-1.aarch64-openrepos.rpm"));
+        QVERIFY(m_controller->appDetails(id).value(QStringLiteral("buildChoices")).toList().isEmpty());
+        QVERIFY(!model->data(model->index(model->indexOf(id)), AppListModel::NeedsBuildChoiceRole).toBool());
+    }
+
+    void appLinksAndOtherLinks()
+    {
+        QVERIFY(m_controller->isAppLink(QStringLiteral("https://github.com/someone/harbour-thing")));
+        QVERIFY(m_controller->isAppLink(QStringLiteral("https://codeberg.org/someone/thing/releases")));
+        QVERIFY(m_controller->isAppLink(QStringLiteral("harpoon://add?url=https%3A%2F%2Fgithub.com%2Fa%2Fb")));
+        QVERIFY(!m_controller->isAppLink(QStringLiteral("https://forum.sailfishos.org/t/harpoon/12345")));
+        QVERIFY(!m_controller->isAppLink(QStringLiteral("https://example.org/")));
+
+        // Issue #3: other web links go on to the browser, without Harpoon.
+        HarpoonDBus dbus;
+        QStringList browsed;
+        dbus.setAppLinkTest([this](const QString &link) { return m_controller->isAppLink(link); });
+        dbus.setBrowser([&browsed](const QString &url) { browsed << url; });
+        QSignalSpy activated(&dbus, &HarpoonDBus::activateRequested);
+        QSignalSpy links(&dbus, &HarpoonDBus::addLinkRequested);
+        dbus.openUrl({QStringLiteral("https://forum.sailfishos.org/t/harpoon/12345")});
+        QCOMPARE(browsed, QStringList{"https://forum.sailfishos.org/t/harpoon/12345"});
+        QCOMPARE(activated.count(), 0);
+        QCOMPARE(links.count(), 0);
+        dbus.openUrl({QStringLiteral("https://github.com/someone/harbour-thing")});
+        QCOMPARE(browsed.size(), 1);
+        QCOMPARE(activated.count(), 1);
+        QCOMPARE(links.first().at(0).toString(), QStringLiteral("https://github.com/someone/harbour-thing"));
     }
 
     void failedInstallKeepsAReport()

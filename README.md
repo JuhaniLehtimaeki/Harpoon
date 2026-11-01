@@ -125,6 +125,13 @@ To make it even easier for people:
   file names; Harpoon picks the newest one that is not newer than the phone.
 - **Keep the package name the same** from release to release, and tag each release with its
   version. Mark test builds as prereleases: Harpoon only offers them to people who opt in.
+- **Raise the package's own version with the tag.** Harpoon reads the version from the
+  package file name too: a release tagged `v1.1` whose package is still `1.0` is not offered
+  as an update, because installing it would change nothing.
+- **Several builds of the same package** in one release (say an `openrepos` and a `store`
+  build) are fine: Harpoon asks people which one they want, and keeps to that build in later
+  releases by the word that tells them apart. Keep those words the same from release to
+  release.
 - **Write release notes.** Harpoon shows them, Markdown and links included, before people
   update.
 - **Optional: sign your builds.** On GitHub, add

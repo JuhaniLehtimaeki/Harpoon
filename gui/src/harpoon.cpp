@@ -42,6 +42,7 @@ int main(int argc, char *argv[])
     HarpoonController controller;
 
     HarpoonDBus dbus;
+    dbus.setAppLinkTest([&controller](const QString &link) { return controller.isAppLink(link); });
     if (!dbus.registerOnSessionBus())
         qWarning("Harpoon: could not register %s on the session bus", qPrintable(HarpoonDBus::serviceName()));
 

@@ -4,6 +4,7 @@
 #include "app/appinstaller.h"
 #include "app/backup.h"
 #include "app/installedmatch.h"
+#include "app/packagebuilds.h"
 #include "app/appidentity.h"
 #include "app/appservice.h"
 #include "releasenotes.h"
@@ -311,6 +312,17 @@ QString HarpoonController::shareLink(const QString &id) const
     return link.sourceId.isEmpty() ? link.url : link.toString();
 }
 
+bool HarpoonController::isAppLink(const QString &text) const
+{
+    const auto link = Harpoon::parseAddLink(text);
+    if (!link.ok())
+        return false;
+    const auto match = m_registry.match(link.value.url, link.value.sourceId);
+    // The web page source takes any address; only a harpoon:// link that
+    // names it makes a web page an app.
+    return match.ok() && (match.value.source->id() != QLatin1String("HTML") || !link.value.sourceId.isEmpty());
+}
+
 QVariantMap HarpoonController::inspectUrl(const QString &url, const QString &sourceId) const
 {
     QVariantMap out;
@@ -610,7 +622,8 @@ QString HarpoonController::localizedStage(const QString &stage) const
 void HarpoonController::updateAll()
 {
     for (const AppListModel::Entry &e : m_model.entries())
-        if (e.status.state == UpdateState::UpdateAvailable && !e.app.settings.getBool(Keys::trackOnly) && !e.busy)
+        if (e.status.state == UpdateState::UpdateAvailable && !e.app.settings.getBool(Keys::trackOnly) && !e.busy
+            && buildChoices(e.app.latestAssets).isEmpty()) // waits for the user's choice
             install(e.app.id);
 }
 
@@ -671,6 +684,29 @@ void HarpoonController::setAppSetting(const QString &id, const QString &key, con
         values.insert(key, value);
     app.settings = AppSettings(values);
     storeAndShow(app);
+}
+
+void HarpoonController::chooseBuild(const QString &id, const QString &assetName)
+{
+    const AppListModel::Entry *e = m_model.entry(id);
+    if (!e || e->busy)
+        return;
+    for (const BuildChoice &choice : buildChoices(e->app.latestAssets)) {
+        if (choice.assetName != assetName)
+            continue;
+        App app = e->app;
+        QVariantMap values = app.settings.values();
+        values.insert(QString::fromLatin1(Keys::assetFilterRegEx), choice.filter);
+        if (choice.invert)
+            values.insert(QString::fromLatin1(Keys::invertAssetFilter), true);
+        else
+            values.remove(QString::fromLatin1(Keys::invertAssetFilter));
+        app.settings = AppSettings(values);
+        storeAndShow(app);
+        // The release's packages through the new filter.
+        check(id);
+        return;
+    }
 }
 
 void HarpoonController::setAppName(const QString &id, const QString &name)
@@ -743,6 +779,10 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
     QVariantList assets;
     for (const Asset &asset : a.latestAssets)
         assets << assetToVariant(asset);
+    QString buildPackage;
+    QVariantList builds;
+    for (const BuildChoice &choice : buildChoices(a.latestAssets, &buildPackage))
+        builds << QVariantMap{{QStringLiteral("assetName"), choice.assetName}, {QStringLiteral("label"), choice.label}};
     QString sourceName = a.sourceId;
     QString effectiveSourceId = a.sourceId;
     const auto match = m_registry.match(a.url, a.sourceId);
@@ -778,6 +818,10 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
         {QStringLiteral("lastError"), a.lastError},
         {QStringLiteral("waitingForBuilds"), a.waitingForBuilds},
         {QStringLiteral("installProblem"), e->installProblem},
+        {QStringLiteral("buildPackage"), buildPackage},
+        {QStringLiteral("buildChoices"), builds},
+        {QStringLiteral("stateReason"), e->status.reason},
+        {QStringLiteral("offeredPackageVersion"), e->status.offeredPackageVersion},
         {QStringLiteral("trackOnly"), a.settings.getBool(Keys::trackOnly)},
         {QStringLiteral("acknowledgedVersion"), a.acknowledgedVersion},
         {QStringLiteral("receiptEvr"), a.receipt.evr},

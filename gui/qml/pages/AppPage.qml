@@ -17,6 +17,8 @@ Page {
         }
         return total
     }
+    // Several builds of the app in the release: the user picks one first.
+    readonly property bool _needsBuild: details.trackOnly !== true && (details.buildChoices || []).length > 1
     readonly property bool _installed: details.installedVersion !== undefined && details.installedVersion.length > 0
 
     function refresh() {
@@ -311,6 +313,110 @@ Page {
                 }
             }
 
+            // Several builds of the same package, such as "openrepos" and
+            // "store": installing needs a choice, which is kept as a filter.
+            Item {
+                width: 1
+                height: Theme.paddingLarge
+                visible: buildCard.visible
+            }
+
+            Item {
+                id: buildCard
+
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                height: buildColumn.height + 2 * Theme.paddingLarge
+                visible: page._needsBuild && details.busy !== true
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.paddingMedium
+                    color: Theme.rgba(Theme.highlightBackgroundColor, Theme.opacityFaint)
+                }
+
+                Column {
+                    id: buildColumn
+
+                    y: Theme.paddingLarge
+                    width: parent.width
+                    spacing: Theme.paddingSmall
+
+                    Label {
+                        x: Theme.paddingLarge
+                        width: parent.width - 2 * Theme.paddingLarge
+                        wrapMode: Text.Wrap
+                        color: Theme.highlightColor
+                        text: qsTr("Choose a build")
+                    }
+
+                    Label {
+                        x: Theme.paddingLarge
+                        width: parent.width - 2 * Theme.paddingLarge
+                        wrapMode: Text.Wrap
+                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.secondaryHighlightColor
+                        text: qsTr("This release has %n builds of %1. Choose the one to install; Harpoon keeps to it in later releases.", "",
+                                   (details.buildChoices || []).length).arg(details.buildPackage || "")
+                    }
+
+                    Repeater {
+                        model: details.buildChoices || []
+
+                        BackgroundItem {
+                            id: choiceItem
+
+                            width: parent.width
+                            height: choiceColumn.height + 2 * Theme.paddingMedium
+                            onClicked: harpoon.chooseBuild(page.appId, modelData.assetName)
+
+                            Column {
+                                id: choiceColumn
+
+                                x: Theme.paddingLarge
+                                y: Theme.paddingMedium
+                                width: parent.width - 2 * Theme.paddingLarge
+
+                                Label {
+                                    width: parent.width
+                                    truncationMode: TruncationMode.Fade
+                                    color: choiceItem.highlighted ? Theme.highlightColor : Theme.primaryColor
+                                    text: modelData.label.length > 0 ? modelData.label : qsTr("Standard build")
+                                }
+
+                                Label {
+                                    width: parent.width
+                                    wrapMode: Text.Wrap
+                                    font.pixelSize: Theme.fontSizeExtraSmall
+                                    color: choiceItem.highlighted ? Theme.secondaryHighlightColor : Theme.secondaryColor
+                                    text: modelData.assetName
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Newer by its tag, but the package inside is the installed one.
+            Item {
+                width: 1
+                height: Theme.paddingLarge
+                visible: notNewerLabel.visible
+            }
+
+            Label {
+                id: notNewerLabel
+
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                visible: details.stateReason === "releasePackageNotNewer" && details.busy !== true
+                wrapMode: Text.Wrap
+                font.pixelSize: Theme.fontSizeSmall
+                color: Theme.secondaryHighlightColor
+                text: qsTr("Release %1 contains version %2 of the package, which is not newer than the installed one, so it is not offered as an update.")
+                      .arg(details.latestTag || details.latestVersion || "").arg(details.offeredPackageVersion || "")
+            }
+
             Item {
                 width: 1
                 height: Theme.paddingLarge
@@ -328,7 +434,7 @@ Page {
                 anchors.horizontalCenter: parent.horizontalCenter
                 preferredWidth: Theme.buttonWidthMedium
                 icon.source: "image://theme/icon-m-device-download"
-                visible: !details.busy && !details.trackOnly
+                visible: !details.busy && !details.trackOnly && !page._needsBuild
                          && (details.state === AppListModel.UpdateAvailable
                              || details.state === AppListModel.NotInstalled)
                 text: details.state === AppListModel.UpdateAvailable ? qsTr("Update") : qsTr("Install")
