@@ -1,3 +1,16 @@
+* Sun Nov 01 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.7.0-1
+- When a release has several builds of an app (such as "openrepos" and
+  "store"), the app's page asks which one to install, and Harpoon keeps
+  to that build in later releases. Installing no longer fails with "set
+  an asset filter".
+- A release whose package carries a version that is not newer than the
+  installed one is no longer offered as an update; the app's page says
+  why.
+- Links to apps' repositories can be opened in Harpoon from other apps.
+  Other web links go on to the browser.
+- "Tap to install them all" only shows when there is something it can
+  install.
+
 * Tue Oct 06 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.6.0-1
 - A failed install or update opens a page that says what went wrong and
   what to try, with Try again.
