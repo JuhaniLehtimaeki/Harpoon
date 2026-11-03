@@ -170,6 +170,31 @@ private slots:
         QCOMPARE(readAll(target), body);
     }
 
+    void completePartIsNotFetchedAgain()
+    {
+        MiniHttpServer server;
+        const QByteArray body = payload(300);
+        server.routeBody(QStringLiteral("/c.rpm"), body);
+        QTemporaryDir dir;
+        const QString target = dir.filePath(QStringLiteral("c.rpm"));
+        {
+            QFile part(target + QStringLiteral(".part"));
+            part.open(QIODevice::WriteOnly);
+            part.write(body); // whole, but never renamed
+        }
+        Downloader d;
+        DownloadRequest req;
+        req.url = server.url(QStringLiteral("/c.rpm"));
+        req.targetPath = target;
+        req.expectedSize = body.size();
+        req.expectedSha256 = QString::fromLatin1(QCryptographicHash::hash(body, QCryptographicHash::Sha256).toHex());
+        const auto r = run(d, req);
+        QVERIFY2(r.ok(), qPrintable(r.error.message));
+        QCOMPARE(readAll(target), body);
+        QCOMPARE(server.hits(QStringLiteral("/c.rpm")), 0);
+        QVERIFY(!QFile::exists(target + QStringLiteral(".part")));
+    }
+
     void redirectsKeepCredentialsOnlyWithinOrigin()
     {
         MiniHttpServer api;

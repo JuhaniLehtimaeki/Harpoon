@@ -64,6 +64,7 @@ public:
     // are not deleted under it.
     void cancel(int graceMs)
     {
+        m_cancelledByUs = true;
         m_bus.asyncCall(QDBusMessage::createMethodCall(m_service, m_path, kTransactionInterface,
                                                        QStringLiteral("Cancel")));
         QTimer::singleShot(graceMs, this, [this]() {
@@ -76,6 +77,9 @@ public slots:
     {
         if (exit == PackageKitBackend::ExitSuccess) {
             finish(Error());
+        } else if (m_cancelledByUs) {
+            // Our timeout, not the user declining: report it as a failure.
+            finish(Error::make(Error::Install, QStringLiteral("PackageKit did not finish the installation in time")));
         } else if (!m_error.ok()) {
             finish(m_error);
         } else {
@@ -115,6 +119,7 @@ private:
     Finish m_finish;
     Error m_error;
     QStringList m_packageIds;
+    bool m_cancelledByUs = false;
 };
 
 PackageKitBackend::PackageKitBackend(const QDBusConnection &bus, const QString &service, QObject *parent)

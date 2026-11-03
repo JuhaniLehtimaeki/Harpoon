@@ -70,6 +70,17 @@ void Downloader::download(const DownloadRequest &request, Progress progress, Don
         return;
     }
     QDir().mkpath(QFileInfo(request.targetPath).absolutePath());
+    // A part file that is already whole (interrupted after the last byte, or
+    // the rename failed): asking for "the rest" would get 416 and start over.
+    const QString partPath = request.targetPath + QStringLiteral(".part");
+    if (QFileInfo(partPath).isFile() && (request.expectedSize >= 0 || !request.expectedSha256.isEmpty())
+        && verify(request, partPath).ok()) {
+        QFile::remove(request.targetPath);
+        if (QFile::rename(partPath, request.targetPath)) {
+            done(Result<QString>::success(request.targetPath));
+            return;
+        }
+    }
     start(request, progress, done, true);
 }
 

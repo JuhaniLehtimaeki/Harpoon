@@ -5,6 +5,7 @@
 
 #include "net/networktransport.h"
 
+#include <QTcpServer>
 #include <QtTest>
 
 using namespace Harpoon;
@@ -45,6 +46,21 @@ private slots:
         QVERIFY(response.body.isEmpty());
         // The next attempt gets the whole page.
         QCOMPARE(fetch(transport, request).body.size(), 4000);
+    }
+
+    void silenceTimesOutClearly()
+    {
+        // A server that accepts and never answers.
+        QTcpServer silent;
+        QVERIFY(silent.listen(QHostAddress::LocalHost, 0));
+        NetworkTransport transport;
+        transport.setTimeoutMs(300);
+        HttpRequest request;
+        request.url = QStringLiteral("http://127.0.0.1:%1/x").arg(silent.serverPort());
+        const HttpResponse response = fetch(transport, request);
+        QVERIFY(response.isNetworkError());
+        QVERIFY2(response.networkError.startsWith(QLatin1String("No answer from 127.0.0.1")),
+                 qPrintable(response.networkError));
     }
 
     void bodiesAreCapped()

@@ -40,6 +40,10 @@ private slots:
         r.status = 429;
         r.headers.insert("retry-after", "61");
         QCOMPARE(rateLimitError(r, 0).retryAfterMinutes, 2);
+        // The HTTP-date form.
+        const QDateTime now(QDate(2026, 10, 21), QTime(7, 0), Qt::UTC);
+        r.headers.insert("retry-after", "Wed, 21 Oct 2026 07:10:00 GMT");
+        QCOMPARE(rateLimitError(r, now.toMSecsSinceEpoch()).retryAfterMinutes, 10);
     }
 
     void defaultThirtyMinutes()

@@ -200,7 +200,8 @@ private slots:
         QVERIFY(!addApp(QStringLiteral("https://example.com/x/y"), {}, &error));
         QVERIFY(error.contains(QLatin1String("example.com")));
         QVERIFY(!addApp(QStringLiteral("https://github.com/nobody/nothing"), {}, &error));
-        QCOMPARE(error, QStringLiteral("Repository not found"));
+        QVERIFY2(error.startsWith(QLatin1String("Repository not found. If it is private, add a GitHub access token")),
+                 qPrintable(error));
         QCOMPARE(m_controller->apps()->count(), 0);
     }
 
@@ -800,31 +801,42 @@ private slots:
     void harpoonTracksItselfOnce()
     {
         const QString self = QStringLiteral("https://github.com/JuhaniLehtimaeki/Harpoon");
+        const QString releases = QStringLiteral("https://api.github.com/repos/JuhaniLehtimaeki/Harpoon/releases?per_page=100");
         AppListModel *model = m_controller->apps();
         QSignalSpy added(m_controller.get(), &HarpoonController::addFinished);
-        // Offline (the fake answers 404): it is added anyway.
+
+        // Offline (the fake answers 404): nothing yet, no banner, tried again later.
         m_controller->trackSelfOnce();
-        QTRY_COMPARE(added.count(), 1);
-        QVERIFY(added.first().at(0).toBool());
-        QCOMPARE(model->count(), 1);
-        QCOMPARE(model->entries().first().app.url, self);
+        QTRY_VERIFY(!m_controller->checking());
+        QCOMPARE(model->count(), 0);
+        QCOMPARE(added.count(), 0);
+        QVERIFY(!m_settings->selfAdded());
+
+        // Online: added quietly, with its provenance checked.
+        m_transport->respondJson(releases, "[]");
+        m_controller->trackSelfOnce();
+        QTRY_COMPARE(model->count(), 1);
+        QCOMPARE(added.count(), 0);
+        QVERIFY(m_settings->selfAdded());
+        const App app = model->entries().first().app;
+        QCOMPARE(app.url, self);
+        QCOMPARE(app.settings.getString(Keys::githubBuildVerificationMode), QStringLiteral("audit"));
+        QCOMPARE(app.settings.getString(Keys::attestationWorkflow), QStringLiteral("release.yml"));
 
         // Stopped tracking: not added again.
-        m_controller->removeApp(added.first().at(1).toString());
+        m_controller->removeApp(app.id);
         m_controller->trackSelfOnce();
         QTest::qWait(50);
-        QCOMPARE(added.count(), 1);
         QCOMPARE(model->count(), 0);
 
         // Added by hand before: not added twice.
         m_settings->setSelfAdded(false);
         m_controller->addApp(self, QString(), QVariantMap(), true);
         QTRY_COMPARE(model->count(), 1);
-        const int before = added.count();
         m_controller->trackSelfOnce();
         QTest::qWait(50);
-        QCOMPARE(added.count(), before);
         QCOMPARE(model->count(), 1);
+        QVERIFY(m_settings->selfAdded());
     }
 
     void changingAnAppsAddress()

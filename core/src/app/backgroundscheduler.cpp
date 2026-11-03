@@ -95,9 +95,16 @@ void BackgroundScheduler::run(const Request &request)
     };
 
     const QString path = dropInPath();
+    const QByteArray content = dropInContent(intervalHours);
+    // Unchanged (every start of the app asks): leave the timer running.
+    // Restarting it would re-arm OnActiveSec and add a background run
+    // after every session, and reset the interval's count.
+    QFile existing(path);
+    const bool changed = !existing.open(QIODevice::ReadOnly) || existing.readAll() != content;
+    existing.close();
     QDir().mkpath(QFileInfo(path).absolutePath());
     QSaveFile file(path);
-    if (!file.open(QIODevice::WriteOnly) || file.write(dropInContent(intervalHours)) < 0 || !file.commit()) {
+    if (changed && (!file.open(QIODevice::WriteOnly) || file.write(content) < 0 || !file.commit())) {
         finish(Error::make(Error::System, QStringLiteral("Cannot write %1").arg(path)));
         return;
     }
@@ -111,19 +118,27 @@ void BackgroundScheduler::run(const Request &request)
                                     | QFileDevice::ReadOther);
 
     const QStringList units{timerUnit()};
-    call(QStringLiteral("Reload"), {}, [this, enabled, units, finish](const Error &reloaded) {
+    auto reload = [this, changed](std::function<void(const Error &)> next) {
+        if (changed)
+            call(QStringLiteral("Reload"), {}, next);
+        else
+            next(Error());
+    };
+    reload([this, enabled, units, finish, changed](const Error &reloaded) {
         if (!reloaded.ok()) {
             finish(reloaded);
             return;
         }
         if (enabled) {
-            call(QStringLiteral("EnableUnitFiles"), {units, false, true}, [this, finish](const Error &e) {
+            call(QStringLiteral("EnableUnitFiles"), {units, false, true}, [this, finish, changed](const Error &e) {
                 if (!e.ok()) {
                     finish(e);
                     return;
                 }
-                // Restart so a changed interval takes effect now.
-                call(QStringLiteral("RestartUnit"), {timerUnit(), QStringLiteral("replace")}, finish);
+                // Restart so a changed interval takes effect now; otherwise
+                // only make sure it runs (a no-op when it does).
+                call(changed ? QStringLiteral("RestartUnit") : QStringLiteral("StartUnit"),
+                     {timerUnit(), QStringLiteral("replace")}, finish);
             });
         } else {
             call(QStringLiteral("StopUnit"), {timerUnit(), QStringLiteral("replace")}, [this, units, finish](const Error &e) {

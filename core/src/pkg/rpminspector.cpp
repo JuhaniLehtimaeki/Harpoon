@@ -88,6 +88,24 @@ Result<QStringList> RpmInspector::filesOf(const QString &path) const
     return Result<QStringList>::success(files);
 }
 
+namespace {
+
+// rpm reports "not installed" on stdout with exit code 1 (the count of
+// misses for several names); a broken or locked database says "error:" on
+// stderr. That must not read as "nothing installed": the app would offer
+// fresh installs and skip the reinstall and downgrade checks.
+Error databaseError(const ProcessResult &r)
+{
+    for (const QByteArray &line : r.standardError.split('\n'))
+        if (line.trimmed().startsWith("error:"))
+            return Error::make(Error::Package,
+                               QStringLiteral("rpm could not read the package database: %1")
+                                   .arg(QString::fromUtf8(line.trimmed().mid(6)).trimmed()));
+    return Error();
+}
+
+} // namespace
+
 Result<QList<RpmInfo>> RpmInspector::queryInstalled(const QString &name) const
 {
     // Not a package name: nothing can be installed under it, and it must not
@@ -98,6 +116,9 @@ Result<QList<RpmInfo>> RpmInspector::queryInstalled(const QString &name) const
                                                                  queryFormat(), QStringLiteral("--"), name});
     if (!r.started)
         return Result<QList<RpmInfo>>::failure(Error::make(Error::Package, QStringLiteral("Could not run rpm")));
+    const Error broken = databaseError(r);
+    if (!broken.ok())
+        return Result<QList<RpmInfo>>::failure(broken);
     // Exit code 1 with no output lines means "not installed".
     QList<RpmInfo> infos;
     for (const RpmInfo &info : parse(r.standardOutput))
@@ -127,6 +148,9 @@ Result<QHash<QString, RpmInfo>> batchResult(const ProcessResult &r, const QStrin
 {
     if (!r.started)
         return Result<QHash<QString, RpmInfo>>::failure(Error::make(Error::Package, QStringLiteral("Could not run rpm")));
+    const Error broken = databaseError(r);
+    if (!broken.ok())
+        return Result<QHash<QString, RpmInfo>>::failure(broken);
     // Exit code 1 only says some were not installed; the lines say which were.
     QHash<QString, RpmInfo> out;
     for (const RpmInfo &info : RpmInspector::parse(r.standardOutput)) {

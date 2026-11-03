@@ -69,7 +69,8 @@ const char *kUsage =
     "                         notification for releases not announced before. --auto-update\n"
     "                         installs updates when automatic updates are on (set auto-update).\n"
     "  install <app> [--reinstall] [--downgrade] [--backend packagekit|handler]\n"
-    "                         Install the latest release.\n"
+    "                         Install the latest release. The backend defaults to the install\n"
+    "                         method chosen in Harpoon's settings.\n"
     "  upgrade [--backend B]  Check all apps, then install every available update.\n"
     "  set <app> key=value... Change per-app settings (empty value removes the key).\n"
     "  ack <app>              Mark the latest release of a track-only app as seen.\n"
@@ -166,6 +167,32 @@ public:
         const Args args = parseArgs(argv.mid(1), {QStringLiteral("--source"), QStringLiteral("--set"),
                                                   QStringLiteral("--backend"), QStringLiteral("--hours"),
                                                   QStringLiteral("--package")});
+        // A mistyped option must not be ignored: "install x --reinstal" would
+        // install without reinstalling, then fail.
+        static const QHash<QString, QStringList> known{
+            {QStringLiteral("add"), {"--source", "--set", "--force"}},
+            {QStringLiteral("link"), {"--source", "--package"}},
+            {QStringLiteral("list"), {}},
+            {QStringLiteral("show"), {}},
+            {QStringLiteral("check"), {"--notify", "--quiet", "--auto-update"}},
+            {QStringLiteral("install"), {"--reinstall", "--downgrade", "--backend"}},
+            {QStringLiteral("upgrade"), {"--backend"}},
+            {QStringLiteral("set"), {}},
+            {QStringLiteral("ack"), {}},
+            {QStringLiteral("remove"), {"--uninstall", "--backend"}},
+            {QStringLiteral("export"), {"--include-tokens"}},
+            {QStringLiteral("import"), {"--with-settings"}},
+            {QStringLiteral("background"), {"--hours"}},
+            {QStringLiteral("auto-update"), {}},
+            {QStringLiteral("token"), {}},
+        };
+        if (known.contains(command))
+            for (auto it = args.options.constBegin(); it != args.options.constEnd(); ++it)
+                if (!known.value(command).contains(it.key())) {
+                    err() << "Unknown option for " << command << ": " << it.key() << "\n\n" << kUsage;
+                    err().flush();
+                    return 1;
+                }
         int rc;
         if (command == QLatin1String("add"))
             rc = add(args);
@@ -243,25 +270,51 @@ private:
     // RPM is already on the phone (see adoptInstalledPackage).
     bool adoptInstalled(App &app)
     {
+        if (!app.temporaryId)
+            return false; // nothing to do: no rpm runs, no reading every record
         QStringList taken;
         for (const App &other : m_store.loadAll())
             if (other.id != app.id)
                 taken << other.id;
+        // The release's package names, in one rpm run.
+        QStringList names;
+        for (const Asset &asset : app.latestAssets) {
+            const QString name = rpmNameFromFileName(asset.name);
+            if (!name.isEmpty())
+                names << name;
+        }
+        const auto installed = m_inspector.installedPackages(names);
         return adoptInstalledPackage(
-            app,
-            [this](const QString &name) {
-                const auto installed = m_inspector.installedPackage(name);
-                return installed.ok() && !installed.value.name.isEmpty();
-            },
-            taken);
+            app, [&installed](const QString &name) { return installed.ok() && installed.value.contains(name); }, taken);
     }
 
+    // What rpm says is installed for the app. One rpm run for every tracked
+    // app, kept until something is installed or removed: a background run
+    // asks for each app more than once, and each rpm start costs on a phone.
     RpmInfo installedOf(const App &app)
     {
         if (app.temporaryId)
             return RpmInfo();
-        const auto r = m_inspector.installedPackage(app.id);
-        return r.ok() ? r.value : RpmInfo();
+        if (!m_installedKnown.contains(app.id)) {
+            QStringList ids{app.id};
+            for (const App &other : m_store.loadAll())
+                if (!other.temporaryId && !m_installedKnown.contains(other.id) && !ids.contains(other.id))
+                    ids << other.id;
+            const auto r = m_inspector.installedPackages(ids);
+            if (!r.ok())
+                return RpmInfo();
+            for (const QString &id : ids) {
+                m_installedKnown.insert(id);
+                m_installed.insert(id, r.value.value(id));
+            }
+        }
+        return m_installed.value(app.id);
+    }
+
+    void forgetInstalled()
+    {
+        m_installed.clear();
+        m_installedKnown.clear();
     }
 
     void printStatusLine(const App &app)
@@ -619,8 +672,13 @@ private:
                                             && args.positional.first() != QLatin1String("off")))
             return fail(QStringLiteral("background takes on or off"));
         const bool enabled = args.positional.first() == QLatin1String("on");
-        if (args.has("--hours"))
-            m_settings.setCheckIntervalHours(args.value("--hours").toInt());
+        if (args.has("--hours")) {
+            bool ok = false;
+            const int hours = args.value("--hours").toInt(&ok);
+            if (!ok || hours < 1 || hours > 168)
+                return fail(QStringLiteral("--hours takes a number of hours from 1 to 168"));
+            m_settings.setCheckIntervalHours(hours);
+        }
         m_settings.setBackgroundChecks(enabled);
         BackgroundScheduler scheduler;
         const Error e = await<Error>([&](std::function<void(const Error &)> done) {
@@ -635,9 +693,11 @@ private:
         return 0;
     }
 
-    PackageBackend *backend(const QString &name)
+    // name empty: the install method chosen in the settings, as the app does.
+    PackageBackend *backend(const QString &requested)
     {
-        if (name.isEmpty() || name == QLatin1String("packagekit")) {
+        const QString name = requested.isEmpty() ? m_settings.installBackend() : requested;
+        if (name == QLatin1String("packagekit")) {
             if (!m_packageKit)
                 m_packageKit.reset(new PackageKitBackend());
             return m_packageKit.get();
@@ -655,6 +715,7 @@ private:
     int installApp(const App &app, const InstallOptions &options, PackageBackend &b, Error *error = nullptr)
     {
         AppInstaller installer(m_downloader, m_inspector, b, downloadDir(), m_device);
+        forgetInstalled(); // whatever happens, the package database may change
         installer.setDownloadPreparer(checker().downloadPreparer(app));
         installer.setVerifier(checker().verifier(app));
         QString lastStage;
@@ -781,7 +842,10 @@ private:
         const auto app = findApp(args.positional.first());
         if (!app.ok())
             return fail(app.error.message);
-        if (args.has("--uninstall")) {
+        // Never installed by Harpoon: nothing to uninstall, just stop tracking.
+        if (args.has("--uninstall") && app.value.temporaryId) {
+            out() << app.value.name << " is not installed; only stopping tracking it\n";
+        } else if (args.has("--uninstall")) {
             PackageBackend *b = backend(args.value("--backend"));
             if (!b)
                 return fail(QStringLiteral("Unknown backend; use packagekit or handler"));
@@ -789,6 +853,7 @@ private:
             const Error e = await<Error>([&](std::function<void(const Error &)> done) {
                 installer.uninstall(app.value, done);
             });
+            forgetInstalled();
             if (!e.ok())
                 return fail(e.message);
             out() << "Uninstalled " << app.value.id << "\n";
@@ -804,6 +869,8 @@ private:
     HarpoonSettings m_settings;
     AppStore m_store;
     QSet<QString> m_autoUpdateFailed; // ids whose automatic update failed in this run
+    QHash<QString, RpmInfo> m_installed; // installedOf()'s answers
+    QSet<QString> m_installedKnown;
     DeviceInfo m_device;
     SystemProcessRunner m_runner;
     RpmInspector m_inspector;

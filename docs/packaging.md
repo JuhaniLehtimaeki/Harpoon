@@ -31,8 +31,10 @@ sfdk deploy --sdk               # or copy the RPM and: devel-su pkcon install-lo
   The release field gets the target's tag, for example `harpoon-0.2.0-1.sfos5.1.aarch64.rpm`.
   Harpoon's asset filter takes the newest `sfosX.Y` tag that is not newer than the phone;
   after a system upgrade from 5.0, the `sfos5.1` package counts as an update;
-- signs the packages with a GitHub build attestation (which Harpoon verifies when it
-  updates itself);
+- signs the packages with a GitHub build attestation. Harpoon checks it when it updates
+  itself and reports a package that was not built by this workflow from a tag (it warns
+  rather than refuses, so a change of Sigstore's trusted root, which is built in, cannot
+  stop self-updates; set "Refuse unless verified" in its settings for the strict check);
 - publishes a GitHub release with the packages, `SHA256SUMS`, and notes from
   `rpm/harpoon.changes`.
 

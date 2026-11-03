@@ -149,8 +149,16 @@ Error GitHubSource::errorForResponse(const HttpResponse &response) const
     Error rateLimited = rateLimitError(response, QDateTime::currentMSecsSinceEpoch());
     if (!rateLimited.ok())
         return rateLimited;
-    Error e = response.status == 404
-                  ? Error::make(Error::NotFound, QStringLiteral("Repository not found"))
+    // Private repositories answer 404 (and Forgejo 403) without a token.
+    const bool hasToken = !config().value(QStringLiteral("token")).toString().trimmed().isEmpty();
+    const QString notFound = hasToken
+                                 ? QStringLiteral("Repository not found, or the access token cannot see it")
+                                 : QStringLiteral("Repository not found. If it is private, add a %1 access token "
+                                                  "in Harpoon's settings.")
+                                       .arg(displayName());
+    const bool hidden = response.status == 404 || (response.status == 403 && id() == QLatin1String("Forgejo"));
+    Error e = hidden
+                  ? Error::make(Error::NotFound, notFound)
                   : Error::make(Error::Http, QStringLiteral("%1 API returned HTTP %2 %3")
                                                  .arg(displayName())
                                                  .arg(response.status)

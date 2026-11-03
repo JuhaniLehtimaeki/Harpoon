@@ -251,7 +251,9 @@ private slots:
             t.respondJson(releases, "{}", 404);
             const FetchResult r = fetch(fj, t, "https://codeberg.org/aevare/harbour-reis");
             QCOMPARE(int(r.error.kind), int(Error::NotFound));
-            QCOMPARE(r.error.message, QStringLiteral("Repository not found"));
+            QVERIFY(r.error.message.startsWith(QLatin1String("Repository not found")));
+            // Private ones answer the same: say how to reach them.
+            QVERIFY2(r.error.message.contains(QLatin1String("access token")), qPrintable(r.error.message));
         }
         {
             // Releases on, yet 404 (or an old Gitea without has_releases): unexplained.
@@ -393,7 +395,10 @@ private slots:
         FakeTransport t;
         t.respondJson("https://codeberg.org/api/v1/repos/a/b/releases?per_page=100", "{}", 403);
         ForgejoSource fj;
-        QCOMPARE(int(fetch(fj, t, "https://codeberg.org/a/b").error.kind), int(Error::Http));
+        // Forgejo's answer for a private repository without a token.
+        const Error e = fetch(fj, t, "https://codeberg.org/a/b").error;
+        QCOMPARE(int(e.kind), int(Error::NotFound));
+        QVERIFY(e.message.contains(QLatin1String("If it is private")));
     }
 };
 

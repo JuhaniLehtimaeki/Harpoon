@@ -152,10 +152,19 @@ QList<HtmlLink> extractAnchorLinks(const QString &html)
 QStringList extractUrlsInText(const QString &text)
 {
     static const QRegularExpression url(QStringLiteral("(?:https?|ftp)://[^\\s\"'<>]+"));
+    // Punctuation after a URL in prose ends the sentence, not the URL:
+    // "Download https://h.org/app.rpm." must still end in ".rpm".
+    static const QRegularExpression trailing(QStringLiteral("[.,;:!?)\\]]+$"));
     QStringList out;
     auto it = url.globalMatch(text);
-    while (it.hasNext())
-        out << it.next().captured(0);
+    while (it.hasNext()) {
+        QString found = it.next().captured(0);
+        // A closing parenthesis that belongs to the URL (Wikipedia style) stays.
+        const bool balanced = found.count(QLatin1Char('(')) >= found.count(QLatin1Char(')'));
+        if (!(balanced && found.endsWith(QLatin1Char(')'))))
+            found.remove(trailing);
+        out << found;
+    }
     return out;
 }
 

@@ -249,30 +249,36 @@ void AppInstaller::verifyAndInstall(std::shared_ptr<InstallJob> job)
     }
 
     QStringList warnings;
+    // One rpm run for all the packages: each start costs on a phone.
+    QStringList packageNamesInRelease;
+    for (const RpmInfo &p : packages)
+        packageNamesInRelease << p.name;
+    const auto installedNow = m_inspector.installedPackages(packageNamesInRelease);
+    if (!installedNow.ok()) {
+        abort(Result<InstallResult>::failure(installedNow.error));
+        return;
+    }
     for (const RpmInfo &p : packages) {
-        const auto installed = m_inspector.installedPackage(p.name);
-        if (!installed.ok()) {
-            abort(Result<InstallResult>::failure(installed.error));
-            return;
-        }
-        if (installed.value.name.isEmpty())
+        const auto found = installedNow.value.constFind(p.name);
+        if (found == installedNow.value.constEnd())
             continue;
-        const int c = compareEvr(p.evr, installed.value.evr);
+        const RpmInfo &installed = found.value();
+        const int c = compareEvr(p.evr, installed.evr);
         if (c < 0 && !job->options.allowDowngrade) {
             abort(fail(Error::Downgrade, QStringLiteral("%1 %2 is older than the installed %3")
-                                             .arg(p.name, p.evr.toString(), installed.value.evr.toString())));
+                                             .arg(p.name, p.evr.toString(), installed.evr.toString())));
             return;
         }
         if (c == 0 && p.name == main.name && !job->options.allowReinstall) {
             abort(fail(Error::AlreadyInstalled,
-                       QStringLiteral("%1 %2 is already installed, and release %3 contains that same version: its "
-                                      "package was built with the old version number")
+                       QStringLiteral("%1 %2 is already installed, and release %3 contains that same version. "
+                                      "Reinstall to install it again.")
                            .arg(p.name, p.evr.toString(), app.latestTag.isEmpty() ? app.latestVersion : app.latestTag)));
             return;
         }
-        if (!installed.value.vendor.isEmpty() && installed.value.vendor != p.vendor)
+        if (!installed.vendor.isEmpty() && installed.vendor != p.vendor)
             warnings << QStringLiteral("Vendor of %1 changes from \"%2\" to \"%3\"; the package manager may refuse the update")
-                            .arg(p.name, installed.value.vendor, p.vendor);
+                            .arg(p.name, installed.vendor, p.vendor);
     }
 
     QStringList sha256s;

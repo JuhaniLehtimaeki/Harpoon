@@ -380,8 +380,10 @@ private slots:
         });
         m_pk->finishDelayMs = 20;
         // Cancelled, and reported once PackageKit confirmed it, not after a
-        // fixed grace period.
-        QCOMPARE(int(e.kind), int(Error::Cancelled));
+        // fixed grace period. Our own timeout is a failure, not the user
+        // declining (which shows no error page).
+        QCOMPARE(int(e.kind), int(Error::Install));
+        QVERIFY(e.message.contains(QLatin1String("in time")));
         QVERIFY(timer.elapsed() < 2000);
         QCOMPARE(m_pk->calls.last().method, QStringLiteral("Cancel"));
         QTest::qWait(3200); // let the stray Finished pass

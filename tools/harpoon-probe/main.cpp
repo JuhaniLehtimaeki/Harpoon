@@ -74,6 +74,7 @@ int main(int argc, char **argv)
 
     NetworkTransport transport;
     int exitCode = 0;
+    bool finished = false;
     fetchLatestRelease(*match.value.source, transport, match.value.standardUrl, settings, device,
                        [&](const Result<LatestRelease> &result) {
                            if (!result.ok()) {
@@ -95,8 +96,12 @@ int main(int argc, char **argv)
                                    out << "  (none)\n";
                                out.flush();
                            }
+                           finished = true;
                            QCoreApplication::exit(exitCode);
                        });
-    app.exec();
+    // Some sources answer at once (a direct link): exit() before exec()
+    // would be lost and the loop would never end.
+    if (!finished)
+        app.exec();
     return exitCode;
 }

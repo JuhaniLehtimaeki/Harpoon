@@ -5,10 +5,42 @@
 
 using namespace Harpoon;
 
+namespace {
+// Answers every rpm call with the same canned result.
+class CannedRunner : public ProcessRunner
+{
+public:
+    ProcessResult result;
+    ProcessResult run(const QString &, const QStringList &, int) override { return result; }
+};
+} // namespace
+
 class TestRpmInspector : public QObject
 {
     Q_OBJECT
 private slots:
+    void databaseErrorIsNotNotInstalled()
+    {
+        CannedRunner runner;
+        RpmInspector inspector(runner);
+        runner.result.started = true;
+        runner.result.exitCode = 1;
+        runner.result.standardOutput = "package harbour-x is not installed\n";
+        QVERIFY(inspector.queryInstalled(QStringLiteral("harbour-x")).ok());
+        QVERIFY(inspector.queryInstalled(QStringLiteral("harbour-x")).value.isEmpty());
+        // Several misses: exit code is their count.
+        runner.result.exitCode = 2;
+        runner.result.standardOutput = "package a is not installed\npackage b is not installed\n";
+        QVERIFY(inspector.installedPackages({QStringLiteral("a"), QStringLiteral("b")}).ok());
+
+        runner.result.standardOutput.clear();
+        runner.result.standardError = "error: cannot open Packages database in /var/lib/rpm\n";
+        const auto one = inspector.queryInstalled(QStringLiteral("harbour-x"));
+        QCOMPARE(int(one.error.kind), int(Error::Package));
+        QVERIFY(one.error.message.contains(QLatin1String("cannot open Packages database")));
+        QVERIFY(!inspector.installedPackages({QStringLiteral("harbour-x")}).ok());
+    }
+
     void parseOutput()
     {
         const QByteArray out = "package foo is not installed\n"

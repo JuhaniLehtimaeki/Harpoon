@@ -62,6 +62,11 @@ public slots:
         record(QStringLiteral("RestartUnit ") + name + QLatin1Char(' ') + mode);
         return QDBusObjectPath(QStringLiteral("/job/1"));
     }
+    QDBusObjectPath StartUnit(const QString &name, const QString &mode)
+    {
+        record(QStringLiteral("StartUnit ") + name + QLatin1Char(' ') + mode);
+        return QDBusObjectPath(QStringLiteral("/job/3"));
+    }
     QDBusObjectPath StopUnit(const QString &name, const QString &mode)
     {
         record(QStringLiteral("StopUnit ") + name + QLatin1Char(' ') + mode);
@@ -253,6 +258,18 @@ private slots:
         QVERIFY(!(dropIn.permissions() & QFileDevice::WriteOther));
         QVERIFY(!(QFileInfo(QFileInfo(scheduler.dropInPath()).absolutePath()).permissions() & QFileDevice::WriteOther));
         QVERIFY(scheduler.dropInPath().startsWith(config.path() + QStringLiteral("/systemd/user/harpoon-check.timer.d/")));
+
+        // The app asks at every start: unchanged, the running timer is left
+        // alone (a restart would add a background run after every session).
+        m_systemd->calls.clear();
+        QVERIFY(waitFor([&](std::function<void(const Error &)> d) { scheduler.apply(true, 12, d); }).ok());
+        QCOMPARE(m_systemd->calls, (QStringList{"EnableUnitFiles harpoon-check.timer false true",
+                                                "StartUnit harpoon-check.timer replace"}));
+        // A new interval takes effect at once.
+        m_systemd->calls.clear();
+        QVERIFY(waitFor([&](std::function<void(const Error &)> d) { scheduler.apply(true, 6, d); }).ok());
+        QCOMPARE(m_systemd->calls, (QStringList{"Reload", "EnableUnitFiles harpoon-check.timer false true",
+                                                "RestartUnit harpoon-check.timer replace"}));
     }
 
     void schedulerDisable()
@@ -278,7 +295,7 @@ private slots:
         QTRY_COMPARE(finished, 2);
         QCOMPARE(m_systemd->calls,
                  (QStringList{"Reload", "EnableUnitFiles harpoon-check.timer false true",
-                              "RestartUnit harpoon-check.timer replace", "Reload",
+                              "RestartUnit harpoon-check.timer replace",
                               "StopUnit harpoon-check.timer replace", "DisableUnitFiles harpoon-check.timer false"}));
     }
 

@@ -42,15 +42,20 @@ void NetworkTransport::get(const HttpRequest &request, Callback done, int redire
 
     QNetworkReply *reply = m_nam->get(req);
 
-    // Qt 5.6 has no per-request transfer timeout.
+    // Why the reply was aborted on purpose, if it was.
+    enum class Stop { None, HeadersDone, TooLarge, TimedOut };
+    auto stop = std::make_shared<Stop>(Stop::None);
+
+    // Qt 5.6 has no per-request transfer timeout. A stall timeout: a large
+    // index on a slow link is fine as long as data keeps coming.
     auto *timer = new QTimer(reply);
     timer->setSingleShot(true);
-    connect(timer, &QTimer::timeout, reply, &QNetworkReply::abort);
+    connect(timer, &QTimer::timeout, reply, [reply, stop]() {
+        if (*stop == Stop::None)
+            *stop = Stop::TimedOut;
+        reply->abort();
+    });
     timer->start(m_timeoutMs);
-
-    // Why the reply was aborted on purpose, if it was.
-    enum class Stop { None, HeadersDone, TooLarge };
-    auto stop = std::make_shared<Stop>(Stop::None);
     if (request.headersOnly) {
         connect(reply, &QNetworkReply::metaDataChanged, reply, [reply, stop]() {
             const QVariant status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
@@ -62,14 +67,16 @@ void NetworkTransport::get(const HttpRequest &request, Callback done, int redire
         });
     }
     const qint64 maxBody = request.maxBodyBytes;
-    connect(reply, &QNetworkReply::downloadProgress, reply, [reply, stop, maxBody](qint64 received, qint64) {
+    const int timeoutMs = m_timeoutMs;
+    connect(reply, &QNetworkReply::downloadProgress, reply, [reply, stop, maxBody, timer, timeoutMs](qint64 received, qint64) {
+        timer->start(timeoutMs);
         if (maxBody > 0 && received > maxBody && *stop == Stop::None) {
             *stop = Stop::TooLarge;
             reply->abort();
         }
     });
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply, request, done, redirects, stop]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, request, done, redirects, stop, timeoutMs]() {
         reply->deleteLater();
         const QVariant status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
         const int code = status.isValid() ? status.toInt() : 0;
@@ -82,6 +89,15 @@ void NetworkTransport::get(const HttpRequest &request, Callback done, int redire
             for (const auto &pair : reply->rawHeaderPairs())
                 response.headers.insert(pair.first.toLower(), pair.second);
             done(response);
+            return;
+        }
+        if (*stop == Stop::TimedOut) {
+            HttpResponse failed;
+            failed.finalUrl = reply->url().toString();
+            failed.networkError = QStringLiteral("No answer from %1 for %2 seconds")
+                                      .arg(reply->url().host())
+                                      .arg(qMax(1, timeoutMs / 1000));
+            done(failed);
             return;
         }
         if (*stop == Stop::TooLarge) {

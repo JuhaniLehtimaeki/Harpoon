@@ -68,7 +68,11 @@ private slots:
         QCOMPARE(resolveUrl("https://x.org/dir/", " https://y.org/b c.rpm "), QStringLiteral("https://y.org/b c.rpm"));
         QCOMPARE(lastPathSegment("https://x.org/a/harbour%20foo.rpm?x=1"), QStringLiteral("harbour foo.rpm"));
         QCOMPARE(extractUrlsInText("see https://x.org/a.rpm, or \"ftp://y.org/b\" <http://z.org/c>"),
-                 (QStringList{"https://x.org/a.rpm,", "ftp://y.org/b", "http://z.org/c"}));
+                 (QStringList{"https://x.org/a.rpm", "ftp://y.org/b", "http://z.org/c"}));
+        QCOMPARE(extractUrlsInText("Download https://h.org/app-1.0.noarch.rpm. (Or https://h.org/b.rpm)"),
+                 (QStringList{"https://h.org/app-1.0.noarch.rpm", "https://h.org/b.rpm"}));
+        QCOMPARE(extractUrlsInText("https://en.wikipedia.org/wiki/Fish_(food)"),
+                 QStringList{"https://en.wikipedia.org/wiki/Fish_(food)"});
         QCOMPARE(shortSha256("abc"), QStringLiteral("ba7816bf8f01"));
     }
 

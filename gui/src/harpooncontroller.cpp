@@ -372,9 +372,22 @@ void HarpoonController::endCheck()
 
 void HarpoonController::addApp(const QString &url, const QString &sourceId, const QVariantMap &settings, bool force)
 {
+    addAppThen(url, sourceId, settings, force, [this](bool ok, const QString &idOrError, bool waiting,
+                                                      const QString &name) {
+        emit addFinished(ok, idOrError);
+        if (ok && waiting)
+            emit operationFinished(idOrError, true,
+                                   tr("Added %1. No builds yet: Harpoon will offer it as soon as they are "
+                                      "published.").arg(name));
+    });
+}
+
+void HarpoonController::addAppThen(const QString &url, const QString &sourceId, const QVariantMap &settings, bool force,
+                                   std::function<void(bool, const QString &, bool, const QString &)> done)
+{
     const QVariantMap inspected = inspectUrl(url, sourceId);
     if (!inspected.value(QStringLiteral("ok")).toBool()) {
-        emit addFinished(false, inspected.value(QStringLiteral("error")).toString());
+        done(false, inspected.value(QStringLiteral("error")).toString(), false, QString());
         return;
     }
     App app = App::fromUrl(inspected.value(QStringLiteral("standardUrl")).toString(), sourceId);
@@ -385,23 +398,19 @@ void HarpoonController::addApp(const QString &url, const QString &sourceId, cons
     app.settings = AppSettings(values);
 
     beginCheck();
-    checker().check(app, [this, force](const App &checked, const Error &error) {
+    checker().check(app, [this, force, done](const App &checked, const Error &error) {
         endCheck();
         // A repository that is there but has no builds yet is tracked: it
         // becomes installable as soon as its developer publishes some.
         if (!error.ok() && !force && !isWaitingForBuilds(error)) {
-            emit addFinished(false, error.message);
+            done(false, error.message, false, QString());
             return;
         }
-        installedCandidates(checked, [this, checked](const QSet<QString> &installed) {
+        installedCandidates(checked, [this, checked, done](const QSet<QString> &installed) {
             App added = checked;
             adoptInstalled(added, installed);
             storeAndShow(added);
-            emit addFinished(true, added.id);
-            if (added.waitingForBuilds)
-                emit operationFinished(added.id, true,
-                                       tr("Added %1. No builds yet: Harpoon will offer it as soon as they are "
-                                          "published.").arg(added.name));
+            done(true, added.id, added.waitingForBuilds, added.name);
         });
     });
 }
@@ -779,12 +788,26 @@ void HarpoonController::trackSelfOnce()
 {
     if (m_settings->selfAdded())
         return;
-    m_settings->setSelfAdded(true);
     const QString self = kHarpoonRepository;
-    if (!inspectUrl(self).value(QStringLiteral("existingId")).toString().isEmpty())
-        return; // added by hand already
-    // Added even when offline: the next check finds its releases.
-    addApp(self, QString(), QVariantMap(), true);
+    if (!inspectUrl(self).value(QStringLiteral("existingId")).toString().isEmpty()) {
+        m_settings->setSelfAdded(true); // added by hand already
+        return;
+    }
+    // Its updates come from this repository's release workflow, from a tag:
+    // a build from anywhere else is reported. ("Refuse" would also stop
+    // self-updates should Sigstore's trusted root, built in, be replaced.)
+    const QVariantMap provenance{
+        {QString::fromLatin1(Keys::githubBuildVerificationMode), QStringLiteral("audit")},
+        {QString::fromLatin1(Keys::attestationWorkflow), QStringLiteral("release.yml")},
+        {QString::fromLatin1(Keys::attestationRefRegEx), QStringLiteral("refs/tags/.*")},
+    };
+    // Quietly, and only counted once it worked: offline, the first start
+    // would otherwise begin with a failed check, and the next start tries
+    // again instead.
+    addAppThen(self, QString(), provenance, false, [this](bool ok, const QString &, bool, const QString &) {
+        if (ok)
+            m_settings->setSelfAdded(true);
+    });
 }
 
 QVariantMap HarpoonController::appDetails(const QString &id) const

@@ -121,7 +121,7 @@ public:
     // addressChangeFinished.
     Q_INVOKABLE void setAppAddress(const QString &id, const QString &url, const QString &sourceId);
     // Puts Harpoon itself on the list, once: if the user stops tracking it,
-    // it stays off.
+    // it stays off. Not counted until it worked (offline first start).
     void trackSelfOnce();
     // All details of one app for the details page.
     Q_INVOKABLE QVariantMap appDetails(const QString &id) const;
@@ -162,6 +162,10 @@ private:
     void show(const App &app, const QString &oldId = QString(), const RpmInfo *installed = nullptr);
     void queryInstalled(const QString &id);
     QString localizedStage(const QString &stage) const;
+    // addApp() reporting to `done` (ok, id or error, waiting for builds, name)
+    // instead of the addFinished signal.
+    void addAppThen(const QString &url, const QString &sourceId, const QVariantMap &settings, bool force,
+                    std::function<void(bool, const QString &, bool, const QString &)> done);
     QString problemAdvice(const Error &error) const;
     QVariantMap problemToVariant(const InstallProblem &problem) const;
     void storeAndShow(const App &app, const QString &oldId = QString(), const RpmInfo *installed = nullptr);

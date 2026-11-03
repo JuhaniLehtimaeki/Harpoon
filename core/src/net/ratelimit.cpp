@@ -1,5 +1,7 @@
 #include "net/ratelimit.h"
 
+#include <QDateTime>
+
 #include <cmath>
 
 namespace Harpoon {
@@ -23,8 +25,14 @@ Error rateLimitError(const HttpResponse &response, qint64 nowMsecs)
     bool ok = false;
     qint64 resetSecs = response.header("x-ratelimit-reset").toLongLong(&ok);
     if (!ok) {
-        const qint64 retryAfter = response.header("retry-after").toLongLong(&ok);
-        resetSecs = nowSecs + (ok ? retryAfter : 1800);
+        const QByteArray header = response.header("retry-after");
+        const qint64 retryAfter = header.toLongLong(&ok);
+        // Or an HTTP date (RFC 7231), "Wed, 21 Oct 2026 07:28:00 GMT".
+        const QDateTime at = ok ? QDateTime() : QDateTime::fromString(QString::fromLatin1(header).trimmed(), Qt::RFC2822Date);
+        if (at.isValid())
+            resetSecs = at.toMSecsSinceEpoch() / 1000;
+        else
+            resetSecs = nowSecs + (ok ? retryAfter : 1800);
     }
     const int minutes = qBound<qint64>(1, static_cast<qint64>(std::ceil((resetSecs - nowSecs) / 60.0)), 9999);
 
