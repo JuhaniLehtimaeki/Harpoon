@@ -50,7 +50,8 @@ AppInstaller::AppInstaller(Downloader &downloader, RpmInspector &inspector, Pack
 {
 }
 
-int AppInstaller::mainPackageIndex(const QList<RpmInfo> &packages, const QString &appId, const QString &repoName)
+int AppInstaller::mainPackageIndex(const QList<RpmInfo> &packages, const QString &appId, const QString &repoName,
+                                   const QList<bool> &hasLauncher)
 {
     if (packages.isEmpty())
         return -1;
@@ -71,7 +72,15 @@ int AppInstaller::mainPackageIndex(const QList<RpmInfo> &packages, const QString
     for (int i = 0; i < packages.size(); ++i)
         if (packages.at(i).name.compare(repoName, Qt::CaseInsensitive) == 0)
             return i;
-    return 0;
+    int launcher = -1;
+    for (int i = 0; i < hasLauncher.size() && i < packages.size(); ++i) {
+        if (!hasLauncher.at(i))
+            continue;
+        if (launcher >= 0)
+            return 0; // several: no telling
+        launcher = i;
+    }
+    return launcher >= 0 ? launcher : 0;
 }
 
 void AppInstaller::install(const App &app, const InstallOptions &options, Progress progress, Done done)
@@ -191,28 +200,46 @@ void AppInstaller::verifyAndInstall(std::shared_ptr<InstallJob> job)
 
     const App &app = job->app;
     const QString repoName = QUrl(app.url).path().section(QLatin1Char('/'), -1);
-    int mainIndex = mainPackageIndex(packages, app.temporaryId ? QString() : app.id, repoName);
+    // Which package is the app, when a release has several: the one with the
+    // launcher, unless their names tell.
+    QList<bool> hasLauncher;
+    if (packages.size() > 1)
+        for (const QString &file : job->files) {
+            bool launcher = false;
+            for (const QString &path : m_inspector.filesOf(file).value)
+                if (path.startsWith(QLatin1String("/usr/share/applications/")) && path.endsWith(QLatin1String(".desktop")))
+                    launcher = true;
+            hasLauncher << launcher;
+        }
+    int mainIndex = mainPackageIndex(packages, app.temporaryId ? QString() : app.id, repoName, hasLauncher);
     if (mainIndex < 0) {
         if (!app.settings.getBool(Keys::allowIdChange)) {
             QStringList found;
             for (const RpmInfo &p : packages)
                 found << p.name;
-            abort(fail(Error::IdChanged, QStringLiteral("The release contains %1, not %2. Set allowIdChange to accept.")
-                                             .arg(found.join(QStringLiteral(", ")), app.id)));
+            abort(fail(Error::IdChanged,
+                       QStringLiteral("The release contains %1 instead of %2. If the app's package was renamed, turn "
+                                      "on \"Allow a different package name\" in the app's advanced settings "
+                                      "(harpoon-cli: allowIdChange).")
+                           .arg(found.join(QStringLiteral(", ")), app.id)));
             return;
         }
-        mainIndex = mainPackageIndex(packages, QString(), repoName);
+        mainIndex = mainPackageIndex(packages, QString(), repoName, hasLauncher);
     }
     const RpmInfo main = packages.at(mainIndex);
 
-    // Every other package must belong to the app (harbour-foo-data for
-    // harbour-foo): a release must not be able to replace an unrelated
-    // package, such as a system one, alongside the app.
+    // Every other package must belong to the app: named after it
+    // (harbour-foo-data for harbour-foo) or after its repository
+    // (rawfish-ir-cli in RAWfish). A release must not be able to replace an
+    // unrelated package, such as a system one, alongside the app.
     QStringList packageNames{main.name};
     for (const RpmInfo &p : packages) {
         if (p.name == main.name)
             continue;
-        if (!p.name.startsWith(main.name + QLatin1Char('-'))) {
+        const bool namedAfterApp = p.name.startsWith(main.name + QLatin1Char('-'));
+        const bool namedAfterRepo = !repoName.isEmpty()
+                                    && p.name.startsWith(repoName + QLatin1Char('-'), Qt::CaseInsensitive);
+        if (!namedAfterApp && !namedAfterRepo) {
             abort(fail(Error::InvalidSetting,
                        QStringLiteral("The release also contains %1, which is not part of %2; set a package filter")
                            .arg(p.name, main.name)));

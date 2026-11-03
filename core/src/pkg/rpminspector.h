@@ -35,6 +35,8 @@ public:
 
     // rpm -qp on a package file.
     Result<RpmInfo> inspectFile(const QString &path) const;
+    // rpm -qpl on a package file: the paths it installs.
+    Result<QStringList> filesOf(const QString &path) const;
 
     // rpm -q on the installed database. Returns an empty list when the package
     // is not installed; several entries when multiple versions are installed.

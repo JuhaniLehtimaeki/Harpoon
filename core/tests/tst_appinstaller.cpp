@@ -193,6 +193,14 @@ private slots:
         m_rpms.insert(QStringLiteral("tool-2.0-meego"),
                       m_factory.build(QStringLiteral("tool"), QStringLiteral("2.0"), QStringLiteral("1"), QStringLiteral("aarch64"),
                                       QStringLiteral("meego")));
+        // Issue #2: a command line tool and the app, named after the repository.
+        m_rpms.insert(QStringLiteral("tool-ir-cli-2.0-aarch64"),
+                      m_factory.build(QStringLiteral("tool-ir-cli"), QStringLiteral("2.0"), QStringLiteral("1"),
+                                      QStringLiteral("aarch64"), QStringLiteral("chum"), 0, {"/usr/bin/tool-ir-cli"}));
+        m_rpms.insert(QStringLiteral("tool-ir-gui-2.0-aarch64"),
+                      m_factory.build(QStringLiteral("tool-ir-gui"), QStringLiteral("2.0"), QStringLiteral("1"),
+                                      QStringLiteral("aarch64"), QStringLiteral("chum"), 0,
+                                      {"/usr/bin/tool-ir-gui", "/usr/share/applications/tool-ir-gui.desktop"}));
         for (const QString &p : m_rpms)
             QVERIFY(!p.isEmpty());
         m_device.arch = QStringLiteral("aarch64");
@@ -323,6 +331,37 @@ private slots:
         installer.uninstall(r.value.app, [&](const Error &err) { e = err; });
         QVERIFY(e.ok());
         QCOMPARE(m_backend->removals, (QStringList{"tool", "tool-data"}));
+    }
+
+    void packagesNamedAfterTheRepositoryInstallTogether()
+    {
+        // The command line tool comes first; the app is the package with the
+        // launcher.
+        serveRelease(QStringLiteral("v2.0"), {QStringLiteral("tool-ir-cli-2.0-aarch64"), QStringLiteral("tool-ir-gui-2.0-aarch64")});
+        const App app = checkedApp();
+        QCOMPARE(app.latestAssets.size(), 2);
+        const auto r = install(app);
+        QVERIFY2(r.ok(), qPrintable(r.error.message));
+        QCOMPARE(r.value.app.id, QStringLiteral("tool-ir-gui"));
+        QCOMPARE(r.value.app.receipt.packageNames, (QStringList{"tool-ir-gui", "tool-ir-cli"}));
+        QCOMPARE(m_backend->installs.size(), 1);
+        QCOMPARE(m_backend->installs.first().size(), 2);
+    }
+
+    void renamedPackageExplainsTheSetting()
+    {
+        // Installed as "tool"; the new release has the renamed packages.
+        serveRelease(QStringLiteral("v2.0"), {QStringLiteral("tool-ir-cli-2.0-aarch64"), QStringLiteral("tool-ir-gui-2.0-aarch64")});
+        App app = checkedApp();
+        app.id = QStringLiteral("tool");
+        app.temporaryId = false;
+        const auto r = install(app);
+        QCOMPARE(int(r.error.kind), int(Error::IdChanged));
+        QVERIFY2(r.error.message.contains(QLatin1String("Allow a different package name")), qPrintable(r.error.message));
+        app.settings.set(Keys::allowIdChange, true);
+        const auto ok = install(app);
+        QVERIFY2(ok.ok(), qPrintable(ok.error.message));
+        QCOMPARE(ok.value.app.id, QStringLiteral("tool-ir-gui"));
     }
 
     void oneInstallPerAppAtATime()

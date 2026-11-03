@@ -8,7 +8,7 @@
 
 #include <functional>
 
-// ProcessRunner that runs `rpm -qp` for real (reads package files) but answers
+// ProcessRunner that runs `rpm -qp` and `rpm -qpl` for real (reads package files) but answers
 // `rpm -q` from an in-memory "installed" database the test controls.
 class FakeRpmDb : public Harpoon::ProcessRunner
 {
@@ -36,7 +36,7 @@ public:
 
     Harpoon::ProcessResult run(const QString &program, const QStringList &arguments, int timeoutMs) override
     {
-        if (arguments.contains(QStringLiteral("-qp")))
+        if (arguments.contains(QStringLiteral("-qp")) || arguments.contains(QStringLiteral("-qpl")))
             return m_real.run(program, arguments, timeoutMs);
         Harpoon::ProcessResult r;
         r.started = true;

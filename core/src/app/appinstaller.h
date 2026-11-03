@@ -59,7 +59,12 @@ public:
     // Picks the package that represents the app among a release's RPMs:
     // the one named appId if given, else a name that prefixes all others
     // (app + app-data), else one matching the repository name, else the first.
-    static int mainPackageIndex(const QList<RpmInfo> &packages, const QString &appId, const QString &repoName);
+    // hasLauncher[i]: packages[i] installs a .desktop file. With no package
+    // named as the app, its repository or a prefix of all the others, the one
+    // package that has the app's launcher is the app (rawfish-ir-gui beside
+    // rawfish-ir-cli).
+    static int mainPackageIndex(const QList<RpmInfo> &packages, const QString &appId, const QString &repoName,
+                                const QList<bool> &hasLauncher = QList<bool>());
 
 private:
     void downloadNext(std::shared_ptr<InstallJob> job);

@@ -995,13 +995,13 @@
     </message>
     <message>
         <location filename="../src/harpooncontroller.cpp" line="431"/>
-        <location filename="../src/harpooncontroller.cpp" line="737"/>
+        <location filename="../src/harpooncontroller.cpp" line="740"/>
         <source>Checking</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../src/harpooncontroller.cpp" line="476"/>
-        <location filename="../src/harpooncontroller.cpp" line="636"/>
+        <location filename="../src/harpooncontroller.cpp" line="639"/>
         <source>%1 is busy: %2</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1037,67 +1037,72 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="571"/>
-        <source>The release&apos;s package does not fit this phone or could not be read. This is most likely for the app&apos;s developer to fix: send them the report below.</source>
+        <location filename="../src/harpooncontroller.cpp" line="568"/>
+        <source>The release&apos;s package has a different name from the installed one. If the app was renamed, turn on Allow a different package name in the app&apos;s advanced settings and try again; otherwise tell the app&apos;s developer.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../src/harpooncontroller.cpp" line="574"/>
-        <source>The system did not let Harpoon install the package. Check that Settings &gt; Untrusted software allows installing it, then try again.</source>
+        <source>The release&apos;s package does not fit this phone or could not be read. This is most likely for the app&apos;s developer to fix: send them the report below.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../src/harpooncontroller.cpp" line="577"/>
-        <source>Another installation was running. Wait for it to finish and try again.</source>
+        <source>The system did not let Harpoon install the package. Check that Settings &gt; Untrusted software allows installing it, then try again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../src/harpooncontroller.cpp" line="580"/>
+        <source>Another installation was running. Wait for it to finish and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/harpooncontroller.cpp" line="583"/>
         <source>The package&apos;s version does not fit the installed one. Try Reinstall on the app&apos;s page.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="582"/>
+        <location filename="../src/harpooncontroller.cpp" line="585"/>
         <source>The package manager did not install the package. The report below says why; if it does not help, send it to Harpoon&apos;s maintainer.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="612"/>
+        <location filename="../src/harpooncontroller.cpp" line="615"/>
         <source>Downloading %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="614"/>
+        <location filename="../src/harpooncontroller.cpp" line="617"/>
         <source>Verifying %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="616"/>
+        <location filename="../src/harpooncontroller.cpp" line="619"/>
         <source>Installing %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="618"/>
+        <location filename="../src/harpooncontroller.cpp" line="621"/>
         <source>Checking packages</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="640"/>
+        <location filename="../src/harpooncontroller.cpp" line="643"/>
         <source>Uninstalling</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="650"/>
+        <location filename="../src/harpooncontroller.cpp" line="653"/>
         <source>Uninstalled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="727"/>
+        <location filename="../src/harpooncontroller.cpp" line="730"/>
         <source>The app is busy; try again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="871"/>
+        <location filename="../src/harpooncontroller.cpp" line="874"/>
         <source>Cannot read %1: %2</source>
         <translation type="unfinished"></translation>
     </message>

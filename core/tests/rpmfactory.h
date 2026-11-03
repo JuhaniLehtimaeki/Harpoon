@@ -2,6 +2,7 @@
 
 #include <QDir>
 #include <QDirIterator>
+#include <QFileInfo>
 #include <QProcess>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -13,8 +14,9 @@ public:
     static bool available() { return !QStandardPaths::findExecutable(QStringLiteral("rpmbuild")).isEmpty(); }
 
     // Returns the path of the built package, or an empty string on failure.
+    // files: empty files the package installs, e.g. a .desktop file.
     QString build(const QString &name, const QString &version, const QString &release, const QString &arch,
-                  const QString &vendor = QStringLiteral("chum"), int epoch = 0)
+                  const QString &vendor = QStringLiteral("chum"), int epoch = 0, const QStringList &files = {})
     {
         const QString top = m_dir.path() + QStringLiteral("/top-") + QString::number(m_counter++);
         QDir().mkpath(top);
@@ -29,7 +31,13 @@ public:
             text += "Epoch: " + QByteArray::number(epoch) + "\n";
         if (arch == QLatin1String("noarch"))
             text += "BuildArch: noarch\n";
-        text += "%description\nTest\n%files\n";
+        text += "%description\nTest\n%install\n";
+        for (const QString &f : files)
+            text += "mkdir -p \"%{buildroot}" + QFileInfo(f).path().toUtf8() + "\"\ntouch \"%{buildroot}" + f.toUtf8()
+                    + "\"\n";
+        text += "%files\n";
+        for (const QString &f : files)
+            text += f.toUtf8() + "\n";
         spec.write(text);
         spec.close();
 

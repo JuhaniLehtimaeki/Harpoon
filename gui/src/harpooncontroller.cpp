@@ -564,8 +564,11 @@ QString HarpoonController::problemAdvice(const Error &error) const
     case Error::Verification:
         return tr("Harpoon could not confirm who built this package, and the app's settings refuse packages that are "
                   "not verified. Tell the app's developer, or change Check build provenance in the app's settings.");
-    case Error::WrongArch:
     case Error::IdChanged:
+        return tr("The release's package has a different name from the installed one. If the app was renamed, turn on "
+                  "Allow a different package name in the app's advanced settings and try again; otherwise tell the "
+                  "app's developer.");
+    case Error::WrongArch:
     case Error::Package:
     case Error::NoAsset:
         return tr("The release's package does not fit this phone or could not be read. This is most likely for the "

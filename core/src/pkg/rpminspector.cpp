@@ -72,6 +72,22 @@ Result<RpmInfo> RpmInspector::inspectFile(const QString &path) const
     return Result<RpmInfo>::success(infos.first());
 }
 
+Result<QStringList> RpmInspector::filesOf(const QString &path) const
+{
+    if (!QFileInfo(path).isFile())
+        return Result<QStringList>::failure(Error::make(Error::Package, QStringLiteral("File not found: %1").arg(path)));
+    const ProcessResult r = m_runner.run(QStringLiteral("rpm"), {QStringLiteral("-qpl"), QStringLiteral("--nosignature"),
+                                                                 QStringLiteral("--"), path});
+    if (!r.started || r.exitCode != 0)
+        return Result<QStringList>::failure(Error::make(
+            Error::Package, QStringLiteral("Could not list the files of %1").arg(QFileInfo(path).fileName())));
+    QStringList files;
+    for (const QByteArray &line : r.standardOutput.split('\n'))
+        if (line.startsWith('/'))
+            files << QString::fromUtf8(line);
+    return Result<QStringList>::success(files);
+}
+
 Result<QList<RpmInfo>> RpmInspector::queryInstalled(const QString &name) const
 {
     // Not a package name: nothing can be installed under it, and it must not
