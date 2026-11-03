@@ -13,6 +13,7 @@
 #include "app/backgroundscheduler.h"
 #include "app/backup.h"
 #include "app/installedmatch.h"
+#include "app/problemreport.h"
 #include "app/harpoonsettings.h"
 #include "app/updatenotifications.h"
 #include "app/updatestatus.h"
@@ -26,6 +27,7 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QProcess>
+#include <QSet>
 #include <QStandardPaths>
 #include <QTextStream>
 
@@ -476,31 +478,51 @@ private:
         PackageBackend *b = backend(QStringLiteral("packagekit"));
         QStringList updated;
         QStringList failed;
-        bool notAuthorized = false;
+        QString firstError;
+        Error notAuthorized;
         for (const App &app : m_store.loadAll()) {
             QString why;
             if (!autoUpdateEligible(app, updateStatusFor(app, installedOf(app)), &why))
                 continue;
-            if (notAuthorized) {
+            Error error = notAuthorized;
+            if (!notAuthorized.ok() || installApp(app, InstallOptions(), *b, &error) != 0) {
+                // The app is installing it right now: not a failure.
+                if (error.kind == Error::Busy)
+                    continue;
                 failed << app.name;
+                m_autoUpdateFailed.insert(app.id);
+                if (firstError.isEmpty())
+                    firstError = error.message;
+                recordBackgroundFailure(app, error);
+                // Without the privileged group nothing else will work either.
+                if (error.kind == Error::NotAuthorized)
+                    notAuthorized = error;
                 continue;
             }
-            Error error;
-            if (installApp(app, InstallOptions(), *b, &error) == 0) {
-                updated << app.name;
-            } else {
-                failed << app.name;
-                // Without the privileged group nothing else will work either.
-                notAuthorized = error.kind == Error::NotAuthorized;
-            }
+            updated << app.name;
         }
         if (updated.isEmpty() && failed.isEmpty())
             return true;
         Notifier notifier;
-        const auto sent = notifier.notify(autoUpdateNotification(updated, failed));
+        const auto sent = notifier.notify(autoUpdateNotification(updated, failed, firstError));
         if (!sent.ok())
             err() << "Warning: " << sent.error.message << "\n";
         return failed.isEmpty();
+    }
+
+    // Remembers why the background update of this release failed: the next
+    // run does not try it again (see autoUpdateEligible) and the app's page
+    // shows it. Only these fields are ours to write.
+    void recordBackgroundFailure(const App &app, const Error &error)
+    {
+        auto current = m_store.load(app.id);
+        if (!current.ok())
+            return;
+        current.value.backgroundFailure.version = app.latestVersion;
+        current.value.backgroundFailure.kind = errorKindName(error.kind);
+        current.value.backgroundFailure.message = error.message;
+        current.value.backgroundFailure.when = QDateTime::currentDateTimeUtc();
+        m_store.save(current.value);
     }
 
     int setAutoUpdate(const Args &args)
@@ -520,7 +542,9 @@ private:
     {
         QList<AppWithStatus> all;
         for (const App &app : m_store.loadAll())
-            all << AppWithStatus{app, updateStatusFor(app, installedOf(app))};
+            // Already in the "Could not update" notification of this run.
+            if (!m_autoUpdateFailed.contains(app.id))
+                all << AppWithStatus{app, updateStatusFor(app, installedOf(app))};
         const UpdateNotificationPlan plan = planUpdateNotification(all);
         if (!plan.shouldNotify)
             return;
@@ -779,6 +803,7 @@ private:
     SourceRegistry m_registry;
     HarpoonSettings m_settings;
     AppStore m_store;
+    QSet<QString> m_autoUpdateFailed; // ids whose automatic update failed in this run
     DeviceInfo m_device;
     SystemProcessRunner m_runner;
     RpmInspector m_inspector;

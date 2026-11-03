@@ -14,7 +14,8 @@ namespace Harpoon {
 bool autoUpdateEligible(const App &app, const UpdateStatus &status, QString *why = nullptr);
 
 // One notification summarising a background update run; empty summary when
-// there is nothing to report.
-NotificationRequest autoUpdateNotification(const QStringList &updated, const QStringList &failed);
+// there is nothing to report. firstError: why the first failed update failed.
+NotificationRequest autoUpdateNotification(const QStringList &updated, const QStringList &failed,
+                                           const QString &firstError = QString());
 
 } // namespace Harpoon

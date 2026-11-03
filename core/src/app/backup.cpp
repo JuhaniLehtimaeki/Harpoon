@@ -110,6 +110,7 @@ ImportResult mergeBackupApps(const QList<App> &existing, const QList<App> &fromB
         }
         app.receipt = InstallReceipt();
         app.notifiedVersion.clear();
+        app.backgroundFailure = BackgroundFailure();
         app.lastError.clear();
         // Release data is re-fetched from the source before any install.
         app.latestVersion.clear();

@@ -209,7 +209,11 @@ void AppListModel::upsert(const Entry &entry, const QString &oldId)
         merged.busy = m_entries.at(row).busy;
         merged.stage = m_entries.at(row).stage;
         merged.progress = m_entries.at(row).progress;
-        merged.installProblem = m_entries.at(row).installProblem;
+        // A failure from this session stays until an install succeeds; one
+        // the background job recorded follows the record.
+        const QVariantMap &shown = m_entries.at(row).installProblem;
+        if (!shown.isEmpty() && !shown.value(QStringLiteral("background")).toBool())
+            merged.installProblem = shown;
         m_entries[row] = merged;
         emit dataChanged(index(row), index(row));
         emit appChanged(merged.app.id, false);

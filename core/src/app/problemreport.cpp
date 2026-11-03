@@ -37,6 +37,14 @@ QString errorKindName(Error::Kind kind)
     return QString::number(int(kind));
 }
 
+Error::Kind errorKindFromName(const QString &name)
+{
+    for (int k = Error::None; k <= Error::System; ++k)
+        if (errorKindName(Error::Kind(k)) == name)
+            return Error::Kind(k);
+    return Error::Install;
+}
+
 bool isAppPackageProblem(Error::Kind kind)
 {
     switch (kind) {

@@ -82,6 +82,46 @@ private slots:
         more.latestAssets << extra;
         QVERIFY(!autoUpdateEligible(more, updateAvailable(), &why));
         QCOMPARE(why, QStringLiteral("the release's packages changed"));
+
+        // Harpoon installed 1.0-1, the user then installed 1.1-1 from Chum.
+        UpdateStatus handInstalled = updateAvailable();
+        handInstalled.installedVersion = QStringLiteral("1.1-1");
+        QVERIFY(!autoUpdateEligible(installedApp(), handInstalled, &why));
+        QCOMPARE(why, QStringLiteral("installed some other way since Harpoon installed it"));
+        UpdateStatus ours = updateAvailable();
+        ours.installedVersion = QStringLiteral("1.0-1");
+        QVERIFY(autoUpdateEligible(installedApp(), ours));
+
+        // The OpenRepos build the user chose (a suffix after the arch).
+        App openrepos = same;
+        openrepos.latestAssets.first().name = QStringLiteral("harbour-tool-1.1-1.aarch64-openrepos.rpm");
+        QVERIFY2(autoUpdateEligible(openrepos, updateAvailable(), &why), qPrintable(why));
+
+        // Failed in the background for this release: not again every run,
+        // but a newer release is tried.
+        App failed = installedApp();
+        failed.backgroundFailure.version = QStringLiteral("1.1");
+        failed.backgroundFailure.message = QStringLiteral("Vendor change refused");
+        QVERIFY(!autoUpdateEligible(failed, updateAvailable(), &why));
+        QCOMPARE(why, QStringLiteral("failed before for this release"));
+        failed.latestVersion = QStringLiteral("1.2");
+        QVERIFY(autoUpdateEligible(failed, updateAvailable()));
+    }
+
+    void backgroundFailureIsKept()
+    {
+        App app = installedApp();
+        app.backgroundFailure.version = QStringLiteral("1.1");
+        app.backgroundFailure.kind = QStringLiteral("Install");
+        app.backgroundFailure.message = QStringLiteral("PackageKit error 12: conflicts");
+        app.backgroundFailure.when = QDateTime(QDate(2026, 11, 3), QTime(4, 0), Qt::UTC);
+        const auto back = App::fromJson(app.toJson());
+        QVERIFY(back.ok());
+        QCOMPARE(back.value.backgroundFailure.version, QStringLiteral("1.1"));
+        QCOMPARE(back.value.backgroundFailure.kind, QStringLiteral("Install"));
+        QCOMPARE(back.value.backgroundFailure.message, QStringLiteral("PackageKit error 12: conflicts"));
+        QCOMPARE(back.value.backgroundFailure.when, app.backgroundFailure.when);
+        QVERIFY(!App::fromJson(installedApp().toJson()).value.backgroundFailure.isValid());
     }
 
     void notification()
@@ -98,6 +138,9 @@ private slots:
 
         r = autoUpdateNotification({}, {QStringLiteral("Notes")});
         QCOMPARE(r.summary, QStringLiteral("Could not update Notes"));
+        // And why.
+        r = autoUpdateNotification({}, {QStringLiteral("Notes")}, QStringLiteral("Vendor change refused"));
+        QCOMPARE(r.body, QStringLiteral("Vendor change refused"));
     }
 
     void settingIsOffByDefaultAndBackedUp()

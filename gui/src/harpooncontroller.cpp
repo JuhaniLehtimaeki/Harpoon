@@ -167,6 +167,20 @@ AppListModel::Entry HarpoonController::makeEntry(const App &app, const RpmInfo &
                                      : findDesktopEntry(app.id, m_applicationsDir, m_iconsDir);
     e.displayName = renamed ? app.name : desktop.isValid() ? desktop.name : prettyAppName(app.name);
     e.iconPath = desktop.iconPath;
+    // The background job could not update it: the same page and report as a
+    // failed install here (AppListModel keeps one from this session first).
+    const BackgroundFailure &failure = app.backgroundFailure;
+    if (failure.isValid() && failure.version == app.latestVersion) {
+        InstallProblem problem;
+        problem.app = app;
+        problem.installedEvr = e.installed.name.isEmpty() ? QString() : e.installed.evr.toString();
+        problem.device = m_device;
+        problem.backend = QStringLiteral("PackageKit");
+        problem.error = Error::make(errorKindFromName(failure.kind), failure.message);
+        problem.when = failure.when;
+        e.installProblem = problemToVariant(problem);
+        e.installProblem.insert(QStringLiteral("background"), true);
+    }
     return e;
 }
 

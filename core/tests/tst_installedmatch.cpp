@@ -30,6 +30,7 @@ private slots:
         QTest::newRow("dashes in name") << "sailfish-browser-plugin-x-2.0-3.armv7hl.rpm" << "sailfish-browser-plugin-x";
         QTest::newRow("path") << "/cache/0123456789ab-harbour-dwd-1.1.1-1.noarch.rpm" << "0123456789ab-harbour-dwd";
         QTest::newRow("release with a tag") << "harpoon-0.2.0-1.sfos5.1.aarch64.rpm" << "harpoon";
+        QTest::newRow("suffix after arch") << "harbour-bitsailor-1.8.1-1.aarch64-openrepos.rpm" << "harbour-bitsailor";
         QTest::newRow("not nevra") << "app.rpm" << "";
         QTest::newRow("not rpm") << "harbour-dwd-1.1.1-1.noarch.zip" << "";
     }
@@ -51,6 +52,20 @@ private slots:
         QVERIFY(!app.temporaryId);
         // Only once.
         QVERIFY(!adoptInstalledPackage(app, installed, {}));
+    }
+
+    void adoptsTheAppNotAPart()
+    {
+        // Both installed from Chum; the release lists the data package first.
+        App app = addedApp({QStringLiteral("harbour-dwd-data-1.1.1-1.noarch.rpm"),
+                            QStringLiteral("harbour-dwd-1.1.1-1.noarch.rpm")});
+        auto installed = [](const QString &n) { return n.startsWith(QLatin1String("harbour-dwd")); };
+        QVERIFY(adoptInstalledPackage(app, installed, {}));
+        QCOMPARE(app.id, QStringLiteral("harbour-dwd"));
+        // An OpenRepos build, named with a suffix.
+        app = addedApp({QStringLiteral("harbour-dwd-1.1.1-1.aarch64-openrepos.rpm")});
+        QVERIFY(adoptInstalledPackage(app, installed, {}));
+        QCOMPARE(app.id, QStringLiteral("harbour-dwd"));
     }
 
     void leavesOthersAlone()

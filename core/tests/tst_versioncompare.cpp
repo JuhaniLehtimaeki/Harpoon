@@ -26,6 +26,14 @@ private slots:
         QTest::newRow("revision bump") << "0.6.12-1" << "0.6.12-2" << VersionRelation::Older;
         QTest::newRow("missing revision") << "0.6.12" << "0.6.12-1" << VersionRelation::Unknown;
         QTest::newRow("build metadata ignored") << "1.0.0+build5" << "1.0.0" << VersionRelation::Same;
+        QTest::newRow("snapshot metadata") << "0.3.0+git5" << "0.3.0+git6" << VersionRelation::Older;
+        QTest::newRow("snapshot metadata, numeric") << "0.3.0+git10" << "0.3.0+git9" << VersionRelation::Newer;
+        QTest::newRow("snapshot metadata with revision") << "0.3.0+git5" << "0.3.0+git6-1" << VersionRelation::Older;
+        QTest::newRow("same snapshot") << "v0.3.0+git6" << "0.3.0+git6" << VersionRelation::Same;
+        QTest::newRow("metadata on one side only") << "1.2.3" << "v1.2.3+sfos" << VersionRelation::Same;
+        QTest::newRow("tilde prerelease") << "0.7.1~rc1" << "0.7.1" << VersionRelation::Older;
+        QTest::newRow("tilde rc numbering") << "0.7.1~rc1" << "0.7.1~rc2" << VersionRelation::Older;
+        QTest::newRow("tilde after git describe") << "0.7.0.6.g56b71a34.dirty" << "0.7.1~rc1" << VersionRelation::Older;
         QTest::newRow("title with one version") << "Release 1.2.3" << "1.2.4" << VersionRelation::Older;
         QTest::newRow("dates") << "2024-01-01" << "2024-02-01" << VersionRelation::Older;
         QTest::newRow("date vs version") << "2024-01-01" << "1.2.3" << VersionRelation::Unknown;

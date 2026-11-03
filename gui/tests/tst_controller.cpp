@@ -860,6 +860,34 @@ private slots:
         QVERIFY(!model->entry(newId)->busy);
     }
 
+    void backgroundFailureShowsOnTheAppsPage()
+    {
+        AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
+        App app = App::fromUrl(QStringLiteral("https://github.com/me/harbour-tool"));
+        app.id = QStringLiteral("harbour-tool");
+        app.temporaryId = false;
+        app.latestVersion = QStringLiteral("1.1");
+        app.backgroundFailure.version = QStringLiteral("1.1");
+        app.backgroundFailure.kind = QStringLiteral("Install");
+        app.backgroundFailure.message = QStringLiteral("PackageKit error 12: conflicts");
+        app.backgroundFailure.when = QDateTime::currentDateTimeUtc();
+        QVERIFY(store.save(app).ok());
+        makeController();
+        const QVariantMap problem = m_controller->installProblem(app.id);
+        QVERIFY(problem.value(QStringLiteral("background")).toBool());
+        QCOMPARE(problem.value(QStringLiteral("message")).toString(), QStringLiteral("PackageKit error 12: conflicts"));
+        QCOMPARE(problem.value(QStringLiteral("kind")).toString(), QStringLiteral("Install"));
+        QVERIFY(problem.value(QStringLiteral("report")).toString().contains(QLatin1String("harbour-tool")));
+        AppListModel *model = m_controller->apps();
+        QVERIFY(model->data(model->index(model->indexOf(app.id)), AppListModel::InstallFailedRole).toBool());
+
+        // A newer release: that failure is history.
+        app.latestVersion = QStringLiteral("1.2");
+        QVERIFY(store.save(app).ok());
+        m_controller->refresh();
+        QVERIFY(m_controller->installProblem(app.id).isEmpty());
+    }
+
     void listSummary()
     {
         AppStore store(m_dir->filePath(QStringLiteral("data/apps")));

@@ -64,7 +64,9 @@ public:
         QString stage;
         qreal progress = -1; // < 0: indeterminate
         // The last failed install or update (HarpoonController::installProblem());
-        // empty once one succeeds. Kept in memory only.
+        // empty once one succeeds. From this session it is kept in memory
+        // only; one from the background job ("background": true) comes from
+        // the record's backgroundFailure.
         QVariantMap installProblem;
     };
 

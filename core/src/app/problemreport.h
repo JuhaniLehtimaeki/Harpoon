@@ -24,6 +24,8 @@ struct InstallProblem
 
 // "Install", "Package", ...: the error kind as in the code.
 QString errorKindName(Error::Kind kind);
+// The reverse; Error::Install for a name it does not know.
+Error::Kind errorKindFromName(const QString &name);
 
 // Whether the error most likely lies in the app's release or package rather
 // than in Harpoon, the network or the phone: its developer can fix it.

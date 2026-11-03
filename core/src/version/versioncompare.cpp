@@ -1,5 +1,7 @@
 #include "version/versioncompare.h"
 
+#include "version/rpmversion.h"
+
 #include <QDateTime>
 #include <QHash>
 #include <QRegularExpression>
@@ -89,6 +91,9 @@ struct ParsedRelease
     std::optional<QStringList> revision;
     QString variant;
     std::optional<QString> hash;
+    // After "+": semver build metadata, but on OBS and Chum the snapshot
+    // ("0.3.0+git5"), so it is compared when both sides have it.
+    QString metadata;
 };
 
 QStringList splitDots(const QString &s) { return s.split(QLatin1Char('.')); }
@@ -114,9 +119,11 @@ std::optional<ParsedRelease> parseRelease(const QString &input)
         text = normalizeVersionLabel(candidates.first());
     }
 
+    QString metadataText;
     const int metadata = text.indexOf(QLatin1Char('+'));
     if (metadata >= 0) {
-        if (!re("^[a-z0-9-]+(?:\\.[a-z0-9-]+)*$").match(text.mid(metadata + 1)).hasMatch())
+        metadataText = text.mid(metadata + 1);
+        if (!re("^[a-z0-9-]+(?:\\.[a-z0-9-]+)*$").match(metadataText).hasMatch())
             return std::nullopt;
         text = text.left(metadata);
     }
@@ -160,6 +167,7 @@ std::optional<ParsedRelease> parseRelease(const QString &input)
     ParsedRelease out;
     out.core = splitDots(coreMatch.captured(1));
     out.hash = hash;
+    out.metadata = metadataText;
     QString suffix = coreMatch.captured(2).trimmed();
 
     // Only a leading numeric suffix denotes a revision.
@@ -278,7 +286,9 @@ int VersionDecision::comparison() const
 
 QString normalizeVersionLabel(const QString &value)
 {
-    const QString normalized = value.trimmed().toLower();
+    QString normalized = value.trimmed().toLower();
+    // rpm's pre-release separator: "0.7.1~rc1" is "0.7.1-rc1".
+    normalized.replace(re("~(?=dev|snapshot|nightly|alpha|beta|preview|pre|rc)"), QStringLiteral("-"));
     if (re("^v\\d").match(normalized).hasMatch())
         return normalized.mid(1);
     return normalized;
@@ -338,8 +348,15 @@ VersionDecision compareVersionStrings(const QString &installed, const QString &l
         return decision(VersionRelation::Unknown, "differentBuildHashes");
     if (a->revision.has_value() != b->revision.has_value())
         return decision(VersionRelation::Unknown, "missingBuildRevision");
-    if (a->revision)
-        return ordered(compareComponents(*a->revision, *b->revision), "buildRevision");
+    if (a->revision) {
+        const int revision = compareComponents(*a->revision, *b->revision);
+        if (revision != 0)
+            return ordered(revision, "buildRevision");
+    }
+    // "0.3.0+git5" before "0.3.0+git6". One side without it stays the same
+    // release: a package "1.2.3" from the tag "v1.2.3+sfos" is not older.
+    if (!a->metadata.isEmpty() && !b->metadata.isEmpty() && a->metadata != b->metadata)
+        return ordered(rpmVerCmp(a->metadata, b->metadata), "buildMetadata");
     return decision(VersionRelation::Same, a->hash && b->hash ? "sameBuildHash" : "sameRelease");
 }
 

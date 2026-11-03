@@ -27,6 +27,19 @@ struct InstallReceipt
     bool isValid() const { return !evr.isEmpty(); }
 };
 
+// A background (automatic) update that failed. Kept until a newer release
+// appears or an install succeeds, so the background job does not download and
+// fail the same release on every run, and so the app's page can say why.
+struct BackgroundFailure
+{
+    QString version;   // App::latestVersion it failed for
+    QString kind;      // errorKindName() of the error
+    QString message;
+    QDateTime when;
+
+    bool isValid() const { return !version.isEmpty(); }
+};
+
 // One tracked app. Persisted as one JSON file per app by AppStore.
 struct App
 {
@@ -61,6 +74,7 @@ struct App
     InstallReceipt receipt;
     QString acknowledgedVersion; // track-only apps: latest version the user has seen
     QString notifiedVersion;     // latest version a background notification announced
+    BackgroundFailure backgroundFailure;
 
     QJsonObject toJson() const;
     static Result<App> fromJson(const QJsonObject &json);

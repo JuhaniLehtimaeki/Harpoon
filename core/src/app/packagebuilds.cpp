@@ -40,8 +40,7 @@ QString wordsPattern(QStringList words)
 
 QString packageNameOf(const QString &fileName)
 {
-    const RpmFileName parsed = parseRpmFileName(fileName);
-    return parsed.isValid() ? parsed.name : rpmNameFromFileName(fileName);
+    return rpmNameFromFileName(fileName);
 }
 
 } // namespace

@@ -70,7 +70,7 @@ void sortReleasesNewestFirst(QList<Release> &releases, SortMethod method, bool u
         useVersionOrder = versionsHaveConsistentOrder(labels);
     }
 
-    // Ascending comparator, as upstream; the list is reversed afterwards.
+    // Ascending comparator, as upstream.
     auto compare = [&](const Release &a, const Release &b) -> int {
         const QDateTime da = releaseDate(a, useLatestAssetDate);
         const QDateTime db = releaseDate(b, useLatestAssetDate);
@@ -89,9 +89,11 @@ void sortReleasesNewestFirst(QList<Release> &releases, SortMethod method, bool u
         return byName != 0 ? byName : compareDates(da, db);
     };
 
+    // Newest first, keeping the forge's order among equals. (Sorting
+    // ascending and reversing, as upstream does, also reverses ties: tags,
+    // which carry no dates, came out oldest first.)
     std::stable_sort(releases.begin(), releases.end(),
-                     [&](const Release &a, const Release &b) { return compare(a, b) < 0; });
-    std::reverse(releases.begin(), releases.end());
+                     [&](const Release &a, const Release &b) { return compare(a, b) > 0; });
 }
 
 Result<Selection> selectRelease(const QList<Release> &newestFirst, const AppSettings &settings,
@@ -120,8 +122,11 @@ Result<Selection> selectRelease(const QList<Release> &newestFirst, const AppSett
             ++prereleasesSkipped;
             continue;
         }
-        if (release.draft)
+        // Drafts (visible with a token) do not count as the newest release.
+        if (release.draft) {
+            ++prereleasesSkipped;
             continue;
+        }
 
         const QString title = release.title.trimmed().isEmpty() ? release.tag : release.title;
         if (!titleFilter.value.pattern().isEmpty() && !titleFilter.value.match(title.trimmed()).hasMatch())

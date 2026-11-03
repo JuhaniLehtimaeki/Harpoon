@@ -33,6 +33,7 @@ App recordAfterInstall(const App &current, const InstallResult &result, bool idT
 {
     App record = current;
     record.receipt = result.app.receipt;
+    record.backgroundFailure = BackgroundFailure(); // installed after all
     if (!idTaken) {
         record.id = result.app.id;
         record.temporaryId = false;

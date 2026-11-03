@@ -18,6 +18,12 @@ bool autoUpdateEligible(const App &app, const UpdateStatus &status, QString *why
         reason = QStringLiteral("excluded from automatic updates");
     else if (app.temporaryId || app.receipt.evr.isEmpty())
         reason = QStringLiteral("not installed by Harpoon");
+    else if (!status.installedVersion.isEmpty() && status.installedVersion != app.receipt.evr)
+        // Installed some other way since (by hand, from another repository):
+        // replacing it needs the user's say.
+        reason = QStringLiteral("installed some other way since Harpoon installed it");
+    else if (app.backgroundFailure.isValid() && app.backgroundFailure.version == app.latestVersion)
+        reason = QStringLiteral("failed before for this release");
     else if (app.settings.getBool(Keys::allowIdChange))
         reason = QStringLiteral("may change its package name");
     else if (app.latestAssets.isEmpty())
@@ -41,7 +47,8 @@ bool autoUpdateEligible(const App &app, const UpdateStatus &status, QString *why
     return reason.isEmpty();
 }
 
-NotificationRequest autoUpdateNotification(const QStringList &updated, const QStringList &failed)
+NotificationRequest autoUpdateNotification(const QStringList &updated, const QStringList &failed,
+                                           const QString &firstError)
 {
     NotificationRequest r;
     r.appName = QStringLiteral("Harpoon");
@@ -60,6 +67,9 @@ NotificationRequest autoUpdateNotification(const QStringList &updated, const QSt
             r.summary = line;
         else
             r.body += QLatin1Char('\n') + line;
+        // Why, so the user does not have to guess; the app's page has the rest.
+        if (!firstError.isEmpty())
+            r.body += (r.body.isEmpty() ? QString() : QStringLiteral("\n")) + firstError;
     }
     r.previewSummary = r.summary;
     r.previewBody = r.body;

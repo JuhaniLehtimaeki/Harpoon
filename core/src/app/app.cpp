@@ -117,6 +117,12 @@ QJsonObject App::toJson() const
         o.insert(QStringLiteral("acknowledgedVersion"), acknowledgedVersion);
     if (!notifiedVersion.isEmpty())
         o.insert(QStringLiteral("notifiedVersion"), notifiedVersion);
+    if (backgroundFailure.isValid())
+        o.insert(QStringLiteral("backgroundFailure"),
+                 QJsonObject{{QStringLiteral("version"), backgroundFailure.version},
+                             {QStringLiteral("kind"), backgroundFailure.kind},
+                             {QStringLiteral("message"), backgroundFailure.message},
+                             {QStringLiteral("when"), dateToJson(backgroundFailure.when)}});
     return o;
 }
 
@@ -170,6 +176,11 @@ Result<App> App::fromJson(const QJsonObject &o)
     app.receipt.verification = r.value(QStringLiteral("verification")).toString();
     app.acknowledgedVersion = o.value(QStringLiteral("acknowledgedVersion")).toString();
     app.notifiedVersion = o.value(QStringLiteral("notifiedVersion")).toString();
+    const QJsonObject failure = o.value(QStringLiteral("backgroundFailure")).toObject();
+    app.backgroundFailure.version = failure.value(QStringLiteral("version")).toString();
+    app.backgroundFailure.kind = failure.value(QStringLiteral("kind")).toString();
+    app.backgroundFailure.message = failure.value(QStringLiteral("message")).toString();
+    app.backgroundFailure.when = dateFromJson(failure.value(QStringLiteral("when")));
     return Result<App>::success(app);
 }
 
@@ -218,6 +229,9 @@ App App::movedTo(const QString &standardUrl, const QString &sourceId) const
     moved.settings = settings;
     moved.addedAt = addedAt;
     moved.receipt = receipt;
+    // Still the same app: what the user saw and was told stays seen.
+    moved.acknowledgedVersion = acknowledgedVersion;
+    moved.notifiedVersion = notifiedVersion;
     return moved;
 }
 

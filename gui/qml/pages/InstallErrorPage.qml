@@ -37,7 +37,8 @@ Page {
             width: parent.width
 
             PageHeader {
-                title: problem.updating ? qsTr("Update failed") : qsTr("Installation failed")
+                title: problem.background ? qsTr("Automatic update failed")
+                                          : problem.updating ? qsTr("Update failed") : qsTr("Installation failed")
                 description: problem.appName || ""
             }
 

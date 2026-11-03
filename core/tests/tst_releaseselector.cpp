@@ -57,6 +57,29 @@ private slots:
         QCOMPARE(tags(list), (QStringList{"1.2", "1.1", "1.0"}));
     }
 
+    void undatedReleasesKeepTheForgeOrder()
+    {
+        // Tags carry no dates: the forge lists them newest first.
+        QList<Release> list{rel("v1.4.0", QString()), rel("v1.3.2", QString()), rel("v1.3.1", QString())};
+        sortReleasesNewestFirst(list, SortMethod::Date, false);
+        QCOMPARE(tags(list), (QStringList{"v1.4.0", "v1.3.2", "v1.3.1"}));
+        // Equal dates too.
+        QList<Release> same{rel("b", "2024-01-01T00:00:00Z"), rel("a", "2024-01-01T00:00:00Z")};
+        sortReleasesNewestFirst(same, SortMethod::Date, false);
+        QCOMPARE(tags(same), (QStringList{"b", "a"}));
+    }
+
+    void draftDoesNotBlockWithoutFallback()
+    {
+        QList<Release> list{rel("1.3", "2024-03-01T00:00:00Z"), rel("1.2", "2024-02-01T00:00:00Z")};
+        list.first().draft = true;
+        AppSettings s;
+        s.set(Keys::fallbackToOlderReleases, false);
+        const auto r = selectRelease(list, s, aarch64());
+        QVERIFY2(r.ok(), qPrintable(r.error.message));
+        QCOMPARE(r.value.release.tag, QStringLiteral("1.2"));
+    }
+
     void sortSmartName()
     {
         // A backported 1.9.1 published after 2.0 must not win by date.
