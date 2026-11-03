@@ -55,6 +55,9 @@ SourceHut, SourceForge, Jenkins, plain web pages, direct `.rpm` links and RPM re
    releases. You can let Harpoon install updates automatically, and exclude any app from
    that.
 
+To move your list to a new phone or keep it safe over a reinstall, use **Export backup** in
+Harpoon's settings; **Import backup** adds the apps again. The backup is a file in Documents.
+
 Long-press an app for quick actions, and pull down on an app's page to check it now, share
 it as a QR code, change its settings or uninstall it. If an app moves, for example from
 GitHub to Codeberg, change its address in its settings: everything else stays as it was.

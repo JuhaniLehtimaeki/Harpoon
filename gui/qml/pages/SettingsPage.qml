@@ -43,18 +43,6 @@ Page {
                 text: qsTr("About Harpoon")
                 onClicked: pageStack.push(Qt.resolvedUrl("AboutPage.qml"))
             }
-            MenuItem {
-                text: qsTr("Import backup")
-                onClicked: pageStack.push(backupPicker)
-            }
-            MenuItem {
-                visible: harpoon.apps.count > 0
-                text: qsTr("Export backup")
-                onClicked: {
-                    var result = harpoon.exportBackup(false)
-                    banner.show(result.ok ? qsTr("Saved %1").arg(result.path) : result.error)
-                }
-            }
         }
 
         Column {
@@ -174,6 +162,45 @@ Page {
                         }
                     }
                 }
+            }
+
+            // In view, not only in a menu: people look for it after a reinstall
+            // or on a new phone.
+            SectionHeader { text: qsTr("Backup") }
+
+            HintLabel {
+                text: qsTr("A backup lists your apps with their settings, so you can add them all again after a reinstall or on another phone. It is saved in Documents; access tokens are left out.")
+            }
+
+            Item {
+                width: 1
+                height: Theme.paddingLarge
+            }
+
+            Button {
+                anchors.horizontalCenter: parent.horizontalCenter
+                preferredWidth: Theme.buttonWidthLarge
+                visible: harpoon.apps.count > 0
+                icon.source: "image://theme/icon-m-device-download"
+                text: qsTr("Export backup")
+                onClicked: {
+                    var result = harpoon.exportBackup(false)
+                    banner.show(result.ok ? qsTr("Saved %1").arg(result.path) : result.error)
+                }
+            }
+
+            Item {
+                width: 1
+                height: Theme.paddingMedium
+                visible: harpoon.apps.count > 0
+            }
+
+            Button {
+                anchors.horizontalCenter: parent.horizontalCenter
+                preferredWidth: Theme.buttonWidthLarge
+                icon.source: "image://theme/icon-m-add"
+                text: qsTr("Import backup")
+                onClicked: pageStack.push(backupPicker)
             }
 
             SectionHeader { text: qsTr("Device") }
