@@ -78,6 +78,8 @@ public:
     // Reloads records from disk and re-reads installed versions.
     bool loaded() const { return m_loaded; }
     Q_INVOKABLE void reload();
+    // reload(), then `then` once the list is there (rpm answers asynchronously).
+    void reloadThen(std::function<void()> then);
     // Takes in what changed on disk since (the background job checks,
     // installs and renames apps), leaving apps that are busy here alone.
     Q_INVOKABLE void refresh();
@@ -129,6 +131,9 @@ public:
     // appName, version, message, kind, advice, appProblem, title, report,
     // issueUrl, appUrl, when}. Empty when there is none.
     Q_INVOKABLE QVariantMap installProblem(const QString &id) const;
+    // Only {busy, stage, progress}: cheap, for pages following a download
+    // (appChanged with busyOnly) without rebuilding all of appDetails().
+    Q_INVOKABLE QVariantMap appProgress(const QString &id) const;
 
     // Writes a backup to the documents folder: {ok, path, error}.
     Q_INVOKABLE QVariantMap exportBackup(bool includeTokens);
@@ -161,14 +166,17 @@ private:
     // and asks rpm in the background (queryInstalled()).
     void show(const App &app, const QString &oldId = QString(), const RpmInfo *installed = nullptr);
     void queryInstalled(const QString &id);
+    void queryInstalled(const QStringList &ids); // one rpm run
     QString localizedStage(const QString &stage) const;
+    QString styledNotes(const QString &id, const QString &changelog) const;
     // addApp() reporting to `done` (ok, id or error, waiting for builds, name)
     // instead of the addFinished signal.
     void addAppThen(const QString &url, const QString &sourceId, const QVariantMap &settings, bool force,
                     std::function<void(bool, const QString &, bool, const QString &)> done);
     QString problemAdvice(const Error &error) const;
     QVariantMap problemToVariant(const InstallProblem &problem) const;
-    void storeAndShow(const App &app, const QString &oldId = QString(), const RpmInfo *installed = nullptr);
+    // false when nothing was stored (a reason went out as operationFinished).
+    bool storeAndShow(const App &app, const QString &oldId = QString(), const RpmInfo *installed = nullptr);
     // Which of the packages in a temporary-id app's release are installed
     // (empty for other apps), asked without blocking.
     void installedCandidates(const App &app, std::function<void(const QSet<QString> &)> done);
@@ -203,6 +211,11 @@ private:
     std::unique_ptr<AppChecker> m_checker;
     int m_checksRunning = 0;
     QHash<QString, int> m_installedQueries; // id -> generation of the latest rpm query
+    bool m_collectQueries = false;          // refresh(): gather queryInstalled() ids
+    QStringList m_collectedQueries;
+    int m_reloads = 0;                      // generation of the latest reload()
+    // id -> (changelog, its StyledText): appDetails() is read often.
+    mutable QHash<QString, QPair<QString, QString>> m_styledNotes;
     QDateTime m_lastCheckAll;
 };
 

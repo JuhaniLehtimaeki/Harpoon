@@ -24,6 +24,8 @@ class AppListModel : public QAbstractListModel
     // check of any app (invalid: never checked).
     Q_PROPERTY(int installedCount READ installedCount NOTIFY summaryChanged)
     Q_PROPERTY(QDateTime lastChecked READ lastChecked NOTIFY summaryChanged)
+    // Names of the first apps with an update (they sort first), for the cover.
+    Q_PROPERTY(QStringList updateNames READ updateNames NOTIFY summaryChanged)
 
 public:
     // Mirrors Harpoon::UpdateState for QML.
@@ -68,6 +70,9 @@ public:
         // only; one from the background job ("background": true) comes from
         // the record's backgroundFailure.
         QVariantMap installProblem;
+        // Several builds of the app in the release (buildChoices()); set by
+        // the model whenever the entry is stored, read on every data() call.
+        bool needsBuildChoice = false;
     };
 
     explicit AppListModel(QObject *parent = nullptr);
@@ -82,6 +87,7 @@ public:
     int failedCount() const;
     int installedCount() const;
     QDateTime lastChecked() const;
+    QStringList updateNames(int max = 4) const;
 
     void setEntries(QList<Entry> entries);
     // Inserts or replaces by id. oldId: the previous id when it changed.
@@ -108,6 +114,7 @@ signals:
 
 private:
     static bool lessThan(const Entry &a, const Entry &b);
+    static Entry withDerived(Entry e);
     void resort();
 
     QList<Entry> m_entries;

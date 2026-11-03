@@ -31,7 +31,7 @@ QVariant AppListModel::data(const QModelIndex &index, int role) const
     case LastErrorRole: return e.app.lastError;
     case WaitingForBuildsRole: return e.app.waitingForBuilds;
     case InstallFailedRole: return !e.installProblem.isEmpty();
-    case NeedsBuildChoiceRole: return !buildChoices(e.app.latestAssets).isEmpty();
+    case NeedsBuildChoiceRole: return e.needsBuildChoice;
     case TrackOnlyRole: return e.app.settings.getBool(Keys::trackOnly);
     case PrereleaseRole: return e.app.latestPrerelease;
     case ReleaseDateRole: return e.app.latestDate;
@@ -113,7 +113,7 @@ int AppListModel::installableUpdatesCount() const
     int n = 0;
     for (const Entry &e : m_entries)
         if (e.status.state == UpdateState::UpdateAvailable && !e.app.settings.getBool(Keys::trackOnly)
-            && buildChoices(e.app.latestAssets).isEmpty())
+            && !e.needsBuildChoice)
             ++n;
     return n;
 }
@@ -139,10 +139,30 @@ bool AppListModel::lessThan(const Entry &a, const Entry &b)
     return byName != 0 ? byName < 0 : a.app.id < b.app.id;
 }
 
+QStringList AppListModel::updateNames(int max) const
+{
+    QStringList names;
+    for (const Entry &e : m_entries) {
+        if (names.size() >= max)
+            break;
+        if (e.status.state == UpdateState::UpdateAvailable)
+            names << (e.displayName.isEmpty() ? e.app.name : e.displayName);
+    }
+    return names;
+}
+
+AppListModel::Entry AppListModel::withDerived(Entry e)
+{
+    e.needsBuildChoice = !buildChoices(e.app.latestAssets).isEmpty();
+    return e;
+}
+
 void AppListModel::setEntries(QList<Entry> entries)
 {
     beginResetModel();
-    m_entries = std::move(entries);
+    m_entries.clear();
+    for (const Entry &e : entries)
+        m_entries << withDerived(e);
     std::stable_sort(m_entries.begin(), m_entries.end(), &AppListModel::lessThan);
     endResetModel();
     emit countChanged();
@@ -166,29 +186,28 @@ const AppListModel::Entry *AppListModel::entry(const QString &id) const
 
 void AppListModel::resort()
 {
-    // Rows move rarely; a layout change keeps delegates (and their state).
+    // Rows move one by one: QML keeps their delegates (an open context menu,
+    // a running remorse timer). A bare layoutChanged would make every view
+    // drop and rebuild all of them.
     QList<Entry> sorted = m_entries;
     std::stable_sort(sorted.begin(), sorted.end(), &AppListModel::lessThan);
-    bool same = true;
-    for (int i = 0; i < sorted.size() && same; ++i)
-        same = sorted.at(i).app.id == m_entries.at(i).app.id;
-    if (same)
-        return;
-    emit layoutAboutToBeChanged();
-    const QModelIndexList before = persistentIndexList();
-    QList<QString> beforeIds;
-    for (const QModelIndex &idx : before)
-        beforeIds << m_entries.at(idx.row()).app.id;
-    m_entries = sorted;
-    QModelIndexList after;
-    for (const QString &id : beforeIds)
-        after << index(indexOf(id));
-    changePersistentIndexList(before, after);
-    emit layoutChanged();
+    for (int i = 0; i < sorted.size(); ++i) {
+        if (m_entries.at(i).app.id == sorted.at(i).app.id)
+            continue;
+        int from = i + 1;
+        while (from < m_entries.size() && m_entries.at(from).app.id != sorted.at(i).app.id)
+            ++from;
+        if (from >= m_entries.size())
+            continue; // cannot happen: same entries
+        beginMoveRows(QModelIndex(), from, from, QModelIndex(), i);
+        m_entries.move(from, i);
+        endMoveRows();
+    }
 }
 
-void AppListModel::upsert(const Entry &entry, const QString &oldId)
+void AppListModel::upsert(const Entry &given, const QString &oldId)
 {
+    const Entry entry = withDerived(given);
     const int previousUpdates = updatesCount();
     const int previousInstallable = installableUpdatesCount();
     const int previousFailed = failedCount();

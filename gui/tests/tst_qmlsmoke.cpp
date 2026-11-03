@@ -638,6 +638,11 @@ private slots:
         QCOMPARE(parsed.value(QStringLiteral("packageName")).toString(), QStringLiteral("repoapp"));
         popToList();
         QVERIFY(m_controller->shareLink(QStringLiteral("no-such-app")).isEmpty());
+        // A web page: a plain address would open the browser when scanned.
+        const QString web = m_controller->shareLink(QStringLiteral("webapp"));
+        QVERIFY2(web.startsWith(QLatin1String("harpoon://add?")), qPrintable(web));
+        QCOMPARE(m_controller->parseAddLink(web).value(QStringLiteral("sourceId")).toString(), QStringLiteral("HTML"));
+        QVERIFY(m_controller->isAppLink(web));
     }
 
     void addLinkOverDBus()

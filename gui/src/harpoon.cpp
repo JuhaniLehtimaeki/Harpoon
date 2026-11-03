@@ -60,13 +60,15 @@ int main(int argc, char *argv[])
     // Read the apps once the window is up: asking rpm about them takes a
     // moment, and the launcher animation should not wait for it.
     QTimer::singleShot(0, &controller, [&controller]() {
-        controller.reload();
-        // Harpoon keeps itself up to date like any other app.
-        controller.trackSelfOnce();
-        // Refresh apps that have not been checked within the last hour.
-        controller.checkStale(60);
-        // Make the systemd timer match the settings (also enables it on first run).
-        controller.syncBackgroundSchedule();
+        // What follows needs the list (whether Harpoon is on it, what is stale).
+        controller.reloadThen([&controller]() {
+            // Harpoon keeps itself up to date like any other app.
+            controller.trackSelfOnce();
+            // Refresh apps that have not been checked within the last hour.
+            controller.checkStale(60);
+            // Make the systemd timer match the settings (also enables it on first run).
+            controller.syncBackgroundSchedule();
+        });
     });
 
     // Started to open a link (harpoon:// passed on the command line).

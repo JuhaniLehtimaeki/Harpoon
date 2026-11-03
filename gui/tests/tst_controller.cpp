@@ -335,6 +335,18 @@ private slots:
         QVERIFY(m_controller->isAppLink(QStringLiteral("harpoon://add?url=https%3A%2F%2Fgithub.com%2Fa%2Fb")));
         QVERIFY(!m_controller->isAppLink(QStringLiteral("https://forum.sailfishos.org/t/harpoon/12345")));
         QVERIFY(!m_controller->isAppLink(QStringLiteral("https://example.org/")));
+        // A repository's issues, pull requests and files are pages to read.
+        QVERIFY(m_controller->isAppLink(QStringLiteral("https://github.com/someone/harbour-thing/")));
+        QVERIFY(m_controller->isAppLink(QStringLiteral("https://github.com/someone/harbour-thing.git")));
+        QVERIFY(m_controller->isAppLink(QStringLiteral("https://github.com/someone/harbour-thing/releases/tag/v1.2")));
+        QVERIFY(m_controller->isAppLink(QStringLiteral("https://github.com/someone/harbour-thing/releases/latest")));
+        QVERIFY(m_controller->isAppLink(QStringLiteral("https://gitlab.com/someone/thing/-/releases")));
+        QVERIFY(!m_controller->isAppLink(QStringLiteral("https://github.com/someone/harbour-thing/issues/12")));
+        QVERIFY(!m_controller->isAppLink(QStringLiteral("https://github.com/someone/harbour-thing/pull/3")));
+        QVERIFY(!m_controller->isAppLink(QStringLiteral("https://github.com/someone/harbour-thing/blob/main/README.md")));
+        QVERIFY(!m_controller->isAppLink(QStringLiteral("https://codeberg.org/someone/thing/issues")));
+        // A direct link to a package is an app.
+        QVERIFY(m_controller->isAppLink(QStringLiteral("https://example.org/files/harbour-x-1.0-1.noarch.rpm")));
 
         // Issue #3: other web links go on to the browser, without Harpoon.
         HarpoonDBus dbus;
@@ -872,6 +884,65 @@ private slots:
         QVERIFY(!model->entry(newId)->busy);
     }
 
+    void reorderingMovesRowsOnly()
+    {
+        AppListModel model;
+        auto entry = [](const char *id, bool update) {
+            AppListModel::Entry e;
+            e.app = App::fromUrl(QStringLiteral("https://github.com/me/%1").arg(QLatin1String(id)));
+            e.app.id = QString::fromLatin1(id);
+            e.app.temporaryId = false;
+            e.status.state = update ? UpdateState::UpdateAvailable : UpdateState::UpToDate;
+            return e;
+        };
+        model.setEntries({entry("alpha", false), entry("beta", false), entry("gamma", false), entry("delta", false)});
+        QSignalSpy layout(&model, &QAbstractItemModel::layoutChanged);
+        QSignalSpy reset(&model, &QAbstractItemModel::modelReset);
+        QSignalSpy moved(&model, &QAbstractItemModel::rowsMoved);
+        // gamma gets an update: it moves to the top, the others stay put.
+        model.upsert(entry("gamma", true));
+        QStringList order;
+        for (const AppListModel::Entry &e : model.entries())
+            order << e.app.id;
+        QCOMPARE(order, (QStringList{"gamma", "alpha", "beta", "delta"}));
+        QCOMPARE(moved.count(), 1);
+        QCOMPARE(layout.count(), 0); // QML would rebuild every delegate
+        QCOMPARE(reset.count(), 0);
+        // And back down.
+        model.upsert(entry("gamma", false));
+        order.clear();
+        for (const AppListModel::Entry &e : model.entries())
+            order << e.app.id;
+        QCOMPARE(order, (QStringList{"alpha", "beta", "delta", "gamma"}));
+        QCOMPARE(layout.count(), 0);
+    }
+
+    void renamedInTheBackgroundDuringACheck()
+    {
+        // A temporary-id app whose package the background job adopts (and so
+        // renames on disk) while the app's own check is still running.
+        QString id;
+        QVERIFY(addApp(QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui"), {}, &id));
+        AppListModel *model = m_controller->apps();
+        QVERIFY(model->entry(id)->app.temporaryId);
+        m_db->deferAsync = true; // hold rpm's answer back
+        m_controller->check(id);
+        QTRY_VERIFY(!m_db->pending.isEmpty());
+        AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
+        App renamed = store.load(id).value;
+        renamed.id = QStringLiteral("sailfishos-chum-gui");
+        renamed.temporaryId = false;
+        QVERIFY(store.replace(id, renamed).ok());
+        while (!m_db->pending.isEmpty())
+            m_db->deliver();
+        m_db->deferAsync = false;
+        QTRY_VERIFY(!m_controller->checking());
+        // One row, under its new name, and not stuck busy.
+        QCOMPARE(model->count(), 1);
+        QVERIFY(model->entry(QStringLiteral("sailfishos-chum-gui")));
+        QVERIFY(!model->entry(QStringLiteral("sailfishos-chum-gui"))->busy);
+    }
+
     void backgroundFailureShowsOnTheAppsPage()
     {
         AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
@@ -926,6 +997,28 @@ private slots:
         QVERIFY(summary.count() >= 1);
         QCOMPARE(model->property("installedCount").toInt(), 1);
         QCOMPARE(model->property("lastChecked").toDateTime().toSecsSinceEpoch(), newer.toSecsSinceEpoch());
+    }
+
+    void refreshAsksRpmOnce()
+    {
+        AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
+        for (int i = 0; i < 5; ++i) {
+            App app = App::fromUrl(QStringLiteral("https://github.com/me/app%1").arg(i));
+            app.id = QStringLiteral("harbour-app%1").arg(i);
+            app.temporaryId = false;
+            QVERIFY(store.save(app).ok());
+        }
+        m_controller->reload();
+        QCOMPARE(m_controller->apps()->count(), 5);
+        // The background job checked every app: every record changed.
+        for (App app : store.loadAll()) {
+            app.lastCheck = QDateTime::currentDateTimeUtc();
+            QVERIFY(store.save(app).ok());
+        }
+        const int before = m_db->calls;
+        m_controller->refresh();
+        QCOMPARE(m_db->calls - before, 1);
+        QCOMPARE(m_db->queries >= 5, true);
     }
 
     void installedStateIsAskedWithoutBlocking()

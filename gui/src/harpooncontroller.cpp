@@ -16,6 +16,7 @@
 #include <QSet>
 #include <QFile>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QUrl>
 #include <QStandardPaths>
 #include <QVariantList>
@@ -186,25 +187,42 @@ AppListModel::Entry HarpoonController::makeEntry(const App &app, const RpmInfo &
 
 void HarpoonController::reload()
 {
+    reloadThen(nullptr);
+}
+
+void HarpoonController::reloadThen(std::function<void()> then)
+{
     const QList<App> apps = m_store.loadAll();
     QStringList ids;
     for (const App &app : apps)
         if (!app.temporaryId)
             ids << app.id;
     // One rpm call for all apps; launching one per app is slow on a phone.
-    const auto installed = m_inspector->installedPackages(ids);
-    QList<AppListModel::Entry> entries;
-    for (const App &app : apps)
-        entries << makeEntry(app, installed.value.value(app.id)); // empty when not installed (or rpm failed)
-    m_model.setEntries(entries);
-    if (!m_loaded) {
-        m_loaded = true;
-        emit loadedChanged();
-    }
+    // Without blocking: the window is up and should draw meanwhile.
+    const int generation = ++m_reloads;
+    m_inspector->installedPackagesAsync(this, ids, [this, apps, then, generation](
+                                                        const Result<QHash<QString, RpmInfo>> &installed) {
+        if (generation != m_reloads)
+            return; // a newer reload is on its way
+        QList<AppListModel::Entry> entries;
+        for (const App &app : apps)
+            entries << makeEntry(app, installed.value.value(app.id)); // empty when not installed (or rpm failed)
+        m_model.setEntries(entries);
+        if (!m_loaded) {
+            m_loaded = true;
+            emit loadedChanged();
+        }
+        if (then)
+            then();
+    });
 }
 
 void HarpoonController::refresh()
 {
+    // Every record the background job touched changed (its lastCheck at
+    // least): ask rpm once for all of them, not once each.
+    m_collectQueries = true;
+    m_collectedQueries.clear();
     QSet<QString> onDisk;
     for (const App &app : m_store.loadAll()) {
         onDisk.insert(app.id);
@@ -233,6 +251,9 @@ void HarpoonController::refresh()
             gone << e.app.id;
     for (const QString &id : gone)
         m_model.remove(id);
+    m_collectQueries = false;
+    queryInstalled(m_collectedQueries);
+    m_collectedQueries.clear();
 }
 
 void HarpoonController::show(const App &app, const QString &oldId, const RpmInfo *installed)
@@ -250,26 +271,47 @@ void HarpoonController::show(const App &app, const QString &oldId, const RpmInfo
 
 void HarpoonController::queryInstalled(const QString &id)
 {
-    const AppListModel::Entry *e = m_model.entry(id);
-    if (!e || e->app.temporaryId)
+    if (m_collectQueries) {
+        if (!m_collectedQueries.contains(id))
+            m_collectedQueries << id;
         return;
-    // Only the latest query for an app counts; answers can arrive out of order.
-    const int generation = ++m_installedQueries[id];
-    m_inspector->installedPackagesAsync(this, {id}, [this, id, generation](const Result<QHash<QString, RpmInfo>> &r) {
-        if (!r.ok() || m_installedQueries.value(id) != generation)
+    }
+    queryInstalled(QStringList{id});
+}
+
+void HarpoonController::queryInstalled(const QStringList &ids)
+{
+    QHash<QString, int> generations;
+    for (const QString &id : ids) {
+        const AppListModel::Entry *e = m_model.entry(id);
+        if (!e || e->app.temporaryId)
+            continue;
+        // Only the latest query for an app counts; answers can arrive out of order.
+        generations.insert(id, ++m_installedQueries[id]);
+    }
+    if (generations.isEmpty())
+        return;
+    m_inspector->installedPackagesAsync(this, generations.keys(), [this, generations](
+                                                                      const Result<QHash<QString, RpmInfo>> &r) {
+        if (!r.ok())
             return;
-        m_installedQueries.remove(id);
-        const AppListModel::Entry *current = m_model.entry(id);
-        if (!current || current->app.temporaryId)
-            return;
-        const RpmInfo info = r.value.value(id);
-        if (info.nevra() == current->installed.nevra() && info.vendor == current->installed.vendor)
-            return;
-        m_model.upsert(makeEntry(current->app, info));
+        for (auto it = generations.constBegin(); it != generations.constEnd(); ++it) {
+            const QString &id = it.key();
+            if (m_installedQueries.value(id) != it.value())
+                continue;
+            m_installedQueries.remove(id);
+            const AppListModel::Entry *current = m_model.entry(id);
+            if (!current || current->app.temporaryId)
+                continue;
+            const RpmInfo info = r.value.value(id);
+            if (info.nevra() == current->installed.nevra() && info.vendor == current->installed.vendor)
+                continue;
+            m_model.upsert(makeEntry(current->app, info));
+        }
     });
 }
 
-void HarpoonController::storeAndShow(const App &app, const QString &oldId, const RpmInfo *installed)
+bool HarpoonController::storeAndShow(const App &app, const QString &oldId, const RpmInfo *installed)
 {
     const QString diskId = oldId.isEmpty() ? app.id : oldId;
     if (m_model.entry(diskId) && !m_store.contains(diskId)) {
@@ -277,17 +319,18 @@ void HarpoonController::storeAndShow(const App &app, const QString &oldId, const
         // writing our copy back would recreate a stale record.
         refresh();
         emit operationFinished(app.id, false, tr("The app was changed in the background; try again."));
-        return;
+        return false;
     }
     const Error saved = oldId.isEmpty() || oldId == app.id ? m_store.save(app) : m_store.replace(oldId, app);
     if (!saved.ok()) {
         // Do not show what was not stored.
         emit operationFinished(app.id, false, saved.message);
-        return;
+        return false;
     }
     show(app, oldId, installed);
     if (!oldId.isEmpty() && oldId != app.id)
         emit appIdChanged(oldId, app.id);
+    return true;
 }
 
 QVariantMap HarpoonController::parseAddLink(const QString &text) const
@@ -319,9 +362,12 @@ QString HarpoonController::shareLink(const QString &id) const
     const QString sourceId = match.value.source->id();
     if (sourceId == QLatin1String("RpmMdRepo"))
         link.packageName = a.settings.getString(Keys::packageName);
-    // Name the source unless the URL alone leads to the same one.
+    // Name the source unless the URL alone leads to the same one. A web page
+    // or a file always gets a harpoon:// link: as a plain address the phone
+    // would open it in the browser (see isAppLink()), not in Harpoon.
     const auto detected = m_registry.match(link.url, QString());
-    if (!detected.ok() || detected.value.source->id() != sourceId || !link.packageName.isEmpty())
+    const bool webAddress = sourceId == QLatin1String("HTML") || sourceId == QLatin1String("DirectLink");
+    if (webAddress || !detected.ok() || detected.value.source->id() != sourceId || !link.packageName.isEmpty())
         link.sourceId = sourceId;
     return link.sourceId.isEmpty() ? link.url : link.toString();
 }
@@ -334,7 +380,26 @@ bool HarpoonController::isAppLink(const QString &text) const
     const auto match = m_registry.match(link.value.url, link.value.sourceId);
     // The web page source takes any address; only a harpoon:// link that
     // names it makes a web page an app.
-    return match.ok() && (match.value.source->id() != QLatin1String("HTML") || !link.value.sourceId.isEmpty());
+    if (!match.ok() || (match.value.source->id() == QLatin1String("HTML") && link.value.sourceId.isEmpty()))
+        return false;
+    // harpoon:// links are always for Harpoon. A web link is when it points
+    // at the repository or its releases; an issue, a pull request or a file
+    // in it is for the browser, though a source recognises the repository in
+    // its address.
+    if (text.trimmed().startsWith(QLatin1String("harpoon:"), Qt::CaseInsensitive))
+        return true;
+    QString path = QUrl(link.value.url).path();
+    const QString repo = QUrl(match.value.standardUrl).path();
+    while (path.endsWith(QLatin1Char('/')))
+        path.chop(1);
+    if (path.endsWith(QLatin1String(".git")))
+        path.chop(4);
+    if (path.compare(repo, Qt::CaseInsensitive) == 0 || repo.isEmpty())
+        return true;
+    if (!path.startsWith(repo + QLatin1Char('/'), Qt::CaseInsensitive))
+        return true; // a source with addresses of its own shape (a direct link, Jenkins)
+    static const QRegularExpression releases(QStringLiteral("^/(-/)?(releases|tags)(/.*)?$"));
+    return releases.match(path.mid(repo.size())).hasMatch();
 }
 
 QVariantMap HarpoonController::inspectUrl(const QString &url, const QString &sourceId) const
@@ -465,8 +530,12 @@ void HarpoonController::check(const QString &id)
             // been edited meanwhile.
             App merged = applyCheckResult(current->app, checked);
             adoptInstalled(merged, installed);
+            // Not busy first: should the record have been renamed in the
+            // background meanwhile, storeAndShow's refresh() must be able to
+            // pair it with this row (it leaves busy rows alone), or the row
+            // would spin for ever beside a second one.
+            m_model.setBusy(id, false);
             storeAndShow(merged, id);
-            m_model.setBusy(merged.id, false);
             // No banner: the list, the app page and the cover show a failed check.
             emit operationFinished(merged.id, error.ok(), QString());
         });
@@ -500,6 +569,7 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
         return;
     }
     const App app = e->app;
+    const QString shownName = e->displayName.isEmpty() ? app.name : e->displayName;
     m_model.setBusy(id, true, tr("Preparing"));
     // What a report of a failure needs; the stage follows the installer.
     auto problem = std::make_shared<InstallProblem>();
@@ -521,7 +591,7 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
             problem->stage = stage;
             m_model.setBusy(id, true, localizedStage(stage), total > 0 ? qreal(done) / qreal(total) : -1);
         },
-        [this, id, installer, problem](const Result<InstallResult> &result) {
+        [this, id, installer, problem, shownName](const Result<InstallResult> &result) {
             installer->deleteLater();
             m_model.setBusy(id, false);
             if (!result.ok()) {
@@ -542,10 +612,10 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
             if (!current) {
                 // Stopped tracking while installing: the install itself stands.
                 emit operationFinished(result.value.app.id, true,
-                                       tr("Installed %1").arg(result.value.installed.evr.toString()));
+                                       tr("Installed %1 %2").arg(shownName, result.value.installed.evr.toString()));
                 return;
             }
-            QString message = tr("Installed %1").arg(result.value.installed.evr.toString());
+            QString message = tr("Installed %1 %2").arg(shownName, result.value.installed.evr.toString());
             for (const QString &w : result.value.warnings)
                 message += QLatin1Char('\n') + w;
 
@@ -558,6 +628,7 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
                            + tr("This package is also tracked as \"%1\"; remove one of the two.")
                                  .arg(other ? other->app.name : newId);
                 storeAndShow(merged);
+                m_model.setInstallProblem(id, QVariantMap()); // it did install
                 emit operationFinished(id, true, message);
                 return;
             }
@@ -565,6 +636,26 @@ void HarpoonController::install(const QString &id, bool reinstall, bool downgrad
             m_model.setInstallProblem(newId, QVariantMap());
             emit operationFinished(newId, true, message);
         });
+}
+
+QString HarpoonController::styledNotes(const QString &id, const QString &changelog) const
+{
+    // appDetails() is read again for every change of the app; the notes only
+    // change with a new release.
+    auto it = m_styledNotes.constFind(id);
+    if (it != m_styledNotes.constEnd() && it->first == changelog)
+        return it->second;
+    const QString styled = releaseNotesToStyledText(changelog);
+    m_styledNotes.insert(id, qMakePair(changelog, styled));
+    return styled;
+}
+
+QVariantMap HarpoonController::appProgress(const QString &id) const
+{
+    const AppListModel::Entry *e = m_model.entry(id);
+    if (!e)
+        return QVariantMap();
+    return {{QStringLiteral("busy"), e->busy}, {QStringLiteral("stage"), e->stage}, {QStringLiteral("progress"), e->progress}};
 }
 
 QVariantMap HarpoonController::installProblem(const QString &id) const
@@ -649,7 +740,7 @@ void HarpoonController::updateAll()
 {
     for (const AppListModel::Entry &e : m_model.entries())
         if (e.status.state == UpdateState::UpdateAvailable && !e.app.settings.getBool(Keys::trackOnly) && !e.busy
-            && buildChoices(e.app.latestAssets).isEmpty()) // waits for the user's choice
+            && !e.needsBuildChoice) // waits for the user's choice
             install(e.app.id);
 }
 
@@ -663,9 +754,10 @@ void HarpoonController::uninstall(const QString &id)
         return;
     }
     const App app = e->app;
+    const QString shownName = e->displayName.isEmpty() ? app.name : e->displayName;
     m_model.setBusy(id, true, tr("Uninstalling"));
     auto *installer = new AppInstaller(m_downloader, *m_inspector, backend(), m_cacheDir, m_device, this);
-    installer->uninstall(app, [this, id, installer](const Error &error) {
+    installer->uninstall(app, [this, id, installer, shownName](const Error &error) {
         installer->deleteLater();
         m_model.setBusy(id, false);
         if (const AppListModel::Entry *current = m_model.entry(id)) {
@@ -673,7 +765,7 @@ void HarpoonController::uninstall(const QString &id)
             const RpmInfo none;
             show(current->app, QString(), error.ok() ? &none : nullptr);
         }
-        emit operationFinished(id, error.ok(), error.ok() ? tr("Uninstalled") : error.message);
+        emit operationFinished(id, error.ok(), error.ok() ? tr("Uninstalled %1").arg(shownName) : error.message);
     });
 }
 
@@ -777,9 +869,13 @@ void HarpoonController::setAppAddress(const QString &id, const QString &url, con
             // Settings or the name may have been edited meanwhile.
             App moved = applyCheckResult(current->app.movedTo(standardUrl, sourceId), checked);
             adoptInstalled(moved, installed);
-            storeAndShow(moved, id);
-            m_model.setBusy(moved.id, false);
+            m_model.setBusy(id, false); // see check()
+            if (!storeAndShow(moved, id)) {
+                emit addressChangeFinished(id, false, tr("The app was changed in the background; try again."));
+                return;
+            }
             emit addressChangeFinished(moved.id, true, QString());
+            emit tokenTargetsChanged(); // perhaps another server now
         });
     });
 }
@@ -837,7 +933,7 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
         // The stored name: the automatic one unless the user renamed the app.
         {QStringLiteral("customName"), a.name != App::fromUrl(a.url).name ? a.name : QString()},
         {QStringLiteral("icon"), e->iconPath},
-        {QStringLiteral("changelogText"), releaseNotesToStyledText(a.changelog)},
+        {QStringLiteral("changelogText"), styledNotes(a.id, a.changelog)},
         {QStringLiteral("author"), a.author},
         {QStringLiteral("url"), a.url},
         {QStringLiteral("sourceId"), a.sourceId},

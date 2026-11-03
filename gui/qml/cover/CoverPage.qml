@@ -76,14 +76,13 @@ CoverBackground {
             height: Theme.paddingMedium
         }
 
-        // Updates are sorted first in the model.
+        // The first few apps with an update, not a Label per tracked app.
         Repeater {
-            model: harpoon.apps
+            model: harpoon.apps.updateNames
 
             Label {
                 width: parent.width
-                visible: model.hasUpdate === true && index < 4
-                text: model.name
+                text: modelData
                 truncationMode: TruncationMode.Fade
                 font.pixelSize: Theme.fontSizeExtraSmall
                 color: Theme.primaryColor
