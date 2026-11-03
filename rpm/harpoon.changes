@@ -1,3 +1,12 @@
+* Tue Nov 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.7.1-1
+- A release with a command line tool and the app named after the
+  repository (such as rawfish-ir-cli and rawfish-ir-gui) installs both;
+  the package with the launcher is the app.
+- When an app's package was renamed, the error says how to accept the
+  new name.
+- Backup and restore are on the Settings page instead of only in its
+  pull-down menu.
+
 * Sun Nov 01 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.7.0-1
 - When a release has several builds of an app (such as "openrepos" and
   "store"), the app's page asks which one to install, and Harpoon keeps
