@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://tangled.org/me.example/harbour-foo</id>
+    <title>activity feed for @me.example/harbour-foo</title>
+    <updated>2026-04-02T08:00:00.000Z</updated>
+    <link rel="alternate" href="https://tangled.org/me.example/harbour-foo"/>
+    <entry>
+        <title type="html"><![CDATA[[Tag] v1.2.0]]></title>
+        <id>https://tangled.org/me.example/harbour-foo/tags/v1.2.0</id>
+        <link href="https://tangled.org/me.example/harbour-foo/tags/v1.2.0"/>
+        <updated>2026-04-02T08:00:00.000Z</updated>
+        <content type="html"><![CDATA[Tag v1.2.0 created by me:
+
+Foo 1.2.0
+- New chart panel
+- Fixed the export]]></content>
+        <author>
+            <name>me</name>
+            <email>me@example.org</email>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[[Tag] v1.1.0]]></title>
+        <id>https://tangled.org/me.example/harbour-foo/tags/v1.1.0</id>
+        <link href="https://tangled.org/me.example/harbour-foo/tags/v1.1.0"/>
+        <updated>2026-03-01T11:30:00.000Z</updated>
+        <content type="html"><![CDATA[Tag v1.1.0 created by me:
+
+Foo 1.1.0]]></content>
+        <author>
+            <name>me</name>
+            <email>me@example.org</email>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[[Tag] v1.0.0]]></title>
+        <id>https://tangled.org/me.example/harbour-foo/tags/v1.0.0</id>
+        <link href="https://tangled.org/me.example/harbour-foo/tags/v1.0.0"/>
+        <updated>2026-01-05T11:00:00.000Z</updated>
+        <content type="html"><![CDATA[Tag v1.0.0 created by me:
+
+Foo 1.0.0]]></content>
+        <author>
+            <name>me</name>
+            <email>me@example.org</email>
+        </author>
+    </entry>
+</feed>

@@ -37,7 +37,7 @@ you: it tells you when a new version is out and installs it with one tap.
   the apps are published on.
 
 It works with GitHub, Codeberg, Codefloe and other Forgejo or Gitea servers, GitLab,
-SourceHut, SourceForge, Jenkins, plain web pages, direct `.rpm` links and RPM repositories.
+SourceHut, SourceForge, Jenkins, Tangled, plain web pages, direct `.rpm` links and RPM repositories.
 
 ## How it works
 
@@ -160,7 +160,7 @@ harpoon-cli link https://git.example.org/me/app --source Forgejo   # a harpoon:/
 harpoon-cli export ~/Documents/harpoon.json         # backup (import with: harpoon-cli import FILE)
 ```
 Supported sources: GitHub, Codeberg/Forgejo/Gitea, GitLab, SourceHut, SourceForge, Jenkins,
-plain web pages, direct `.rpm` links and rpm-md repositories. See [docs/sources.md](docs/sources.md).
+Tangled, plain web pages, direct `.rpm` links and rpm-md repositories. See [docs/sources.md](docs/sources.md).
 Run `harpoon-cli --help` for all commands.
 
 ### Building the core on desktop Linux
