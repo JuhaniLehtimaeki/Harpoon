@@ -1,3 +1,8 @@
+* Thu Nov 05 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.8.2-1
+- Apps published on Tangled (tangled.org) can be tracked: Harpoon reads
+  the repository's tag feed and the tag pages for their RPM artifacts.
+  New, and not yet verified against the live site; thanks to jogubo.
+
 * Thu Nov 05 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.8.1-1
 - GitLab projects that publish their RPMs in the package registry instead
   of attaching them to releases (Whisperfish) are found: each registry
