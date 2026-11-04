@@ -8,17 +8,27 @@ ApplicationWindow {
 
     // Opens the details of one app, replacing whatever is above the list.
     function showApp(appId) {
+        if (pageStack.busy) {
+            pageStack.completeAnimation()
+        }
         pageStack.pop(pageStack.find(function(page) { return page.objectName === "appListPage" }),
                       PageStackAction.Immediate)
-        pageStack.push(Qt.resolvedUrl("pages/AppPage.qml"), { appId: appId })
+        // A notification can name an app by an id it has since changed (its
+        // package name after the first install) or that is gone: the list then.
+        if (harpoon.appDetails(appId).appId !== undefined) {
+            pageStack.push(Qt.resolvedUrl("pages/AppPage.qml"), { appId: appId })
+        }
     }
 
     // Opens the add dialog for a harpoon://add link or repository URL.
     function openAddLink(text) {
         var link = harpoon.parseAddLink(text)
         if (!link.ok) {
-            linkBanner.show(qsTr("Cannot add app: %1").arg(link.error))
+            linkBanner.show(qsTr("Could not add the app: %1").arg(link.error))
             return
+        }
+        if (pageStack.busy) {
+            pageStack.completeAnimation()
         }
         pageStack.pop(pageStack.find(function(page) { return page.objectName === "appListPage" }),
                       PageStackAction.Immediate)

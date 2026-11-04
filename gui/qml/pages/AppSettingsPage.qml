@@ -7,6 +7,8 @@ Page {
 
     property string appId
     property var details: harpoon.appDetails(appId)
+    // Kept current apart from details, which only follows record changes.
+    property var progress: harpoon.appProgress(appId)
     readonly property var _values: details.settings || ({})
     readonly property bool _isWebPage: details.effectiveSourceId === "HTML" || details.effectiveSourceId === "DirectLink"
     readonly property bool _isRepo: details.effectiveSourceId === "RpmMdRepo"
@@ -36,14 +38,22 @@ Page {
     // Settings change which release and package are chosen: check again
     // when leaving the page.
     onStatusChanged: {
-        if (status === PageStatus.Deactivating && _changed) {
-            _changed = false
-            harpoon.check(appId)
+        if (status === PageStatus.Deactivating) {
+            // A field still being typed in saves when it loses focus; make
+            // that happen now, so its change counts below.
+            column.forceActiveFocus()
+            if (_changed) {
+                _changed = false
+                harpoon.check(appId)
+            }
         }
     }
 
     // After a first install the app gets its package name as its id.
-    onAppIdChanged: details = harpoon.appDetails(appId)
+    onAppIdChanged: {
+        details = harpoon.appDetails(appId)
+        progress = harpoon.appProgress(appId)
+    }
 
     function _changeAddress(url, sourceId, errorText) {
         pageStack.push(Qt.resolvedUrl("ChangeAddressDialog.qml"), {
@@ -76,7 +86,11 @@ Page {
         target: harpoon.apps
         // Only this app's record; progress of an install is not a change.
         onAppChanged: {
-            if (id !== page.appId || busyOnly) {
+            if (id !== page.appId) {
+                return
+            }
+            if (busyOnly) {
+                page.progress = harpoon.appProgress(page.appId)
                 return
             }
             var before = JSON.stringify(page._values)
@@ -124,7 +138,7 @@ Page {
                 value: details.url || ""
                 description: page._pendingAddress ? qsTr("Checking the new address…")
                                           : qsTr("Change it when the app has moved, for example to another forge")
-                enabled: !details.busy
+                enabled: page.progress.busy !== true
                 onClicked: page._changeAddress(details.url, details.sourceId || "")
             }
 

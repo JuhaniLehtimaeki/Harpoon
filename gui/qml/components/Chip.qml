@@ -10,11 +10,15 @@ BackgroundItem {
     property bool selected
 
     width: chipRow.width + 2 * Theme.paddingLarge
-    height: Theme.itemSizeExtraSmall
+    // Touched by its whole height, drawn smaller: a chip-sized target would be
+    // under the size a finger hits reliably.
+    height: Theme.itemSizeSmall
     highlightedColor: "transparent"
 
     Rectangle {
-        anchors.fill: parent
+        anchors.verticalCenter: parent.verticalCenter
+        width: parent.width
+        height: Theme.itemSizeExtraSmall
         radius: height / 2
         color: chip.selected || chip.highlighted
                ? Theme.rgba(Theme.highlightBackgroundColor, Theme.highlightBackgroundOpacity)

@@ -14,8 +14,11 @@ BackgroundItem {
     readonly property int _installable: harpoon.apps.installableUpdatesCount
     readonly property int _failed: harpoon.apps.failedCount
     readonly property bool _checking: harpoon.checking
+    // Ticks once a minute while shown, so "checked 5 minutes ago" ages.
+    property int _minute: 0
 
     function _lastChecked() {
+        var unused = _minute // re-evaluate on every tick
         var when = harpoon.apps.lastChecked
         return when && !isNaN(when.getTime()) ? Format.formatDate(when, Formatter.DurationElapsed) : ""
     }
@@ -23,6 +26,13 @@ BackgroundItem {
     height: Math.max(Theme.iconSizeExtraLarge, textColumn.height) + Theme.itemSizeSmall + Theme.paddingLarge
     enabled: _installable > 0 && !_checking
     onClicked: harpoon.updateAll()
+
+    Timer {
+        interval: 60000
+        repeat: true
+        running: root.active
+        onTriggered: root._minute++
+    }
 
     Waves {
         anchors.bottom: parent.bottom

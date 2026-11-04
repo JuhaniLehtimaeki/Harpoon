@@ -13,11 +13,44 @@ Page {
 
     property bool _found: false
     property string _message: ""
+    // A link read from an image: handed on once the picker, which closes
+    // itself after a choice, is gone and this page is current again.
+    // Handing it on at once would pop pages while the picker still pops.
+    property var _pendingLink: null
+
+    function _deliverPending() {
+        if (_pendingLink === null || pageStack.busy || pageStack.currentPage !== page) {
+            return
+        }
+        var link = _pendingLink
+        _pendingLink = null
+        linkFound(link)
+    }
+
+    onStatusChanged: {
+        if (status === PageStatus.Active) {
+            deliverLater.restart()
+        }
+    }
+
+    Connections {
+        target: pageStack
+        onCurrentPageChanged: deliverLater.restart()
+    }
+
+    // Not from within the page stack's own change: on the next turn.
+    Timer {
+        id: deliverLater
+
+        interval: 0
+        onTriggered: page._deliverPending()
+    }
     readonly property bool _scanning: status === PageStatus.Active && !_found
                                       && Qt.application.state === Qt.ApplicationActive
 
-    // Returns true when the text is a usable link.
-    function handleDecoded(text) {
+    // Returns true when the text is a usable link. later: from the image
+    // picker, see _pendingLink.
+    function handleDecoded(text, later) {
         if (_found || text.length === 0) {
             return false
         }
@@ -28,7 +61,11 @@ Page {
         }
         _found = true
         _message = ""
-        linkFound(link)
+        if (later) {
+            _pendingLink = link
+        } else {
+            linkFound(link)
+        }
         return true
     }
 
@@ -79,7 +116,7 @@ Page {
                 if (text.length === 0) {
                     page._message = qsTr("No QR code found in the image")
                 } else {
-                    page.handleDecoded(text)
+                    page.handleDecoded(text, true)
                 }
             }
         }

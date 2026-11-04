@@ -9,6 +9,9 @@ Page {
     property string appId
     // Refreshed whenever the model changes, so the page follows checks and installs.
     property var details: harpoon.appDetails(appId)
+    // Busy, stage and progress alone: updated on every progress step, which
+    // must not rebuild the whole page (details).
+    property var progress: harpoon.appProgress(appId)
     readonly property real _downloadSize: {
         var total = 0
         var assets = details.assets || []
@@ -23,7 +26,20 @@ Page {
 
     function refresh() {
         details = harpoon.appDetails(appId)
+        progress = harpoon.appProgress(appId)
+        _leaveIfGone()
     }
+
+    // Stopped tracking here or elsewhere (the list, harpoon-cli): a page about
+    // nothing would show an empty tile and "Not installed".
+    function _leaveIfGone() {
+        if (details.appId === undefined && harpoon.loaded && status === PageStatus.Active
+                && pageStack.currentPage === page) {
+            pageStack.pop()
+        }
+    }
+
+    onStatusChanged: _leaveIfGone()
 
     // Invalid QDateTimes arrive as truthy "Invalid Date" objects.
     function formatDate(date, format) {
@@ -36,11 +52,22 @@ Page {
     Connections {
         target: harpoon.apps
         onAppChanged: {
-            if (id === page.appId) {
+            if (id !== page.appId) {
+                return
+            }
+            if (busyOnly) {
+                page.progress = harpoon.appProgress(page.appId)
+            } else {
                 page.refresh()
             }
         }
         onModelReset: page.refresh()
+        // Removing a row says nothing about which app: look whether it was ours.
+        onRowsRemoved: {
+            if (harpoon.appDetails(page.appId).appId === undefined) {
+                page.refresh()
+            }
+        }
     }
 
     SilicaFlickable {
@@ -48,7 +75,7 @@ Page {
         contentHeight: column.height + Theme.paddingLarge
 
         PullDownMenu {
-            visible: !details.busy
+            visible: !page.progress.busy
 
             MenuItem {
                 visible: page._installed && !details.trackOnly && !details.temporaryId
@@ -70,7 +97,7 @@ Page {
         }
 
         PushUpMenu {
-            visible: !details.busy && (releaseItem.visible || reinstallItem.visible)
+            visible: !page.progress.busy
 
             MenuItem {
                 id: releaseItem
@@ -86,6 +113,15 @@ Page {
                          && (details.state === AppListModel.UpToDate || details.state === AppListModel.Unknown)
                 text: qsTr("Reinstall")
                 onClicked: harpoon.install(appId, true, true)
+            }
+            // Here too, not only in the list's long-press menu: from the page of
+            // a repository that is gone there was no way out.
+            MenuItem {
+                text: qsTr("Stop tracking")
+                onClicked: {
+                    var id = appId
+                    Remorse.popupAction(page, qsTr("Stopping tracking"), function() { harpoon.removeApp(id) })
+                }
             }
         }
 
@@ -194,7 +230,7 @@ Page {
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
                 height: problemColumn.height + 2 * Theme.paddingLarge
-                visible: details.busy !== true && _problem.report !== undefined
+                visible: page.progress.busy !== true && _problem.report !== undefined
                 onClicked: pageStack.push(Qt.resolvedUrl("InstallErrorPage.qml"), { appId: page.appId })
 
                 Rectangle {
@@ -327,7 +363,7 @@ Page {
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
                 height: buildColumn.height + 2 * Theme.paddingLarge
-                visible: page._needsBuild && details.busy !== true
+                visible: page._needsBuild && page.progress.busy !== true
 
                 Rectangle {
                     anchors.fill: parent
@@ -409,7 +445,7 @@ Page {
 
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
-                visible: details.stateReason === "releasePackageNotNewer" && details.busy !== true
+                visible: details.stateReason === "releasePackageNotNewer" && page.progress.busy !== true
                 wrapMode: Text.Wrap
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.secondaryHighlightColor
@@ -424,17 +460,17 @@ Page {
 
             ProgressBar {
                 width: parent.width
-                visible: details.busy === true
-                indeterminate: !(details.progress >= 0)
-                value: Math.max(0, details.progress || 0)
-                label: details.stage || ""
+                visible: page.progress.busy === true
+                indeterminate: !(page.progress.progress >= 0)
+                value: Math.max(0, page.progress.progress || 0)
+                label: page.progress.stage || ""
             }
 
             Button {
                 anchors.horizontalCenter: parent.horizontalCenter
                 preferredWidth: Theme.buttonWidthMedium
                 icon.source: "image://theme/icon-m-device-download"
-                visible: !details.busy && !details.trackOnly && !page._needsBuild
+                visible: !page.progress.busy && !details.trackOnly && !page._needsBuild
                          && (details.state === AppListModel.UpdateAvailable
                              || details.state === AppListModel.NotInstalled)
                 text: details.state === AppListModel.UpdateAvailable ? qsTr("Update") : qsTr("Install")
@@ -445,7 +481,7 @@ Page {
                 anchors.horizontalCenter: parent.horizontalCenter
                 preferredWidth: Theme.buttonWidthMedium
                 icon.source: "image://theme/icon-m-acknowledge"
-                visible: !details.busy && details.trackOnly === true && details.state === AppListModel.UpdateAvailable
+                visible: !page.progress.busy && details.trackOnly === true && details.state === AppListModel.UpdateAvailable
                 text: qsTr("Mark as seen")
                 onClicked: harpoon.acknowledge(appId)
             }
@@ -513,11 +549,13 @@ Page {
                         color: moreArea.pressed ? Theme.highlightColor : Theme.primaryColor
                         text: notesCard.expanded ? qsTr("Show less") : qsTr("Show all")
 
+                        // A finger-sized target around the small label.
                         MouseArea {
                             id: moreArea
 
-                            anchors.fill: parent
-                            anchors.margins: -Theme.paddingMedium
+                            anchors.centerIn: parent
+                            width: parent.width + 2 * Theme.paddingLarge
+                            height: Theme.itemSizeSmall
                             onClicked: notesCard.expanded = !notesCard.expanded
                         }
                     }
@@ -565,12 +603,16 @@ Page {
                 }
             }
 
-            SectionHeader { text: qsTr("Installed") }
+            // Track-only apps are not installed by Harpoon: what counts is the
+            // release last marked as seen (which the status calls "installed").
+            SectionHeader { text: details.trackOnly === true ? qsTr("Tracking") : qsTr("Installed") }
 
             DetailItem {
-                label: qsTr("Version")
-                value: details.installedVersion && details.installedVersion.length > 0
-                       ? details.installedVersion : qsTr("Not installed")
+                label: details.trackOnly === true ? qsTr("Last seen") : qsTr("Version")
+                value: details.trackOnly === true
+                       ? ((details.acknowledgedVersion || "").length > 0 ? details.acknowledgedVersion : qsTr("Nothing yet"))
+                       : details.installedVersion && details.installedVersion.length > 0
+                         ? details.installedVersion : qsTr("Not installed")
             }
             DetailItem {
                 visible: details.installedVendor !== undefined && details.installedVendor.length > 0

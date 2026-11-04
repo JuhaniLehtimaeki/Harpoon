@@ -28,10 +28,14 @@ Page {
                 return
             }
             if (!request) {
-                banner.show(qsTr("Could not add app: %1").arg(idOrError))
+                banner.show(qsTr("Could not add the app: %1").arg(idOrError))
                 return
             }
-            // Back to the form as it was, to fix the address or options.
+            // Back to the form as it was, to fix the address or options. An
+            // early failure (offline) can arrive while the dialog still closes.
+            if (pageStack.busy) {
+                pageStack.completeAnimation()
+            }
             pageStack.push(Qt.resolvedUrl("AddAppDialog.qml"), {
                                initialUrl: request.url,
                                initialSourceId: request.sourceId,
@@ -163,7 +167,9 @@ Page {
                 onClicked: pageStack.push(Qt.resolvedUrl("AddAppDialog.qml"))
             }
             MenuItem {
-                visible: harpoon.apps.updatesCount > 0
+                // Not for track-only apps or ones waiting for a build choice,
+                // which Update all leaves alone: it would do nothing.
+                visible: harpoon.apps.installableUpdatesCount > 0
                 text: qsTr("Update all")
                 onClicked: harpoon.updateAll()
             }
@@ -359,8 +365,11 @@ Page {
                         (listView.height - height) / 2 - Theme.itemSizeLarge)
             visible: listView.count === 0 && harpoon.loaded
             active: visible && page.status === PageStatus.Active
-            text: qsTr("Nothing on the line yet")
-            hintText: qsTr("Pull down to add an app by its link or QR code, from GitHub, Codeberg or another forge")
+            // The first app shows only once its first check is done: say so,
+            // or a slow forge looks like nothing happened.
+            text: page.pendingAdd ? qsTr("Checking the new app…") : qsTr("Nothing on the line yet")
+            hintText: page.pendingAdd ? page.pendingAdd.url
+                                      : qsTr("Pull down to add an app by its link or QR code, from GitHub, Codeberg or another forge")
         }
 
         VerticalScrollDecorator { }

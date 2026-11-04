@@ -6,7 +6,17 @@ import "../components"
 Page {
     id: page
 
-    readonly property var _intervals: [1, 3, 6, 12, 24, 48]
+    // The usual intervals, and the one set if it is another (from a backup or
+    // harpoon-cli: 1 to 168 hours), so the box never shows a wrong value.
+    readonly property var _intervals: {
+        var list = [1, 3, 6, 12, 24, 48]
+        var hours = harpoon.settings.checkIntervalHours
+        if (list.indexOf(hours) < 0) {
+            list.push(hours)
+            list.sort(function(a, b) { return a - b })
+        }
+        return list
+    }
 
     allowedOrientations: Orientation.All
 
@@ -93,7 +103,9 @@ Page {
                 enabled: harpoon.settings.backgroundChecks && harpoon.settings.installBackend === "packagekit"
                 icon.source: "image://theme/icon-m-device-download"
                 text: qsTr("Install updates automatically")
-                description: qsTr("Updates apps that Harpoon installed during background checks. Apps can be excluded in their settings.")
+                description: harpoon.settings.installBackend === "packagekit"
+                             ? qsTr("Updates apps that Harpoon installed during background checks. Apps can be excluded in their settings.")
+                             : qsTr("Needs \"Install with: PackageKit\" below: the system installer asks before each installation.")
                 checked: harpoon.settings.autoUpdate
                 automaticCheck: false
                 onClicked: harpoon.settings.autoUpdate = !checked
@@ -185,7 +197,9 @@ Page {
                 text: qsTr("Export backup")
                 onClicked: {
                     var result = harpoon.exportBackup(false)
-                    banner.show(result.ok ? qsTr("Saved %1").arg(result.path) : result.error)
+                    // The name, not the whole path: a banner shows one short line.
+                    banner.show(result.ok ? qsTr("Saved %1 in Documents").arg(result.path.split("/").pop())
+                                          : result.error)
                 }
             }
 

@@ -371,9 +371,11 @@ private slots:
         push(QStringLiteral("AppPage.qml"), QStringLiteral("{ appId: 'harbour-alpha' }"));
         m_controller->apps()->setBusy(QStringLiteral("harbour-alpha"), true, QStringLiteral("Downloading"), 0.5);
         expectClean("busy with progress");
-        QVERIFY(currentPage()->property("details").toMap().value(QStringLiteral("busy")).toBool());
+        QVERIFY(currentPage()->property("progress").toMap().value(QStringLiteral("busy")).toBool());
         m_controller->apps()->setBusy(QStringLiteral("harbour-alpha"), true, QStringLiteral("Installing"), -1);
         expectClean("busy indeterminate");
+        QCOMPARE(currentPage()->property("progress").toMap().value(QStringLiteral("stage")).toString(),
+                 QStringLiteral("Installing"));
         m_controller->apps()->setBusy(QStringLiteral("harbour-alpha"), false);
         expectClean("idle again");
         popToList();
@@ -591,6 +593,10 @@ private slots:
         picker->setProperty("selectedContentProperties",
                             QVariantMap{{QStringLiteral("filePath"), kFixtureDir + QStringLiteral("/qr/repo-url.png")}});
         expectClean("an image with a code");
+        // Nothing moves while the picker is still up; it then closes itself.
+        QCOMPARE(currentPage(), picker);
+        eval(QStringLiteral("pageStack.pop(pageStack.pages[pageStack.pages.length - 2])"));
+        expectClean("the picker closed");
         QCOMPARE(currentPage(), dialog);
         QCOMPARE(urlField->property("text").toString(),
                  QStringLiteral("https://github.com/sailfishos-chum/sailfishos-chum-gui"));
@@ -667,7 +673,7 @@ private slots:
         m_dbus.openUrl({QStringLiteral("harpoon://add?url=javascript%3Aalert(1)")});
         expectClean("a bad link over D-Bus");
         QCOMPARE(banner->property("publishCount").toInt(), published + 1);
-        QVERIFY(banner->property("previewSummary").toString().startsWith(QLatin1String("Cannot add app")));
+        QVERIFY(banner->property("previewSummary").toString().startsWith(QLatin1String("Could not add the app")));
         QCOMPARE(currentPage(), dialog);
         popToList();
     }
@@ -681,6 +687,16 @@ private slots:
             keys << t.toMap().value(QStringLiteral("key")).toString();
         keys.sort();
         QCOMPARE(keys, (QStringList{QStringLiteral("Forgejo"), QStringLiteral("GitHub"), QStringLiteral("GitLab")}));
+
+        // An interval set elsewhere (backup, harpoon-cli) is shown as it is.
+        m_settings->setCheckIntervalHours(8);
+        QObject *withEight = push(QStringLiteral("SettingsPage.qml"));
+        QObject *every = findByProperty(withEight, "label", QStringLiteral("Check every"));
+        QVERIFY(every);
+        const QVariantList intervals = withEight->property("_intervals").toList();
+        QCOMPARE(intervals.value(every->property("currentIndex").toInt()).toInt(), 8);
+        popToList();
+        m_settings->setCheckIntervalHours(6);
 
         push(QStringLiteral("SettingsPage.qml"));
         expectClean("SettingsPage");
@@ -720,9 +736,11 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(exportItem, "clicked"));
         expectClean("Export backup");
         QCOMPARE(banner->property("publishCount").toInt(), 1);
-        QVERIFY(banner->property("previewSummary").toString().startsWith(QLatin1String("Saved ")));
-        const QString exported = banner->property("previewSummary").toString().mid(6);
-        QVERIFY(QFile::exists(exported));
+        const QString saved = banner->property("previewSummary").toString();
+        QVERIFY2(saved.startsWith(QLatin1String("Saved harpoon-backup-")) && saved.endsWith(QLatin1String(" in Documents")),
+                 qPrintable(saved));
+        const QString exported = m_dir.filePath(QStringLiteral("documents/")) + saved.mid(6, saved.size() - 6 - 13);
+        QVERIFY2(QFile::exists(exported), qPrintable(exported));
 
         QVERIFY(QMetaObject::invokeMethod(importItem, "clicked"));
         expectClean("opening the file picker");
@@ -763,13 +781,22 @@ private slots:
         m_dbus.showUpdates();
         expectClean("showUpdates over D-Bus");
         QCOMPARE(currentPage()->objectName(), QStringLiteral("appListPage"));
+        // An id that is no more (renamed after its first install): the list,
+        // not a blank page.
+        m_dbus.showApp(QStringLiteral("tmp-000000000000"));
+        expectClean("showApp for an unknown id");
+        QCOMPARE(currentPage()->objectName(), QStringLiteral("appListPage"));
     }
 
     void removingAnAppWhileListed()
     {
+        // Its page is open: it closes instead of showing an empty app.
+        QObject *page = push(QStringLiteral("AppPage.qml"), QStringLiteral("{ appId: 'beta' }"));
+        QVERIFY(findByProperty(page, "text", QStringLiteral("Stop tracking")));
         m_controller->removeApp(QStringLiteral("beta"));
         expectClean("removing an app");
         QCOMPARE(m_controller->apps()->count(), 5);
+        QCOMPARE(currentPage()->objectName(), QStringLiteral("appListPage"));
     }
 
     // Last: with every app gone, the list shows its illustrated empty state.
