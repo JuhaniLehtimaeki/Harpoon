@@ -20,7 +20,7 @@
     </message>
     <message>
         <location filename="../qml/pages/AboutPage.qml" line="77"/>
-        <source>Apps straight from where their developers publish them: GitHub, Codeberg, Forgejo and Gitea servers, GitLab, SourceHut, SourceForge, Jenkins, web pages and RPM repositories.</source>
+        <source>Apps straight from where their developers publish them: GitHub, Codeberg, Forgejo and Gitea servers, GitLab, SourceHut, SourceForge, Jenkins, Tangled, web pages and RPM repositories.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -107,7 +107,7 @@ private slots:
         // Jenkins-looking URLs are not auto-selected.
         QCOMPARE(registry.match("https://ci.example.org/job/app").value.source->id(), QStringLiteral("HTML"));
         QCOMPARE(registry.ids(), (QStringList{"Forgejo", "GitHub", "GitLab", "Jenkins", "RpmMdRepo", "SourceForge",
-                                              "SourceHut", "DirectLink", "HTML"}));
+                                              "SourceHut", "Tangled", "DirectLink", "HTML"}));
     }
 
     void apiUrls()

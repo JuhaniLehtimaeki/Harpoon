@@ -94,6 +94,91 @@ private slots:
         QVERIFY(r.releases.at(2).assets.isEmpty());
     }
 
+    void entriesMatchWhateverTheLetterCaseOrAt()
+    {
+        // The address typed differs from the feed's links by case and by an "@"
+        // before the handle: the entries are still this repository's.
+        const QString typed = QStringLiteral("https://tangled.org/@Me.Example/Harbour-Foo");
+        FakeTransport t;
+        t.respondFixture(typed + "/feed.atom?include=tags", "tangled/feed.atom");
+        t.respondFixture(kRepo + "/tags/v1.2.0", "tangled/tag-v1.2.0.html");
+        t.respondFixture(kRepo + "/tags/v1.1.0", "tangled/tag-v1.1.0.html");
+        TangledSource ts;
+        const FetchResult r = fetchFrom(ts, t, typed);
+        QVERIFY2(r.error.ok(), qPrintable(r.error.message));
+        QCOMPARE(r.releases.size(), 3);
+        QCOMPARE(assetNames(r.releases.at(0)),
+                 (QStringList{"harbour-foo-1.2.0-1.aarch64.rpm", "harbour-foo-1.2.0-1.noarch.rpm"}));
+    }
+
+    void otherRepositoriesAndPagesAreLeftOut()
+    {
+        // A feed that also carries another repository's tag, a commit and a
+        // tag page on another site: only this repository's tags on this site count.
+        const QByteArray feed =
+            "<feed xmlns=\"http://www.w3.org/2005/Atom\">"
+            "<entry><title>t</title><id>https://tangled.org/me.example/harbour-foo/tags/v2.0.0</id>"
+            "<link href=\"https://tangled.org/me.example/harbour-foo/tags/v2.0.0\"/>"
+            "<updated>2026-05-01T08:00:00.000Z</updated><content>Tag v2.0.0 created by me:\n\nTwo</content></entry>"
+            "<entry><title>t</title><id>https://tangled.org/someone.else/other-app/tags/v9.9.9</id>"
+            "<link href=\"https://tangled.org/someone.else/other-app/tags/v9.9.9\"/>"
+            "<updated>2026-05-02T08:00:00.000Z</updated><content>Tag v9.9.9 created by x:\n\nNine</content></entry>"
+            "<entry><title>t</title><id>https://tangled.org/me.example/harbour-foo/commit/abc</id>"
+            "<link href=\"https://tangled.org/me.example/harbour-foo/commit/abc\"/>"
+            "<updated>2026-05-03T08:00:00.000Z</updated><content>c</content></entry>"
+            "<entry><title>t</title><id>https://evil.example/me.example/harbour-foo/tags/v8.0.0</id>"
+            "<link href=\"https://evil.example/me.example/harbour-foo/tags/v8.0.0\"/>"
+            "<updated>2026-05-04T08:00:00.000Z</updated><content>Tag v8.0.0 created by x:\n\nEight</content></entry>"
+            "</feed>";
+        FakeTransport t;
+        t.respondJson(kRepo + "/feed.atom?include=tags", feed);
+        TangledSource ts;
+        const FetchResult r = fetchFrom(ts, t, kRepo);
+        QVERIFY2(r.error.ok(), qPrintable(r.error.message));
+        QCOMPARE(r.releases.size(), 1);
+        QCOMPARE(r.releases.at(0).tag, QStringLiteral("v2.0.0"));
+        for (const HttpRequest &req : t.requests)
+            QVERIFY(!req.url.contains(QLatin1String("evil.example")) && !req.url.contains(QLatin1String("other-app")));
+    }
+
+    void newestTagsWinWhateverTheFeedOrder()
+    {
+        // The feed lists the tags oldest first: the newest must still be the
+        // one fetched (and the one chosen without fallback).
+        const QByteArray feed =
+            "<feed xmlns=\"http://www.w3.org/2005/Atom\">"
+            "<entry><title>t</title><id>https://tangled.org/me.example/harbour-foo/tags/v1.0.0</id>"
+            "<link href=\"https://tangled.org/me.example/harbour-foo/tags/v1.0.0\"/>"
+            "<updated>2026-01-05T11:00:00.000Z</updated><content>Tag v1.0.0 created by me:\n\nOne</content></entry>"
+            "<entry><title>t</title><id>https://tangled.org/me.example/harbour-foo/tags/v1.2.0</id>"
+            "<link href=\"https://tangled.org/me.example/harbour-foo/tags/v1.2.0\"/>"
+            "<updated>2026-04-02T08:00:00.000Z</updated><content>Tag v1.2.0 created by me:\n\nTwo</content></entry>"
+            "<entry><title>t</title><id>https://tangled.org/me.example/harbour-foo/tags/v1.1.0</id>"
+            "<link href=\"https://tangled.org/me.example/harbour-foo/tags/v1.1.0\"/>"
+            "<updated>2026-03-01T11:30:00.000Z</updated><content>Tag v1.1.0 created by me:\n\nOne point one</content></entry>"
+            "</feed>";
+        FakeTransport t;
+        t.respondJson(kRepo + "/feed.atom?include=tags", feed);
+        t.respondFixture(kRepo + "/tags/v1.2.0", "tangled/tag-v1.2.0.html");
+        AppSettings noFallback;
+        noFallback.set(Keys::fallbackToOlderReleases, false);
+        TangledSource ts;
+        const FetchResult r = fetchFrom(ts, t, kRepo, noFallback);
+        QVERIFY2(r.error.ok(), qPrintable(r.error.message));
+        QCOMPARE(r.releases.size(), 1);
+        QCOMPARE(r.releases.at(0).tag, QStringLiteral("v1.2.0"));
+        QCOMPARE(t.requests.size(), 2); // the feed and the newest tag's page
+
+        // With fallback: all three, newest first.
+        FakeTransport t2;
+        t2.respondJson(kRepo + "/feed.atom?include=tags", feed);
+        const FetchResult all = fetchFrom(ts, t2, kRepo);
+        QStringList tags;
+        for (const Release &rel : all.releases)
+            tags << rel.tag;
+        QCOMPARE(tags, (QStringList{"v1.2.0", "v1.1.0", "v1.0.0"}));
+    }
+
     void withoutFallbackOnlyNewestTag()
     {
         FakeTransport t;
@@ -143,5 +228,5 @@ private slots:
     }
 };
 
-QTEST_MAIN(TestTangledSource)
+QTEST_GUILESS_MAIN(TestTangledSource)
 #include "tst_tangledsource.moc"

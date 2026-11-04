@@ -33,7 +33,7 @@ harpoon://add?url=<percent-encoded URL>[&source=<type>][&package=<RPM name>]
 | Parameter | Meaning |
 |---|---|
 | `url` | Required. An `http(s)` address, percent-encoded. |
-| `source` | Optional. The source type: `GitHub`, `Forgejo`, `GitLab`, `SourceHut`, `SourceForge`, `Jenkins`, `HTML`, `DirectLink` or `RpmMdRepo`. |
+| `source` | Optional. The source type: `GitHub`, `Forgejo`, `GitLab`, `SourceHut`, `Tangled`, `SourceForge`, `Jenkins`, `HTML`, `DirectLink` or `RpmMdRepo`. |
 | `package` | Optional. The RPM package name. Required for `RpmMdRepo`. |
 
 Harpoon shows the add dialog filled in from the link, and the user still confirms. Links

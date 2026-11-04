@@ -7,6 +7,7 @@
 #include <QStringList>
 #include <QUrl>
 
+#include <algorithm>
 #include <memory>
 
 namespace Harpoon {
@@ -33,6 +34,38 @@ QString stripTags(const QString &html)
     QString out = html;
     out.remove(tag);
     return decodeHtmlEntities(out).simplified();
+}
+
+// Where a feed link points: the repository ("handle/repo", lower case, without
+// the "@" some Tangled URLs put before a handle) and, when it is a tag page,
+// the tag's name. Comparing these, not the typed address, keeps entries that
+// differ only in letter case or the "@" from being dropped.
+struct TagLink
+{
+    QString host;
+    QString repo;
+    QString tag; // empty when the link is not a tag page
+};
+
+TagLink parseTagLink(const QString &link)
+{
+    TagLink out;
+    const QUrl url(link);
+    out.host = url.host().toLower();
+    if (out.host.startsWith(QLatin1String("www.")))
+        out.host = out.host.mid(4);
+    QStringList segments = url.path().split(QLatin1Char('/'), QString::SkipEmptyParts);
+    if (segments.size() < 2)
+        return out;
+    QString handle = segments.at(0);
+    if (handle.startsWith(QLatin1Char('@')))
+        handle = handle.mid(1);
+    out.repo = (handle + QLatin1Char('/') + segments.at(1)).toLower();
+    if (segments.size() >= 4 && segments.at(2) == QLatin1String("tags")) {
+        segments = segments.mid(3);
+        out.tag = decodeUrl(segments.join(QLatin1Char('/')));
+    }
+    return out;
 }
 
 // The feed entry content is "Tag {name} created by {author}:\n\n{message}";
@@ -101,14 +134,24 @@ void TangledSource::fetchReleases(const QString &standardUrl, const AppSettings 
         }
 
         auto releases = std::make_shared<QList<Release>>();
-        const QString tagsPrefix = standardUrl + QStringLiteral("/tags/");
+        const TagLink own = parseTagLink(standardUrl);
         for (const AtomEntry &entry : entries.value) {
-            // Only this repository's tag entries, as with SourceHut's guid.
-            if (!entry.link.startsWith(tagsPrefix) && !entry.id.startsWith(tagsPrefix))
+            // Only this repository's tag entries (as with SourceHut's guid),
+            // on this site: the page is fetched from the link.
+            QString page;
+            TagLink target;
+            for (const QString &candidate : {entry.link, entry.id}) {
+                const TagLink t = parseTagLink(candidate);
+                if (!t.tag.isEmpty() && t.repo == own.repo && t.host == own.host) {
+                    page = candidate;
+                    target = t;
+                    break;
+                }
+            }
+            if (page.isEmpty())
                 continue;
-            const QString page = entry.link.isEmpty() ? entry.id : entry.link;
             Release release;
-            release.tag = decodeUrl(lastPathSegment(page));
+            release.tag = target.tag;
             release.pageUrl = page;
             release.date = parseAtomDate(entry.updated);
             // Like the tags page: the message's first line is the title, the
@@ -117,20 +160,24 @@ void TangledSource::fetchReleases(const QString &standardUrl, const AppSettings 
             const int lineEnd = message.indexOf(QLatin1Char('\n'));
             release.title = lineEnd < 0 ? message : message.left(lineEnd).trimmed();
             release.changelog = lineEnd < 0 ? QString() : message.mid(lineEnd + 1).trimmed();
-            if (release.tag.isEmpty())
-                continue;
             *releases << release;
-            // Without fallback only the newest tag can be chosen; skip the
-            // other page fetches.
-            if (!fallback)
-                break;
         }
         if (releases->isEmpty()) {
             result.error = Error::make(Error::NoReleases, QStringLiteral("The repository has no tags"));
             done(result);
             return;
         }
-        while (releases->size() > kMaxTags)
+        // Newest first, whatever order the feed lists them in: the newest are
+        // the ones worth a page fetch. (Entries without a date go last.)
+        std::stable_sort(releases->begin(), releases->end(), [](const Release &a, const Release &b) {
+            if (a.date.isValid() != b.date.isValid())
+                return a.date.isValid();
+            return a.date > b.date;
+        });
+        // Without fallback only the newest tag can be chosen: skip the other
+        // page fetches.
+        const int limit = fallback ? kMaxTags : 1;
+        while (releases->size() > limit)
             releases->removeLast();
         fetchTagPages(releases, 0, standardUrl, transport, done);
     });

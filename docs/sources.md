@@ -83,6 +83,10 @@ file name becomes the asset name.
 
 - Tangled's public bobbin API is not exposed outside its web app, so the Atom feed and the tag pages it links to are read instead, like SourceHut.
 - Only annotated tags reach the feed (a lightweight tag has no message to show).
+- Feed links are matched by repository ("handle/repo", ignoring letter case and an `@` before
+  the handle) and site, not by the address that was typed; entries of other repositories or
+  sites, and non-tag links, are left out. Tags are sorted newest first (by `<updated>`)
+  before the newest few are fetched, whatever order the feed lists them in.
 - An artifact link does not end in `.rpm`; the file name shown in its row is the asset name, and the link serves the file with a `Content-Disposition` carrying that name.
 - With `fallbackToOlderReleases` off, only the newest tag page is fetched.
 - A tag page that returns 404 gives a release with no assets; a network error or 5xx fails the check, as with SourceHut.
