@@ -75,4 +75,16 @@ struct RssItem
 // Every <item> of an RSS 2.0 feed, in feed order (QXmlStreamReader).
 Result<QList<RssItem>> parseRssItems(const QByteArray &xml);
 
+struct AtomEntry
+{
+    QString title;   // <title>
+    QString link;    // <link href> (the alternate link when there are several)
+    QString id;      // <id>
+    QString updated; // <updated>, ISO 8601
+    QString content; // <content>
+};
+
+// Every <entry> of an Atom feed, in feed order (QXmlStreamReader).
+Result<QList<AtomEntry>> parseAtomEntries(const QByteArray &xml);
+
 } // namespace Harpoon

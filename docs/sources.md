@@ -19,8 +19,9 @@ summarised in `docs/research/01-obtainx-release-sources.md`.
 | 5 | `RpmMdRepo` | RPM repository (rpm-md) | none | never |
 | 6 | `SourceForge` | SourceForge | sourceforge.net | by host |
 | 7 | `SourceHut` | SourceHut | git.sr.ht | by host |
-| 8 | `DirectLink` | Direct RPM link | none | URL path ends in `.rpm` |
-| 9 | `HTML` | HTML | none | any http(s) URL, always last |
+| 8 | `Tangled` | Tangled | tangled.org | by host |
+| 9 | `DirectLink` | Direct RPM link | none | URL path ends in `.rpm` |
+| 10 | `HTML` | HTML | none | any http(s) URL, always last |
 
 1. A host-based source whose host matches the URL's host (with or without `www.`) wins.
 2. Otherwise the hostless sources that are not `neverAutoSelect` are tried in order:
@@ -69,6 +70,22 @@ file name becomes the asset name.
 - A ref page that returns 404 gives a release with no assets, as upstream.
 - A network error or 5xx on a ref page fails the check, so the selector does not
   fall back to an older ref just because the newest page failed to load.
+
+## Tangled (`Tangled`)
+
+| | |
+|---|---|
+| URL forms | `https://tangled.org/{handle}/{repo}` (anything after is cut, e.g. `/tags`) |
+| Requests | `GET {repo}/feed.atom?include=tags`, then each entry's tag page, at most 6 |
+| Tag / date | the entry's link to `{repo}/tags/{name}` / `<updated>` (milliseconds cut for Qt 5.6) |
+| Title / changelog | the entry content is `Tag {name} created by {author}:\n\n{message}`; the message's first line is the title, the rest is the changelog |
+| Assets | the tag page's `tagArtifacts` rows: the row title is the file name, the Download link (`{repo}/artifacts/{tid}`) is the URL |
+
+- Tangled's public bobbin API is not exposed outside its web app, so the Atom feed and the tag pages it links to are read instead, like SourceHut.
+- Only annotated tags reach the feed (a lightweight tag has no message to show).
+- An artifact link does not end in `.rpm`; the file name shown in its row is the asset name, and the link serves the file with a `Content-Disposition` carrying that name.
+- With `fallbackToOlderReleases` off, only the newest tag page is fetched.
+- A tag page that returns 404 gives a release with no assets; a network error or 5xx fails the check, as with SourceHut.
 
 ## SourceForge (`SourceForge`)
 

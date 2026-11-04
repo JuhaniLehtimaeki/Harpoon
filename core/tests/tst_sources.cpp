@@ -64,6 +64,8 @@ private slots:
                                             << "GitLab" << "https://git.example.org/team/app";
         QTest::newRow("sourcehut") << "https://git.sr.ht/~me/app/refs" << ""
                                    << "SourceHut" << "https://git.sr.ht/~me/app";
+        QTest::newRow("tangled") << "https://tangled.org/rikles.eu/harbour-networth/tags/v1.3" << ""
+                                 << "Tangled" << "https://tangled.org/rikles.eu/harbour-networth";
         QTest::newRow("sourceforge") << "https://sourceforge.net/p/myapp/" << ""
                                      << "SourceForge" << "https://sourceforge.net/projects/myapp/files";
         QTest::newRow("jenkins override") << "https://ci.example.org/job/app/lastBuild/" << "Jenkins"

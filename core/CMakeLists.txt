@@ -42,6 +42,8 @@ add_library(harpoon-core STATIC
     src/sources/gitlabsource.cpp
     src/sources/sourcehutsource.h
     src/sources/sourcehutsource.cpp
+    src/sources/tangledsource.h
+    src/sources/tangledsource.cpp
     src/sources/sourceforgesource.h
     src/sources/sourceforgesource.cpp
     src/sources/jenkinssource.h

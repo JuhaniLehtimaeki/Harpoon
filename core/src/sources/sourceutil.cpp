@@ -249,4 +249,50 @@ Result<QList<RssItem>> parseRssItems(const QByteArray &xml)
     return Result<QList<RssItem>>::success(items);
 }
 
+Result<QList<AtomEntry>> parseAtomEntries(const QByteArray &xml)
+{
+    QList<AtomEntry> entries;
+    QXmlStreamReader reader(xml);
+    const QLatin1String kAtom("http://www.w3.org/2005/Atom");
+    bool inEntry = false;
+    AtomEntry entry;
+    while (!reader.atEnd()) {
+        reader.readNext();
+        if (reader.isEndElement() && reader.name() == QLatin1String("entry") && inEntry) {
+            entries << entry;
+            inEntry = false;
+            continue;
+        }
+        if (!reader.isStartElement())
+            continue;
+        const QStringRef name = reader.name();
+        if (name == QLatin1String("entry") && reader.namespaceUri() == kAtom) {
+            entry = AtomEntry();
+            inEntry = true;
+            continue;
+        }
+        if (!inEntry || reader.namespaceUri() != kAtom)
+            continue;
+        if (name == QLatin1String("link")) {
+            // The alternate link is the entry's page; feeds may also list
+            // enclosures and self links.
+            const QStringRef rel = reader.attributes().value(QLatin1String("rel"));
+            if (entry.link.isEmpty() || rel == QLatin1String("alternate"))
+                entry.link = reader.attributes().value(QLatin1String("href")).toString();
+            continue;
+        }
+        QString *field = name == QLatin1String("title")   ? &entry.title
+                         : name == QLatin1String("id")      ? &entry.id
+                         : name == QLatin1String("updated") ? &entry.updated
+                         : name == QLatin1String("content")  ? &entry.content
+                                                              : nullptr;
+        if (field)
+            *field = reader.readElementText(QXmlStreamReader::IncludeChildElements).trimmed();
+    }
+    if (reader.hasError())
+        return Result<QList<AtomEntry>>::failure(
+            Error::make(Error::Parse, QStringLiteral("Invalid Atom feed: %1").arg(reader.errorString())));
+    return Result<QList<AtomEntry>>::success(entries);
+}
+
 } // namespace Harpoon

@@ -74,7 +74,7 @@ Page {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
                 color: Theme.highlightColor
-                text: qsTr("Apps straight from where their developers publish them: GitHub, Codeberg, Forgejo and Gitea servers, GitLab, SourceHut, SourceForge, Jenkins, web pages and RPM repositories.")
+                text: qsTr("Apps straight from where their developers publish them: GitHub, Codeberg, Forgejo and Gitea servers, GitLab, SourceHut, SourceForge, Jenkins, Tangled, web pages and RPM repositories.")
             }
 
             Item {

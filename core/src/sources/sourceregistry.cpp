@@ -9,6 +9,7 @@
 #include "sources/rpmmdreposource.h"
 #include "sources/sourceforgesource.h"
 #include "sources/sourcehutsource.h"
+#include "sources/tangledsource.h"
 
 #include <QRegularExpression>
 #include <QUrl>
@@ -27,6 +28,7 @@ SourceRegistry::SourceRegistry()
     registerSource([] { return std::make_shared<RpmMdRepoSource>(); });   // "RPM repository (rpm-md)"
     registerSource([] { return std::make_shared<SourceForgeSource>(); });
     registerSource([] { return std::make_shared<SourceHutSource>(); });
+    registerSource([] { return std::make_shared<TangledSource>(); });
     // Hostless catch-alls, matched by URL shape after every host-based
     // source: the direct .rpm link first, HTML always last.
     registerSource([] { return std::make_shared<DirectLinkSource>(); });
