@@ -169,6 +169,7 @@ private:
     void queryInstalled(const QStringList &ids); // one rpm run
     QString localizedStage(const QString &stage) const;
     QString styledNotes(const QString &id, const QString &changelog) const;
+    App recordToEdit(const AppListModel::Entry &e) const;
     // addApp() reporting to `done` (ok, id or error, waiting for builds, name)
     // instead of the addFinished signal.
     void addAppThen(const QString &url, const QString &sourceId, const QVariantMap &settings, bool force,

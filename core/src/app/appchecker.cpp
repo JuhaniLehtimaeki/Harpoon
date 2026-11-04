@@ -13,6 +13,14 @@ namespace Harpoon {
 
 App applyCheckResult(App current, const App &checked)
 {
+    current.lastCheck = checked.lastCheck;
+    current.lastError = checked.lastError;
+    current.waitingForBuilds = checked.waitingForBuilds;
+    // A failed check knows nothing new about releases. Its copy of them is
+    // from when it was queued; another check (the background job's) may have
+    // stored newer ones since, which must not be reverted.
+    if (!checked.lastError.isEmpty() && !checked.waitingForBuilds)
+        return current;
     current.latestVersion = checked.latestVersion;
     current.latestTag = checked.latestTag;
     current.latestTitle = checked.latestTitle;

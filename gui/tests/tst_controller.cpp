@@ -943,6 +943,50 @@ private slots:
         QVERIFY(!model->entry(QStringLiteral("sailfishos-chum-gui"))->busy);
     }
 
+    void editsKeepWhatTheBackgroundJobStored()
+    {
+        AppStore store(m_dir->filePath(QStringLiteral("data/apps")));
+        App app = App::fromUrl(QStringLiteral("https://github.com/me/harbour-tool"));
+        app.id = QStringLiteral("harbour-tool");
+        app.temporaryId = false;
+        app.latestVersion = QStringLiteral("1.0");
+        QVERIFY(store.save(app).ok());
+        m_controller->reload();
+        // Meanwhile the background job checked and updated it.
+        App updated = store.load(app.id).value;
+        updated.latestVersion = QStringLiteral("1.1");
+        updated.receipt.evr = QStringLiteral("1.1-1");
+        updated.receipt.version = QStringLiteral("1.1");
+        updated.notifiedVersion = QStringLiteral("1.1");
+        QVERIFY(store.save(updated).ok());
+        // The user changes a setting before the app noticed.
+        m_controller->setAppSetting(app.id, QStringLiteral("includePrereleases"), true);
+        const App stored = store.load(app.id).value;
+        QVERIFY(stored.settings.getBool("includePrereleases"));
+        QCOMPARE(stored.latestVersion, QStringLiteral("1.1"));
+        QCOMPARE(stored.receipt.evr, QStringLiteral("1.1-1"));
+        QCOMPARE(stored.notifiedVersion, QStringLiteral("1.1"));
+    }
+
+    void failedCheckKeepsNewerReleaseData()
+    {
+        App current = App::fromUrl(QStringLiteral("https://github.com/me/harbour-tool"));
+        current.latestVersion = QStringLiteral("1.1"); // stored by another check meanwhile
+        App failed = current;
+        failed.latestVersion = QStringLiteral("1.0");   // the queued snapshot
+        failed.lastError = QStringLiteral("Rate limited; try again in 30 minute(s)");
+        failed.lastCheck = QDateTime::currentDateTimeUtc();
+        const App merged = applyCheckResult(current, failed);
+        QCOMPARE(merged.latestVersion, QStringLiteral("1.1"));
+        QCOMPARE(merged.lastError, failed.lastError);
+        QCOMPARE(merged.lastCheck, failed.lastCheck);
+        // A successful one takes its release data.
+        App ok = failed;
+        ok.lastError.clear();
+        ok.latestVersion = QStringLiteral("1.2");
+        QCOMPARE(applyCheckResult(current, ok).latestVersion, QStringLiteral("1.2"));
+    }
+
     void backgroundFailureShowsOnTheAppsPage()
     {
         AppStore store(m_dir->filePath(QStringLiteral("data/apps")));

@@ -779,12 +779,21 @@ void HarpoonController::removeApp(const QString &id)
     m_model.remove(id);
 }
 
+App HarpoonController::recordToEdit(const AppListModel::Entry &e) const
+{
+    // The record on disk: the background job may have checked or updated the
+    // app since the list read it (new release data, receipt, announcement).
+    // Editing the list's copy would write those back to what they were.
+    const auto stored = m_store.load(e.app.id);
+    return stored.ok() && stored.value.url == e.app.url ? stored.value : e.app;
+}
+
 void HarpoonController::acknowledge(const QString &id)
 {
     const AppListModel::Entry *e = m_model.entry(id);
     if (!e)
         return;
-    App app = e->app;
+    App app = recordToEdit(*e);
     app.acknowledgedVersion = app.latestVersion;
     storeAndShow(app);
 }
@@ -794,7 +803,7 @@ void HarpoonController::setAppSetting(const QString &id, const QString &key, con
     const AppListModel::Entry *e = m_model.entry(id);
     if (!e || key.isEmpty())
         return;
-    App app = e->app;
+    App app = recordToEdit(*e);
     QVariantMap values = app.settings.values();
     if (!value.isValid() || value.isNull() || (value.type() == QVariant::String && value.toString().isEmpty()))
         values.remove(key);
@@ -812,7 +821,7 @@ void HarpoonController::chooseBuild(const QString &id, const QString &assetName)
     for (const BuildChoice &choice : buildChoices(e->app.latestAssets)) {
         if (choice.assetName != assetName)
             continue;
-        App app = e->app;
+        App app = recordToEdit(*e);
         QVariantMap values = app.settings.values();
         values.insert(QString::fromLatin1(Keys::assetFilterRegEx), choice.filter);
         if (choice.invert)
@@ -832,7 +841,7 @@ void HarpoonController::setAppName(const QString &id, const QString &name)
     const AppListModel::Entry *e = m_model.entry(id);
     if (!e)
         return;
-    App app = e->app;
+    App app = recordToEdit(*e);
     // Empty: back to the automatic name.
     app.name = name.trimmed().isEmpty() ? App::fromUrl(app.url).name : name.trimmed();
     storeAndShow(app);
