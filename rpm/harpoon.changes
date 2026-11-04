@@ -1,3 +1,23 @@
+* Wed Nov 04 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.8.0-1
+- Updates are found for snapshot versions such as 0.3.0+git6 and for
+  rpm pre-releases such as 0.7.1~rc1; tags without dates are no longer
+  read oldest first.
+- Builds named like "…aarch64-openrepos.rpm" are updated automatically
+  and recognised when already installed.
+- A failed automatic update is not retried with a new download every few
+  hours: the app's page shows why it failed, with a report, and the
+  notification says it too. A build installed by hand since is not
+  replaced without asking.
+- Harpoon checks the build provenance of its own updates, and an offline
+  first start no longer begins with an error.
+- The list appears without freezing the window, asks rpm once instead of
+  once per app, and keeps an open menu when apps change places.
+- Links to a repository's issues or pull requests open in the browser.
+- The app's page has Stop tracking; banners name the app; Update all only
+  shows when it can install something.
+- Many smaller fixes: slow downloads no longer time out, private
+  repositories hint at access tokens, settings and errors are clearer.
+
 * Tue Nov 03 2026 Juhani Lehtimäki <juhani.lehtimaki@iki.fi> - 0.7.1-1
 - A release with a command line tool and the app named after the
   repository (such as rawfish-ir-cli and rawfish-ir-gui) installs both;
