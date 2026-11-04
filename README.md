@@ -122,6 +122,11 @@ To make it even easier for people:
   Harpoon to find, even if your code and tags are there. People can still add your app:
   Harpoon shows it as waiting for builds, explains why, and offers it as soon as you
   publish a release with packages.
+- **On GitLab, attach the RPMs to the release** (asset links) or publish them in the
+  project's generic package registry: Harpoon reads both. A registry version
+  (`0.6.0-beta.46`) is offered as the release with that name; `dev`, `snapshot` and
+  `nightly` versions are prereleases. Two packages whose versions differ by a word
+  (`0.6.0-beta.46` and `0.6.0-beta.46-harbour`) are builds of one release: people choose.
 - **Use standard package file names**, `name-version-release.arch.rpm`, and attach a package
   for every architecture you support (`aarch64`, `armv7hl`, `i486`, or `noarch`). If you
   build separately for different Sailfish OS versions, put a tag such as `sfos5.1` in the

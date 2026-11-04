@@ -22,6 +22,23 @@ namespace Harpoon {
 // {origin}/-/project/{id}/uploads/.... CI artifact links
 // {project}/-/jobs/N/artifacts/file/X are rewritten to .../artifacts/raw/X.
 //
+// Package registry: some projects (Whisperfish) publish their RPMs in the
+// project's generic package registry and leave the releases with a source
+// archive. When no release has an RPM, and the app is not track-only, the
+// registry is read too:
+//
+//   GET {api}/packages?package_type=generic&per_page=100&order_by=created_at&sort=desc
+//   GET {api}/packages/{id}/package_files?per_page=100        (per version)
+//   GET {api}/repository/tags?per_page=100                    notes and dates
+//
+// Each package version becomes a release (tagged like the repository's tag
+// when there is one); "dev", "snapshot" and "nightly" versions are
+// prereleases. Several packages of one name whose versions differ by a word
+// ("0.6.0-beta.46" and "0.6.0-beta.46-harbour": the Harbour variant) are
+// builds of the same release; the app's page asks which to install.
+// Downloads are {api}/packages/generic/{name}/{version}/{file}, with the
+// size and SHA-256 the registry reports.
+//
 // Differences from upstream:
 //  - Asset URLs are stored without the token, because assets end up in the
 //    app store and exports. Private assets need authorizedAssetUrl() at
@@ -52,9 +69,41 @@ public:
                          DownloadRequest &request) const override;
 
 private:
+    // Adds the package registry's builds to `releases` when none of them has
+    // an RPM (see above), then calls done.
+    void addPackageRegistry(const QString &api, const QString &standardUrl, const AppSettings &settings,
+                            HttpTransport &transport, FetchResult releases, Callback done);
     HttpRequest request(const QString &url, const QString &standardUrl) const;
     QString withToken(const QString &url) const;
 };
+
+// One package of the project's generic package registry.
+struct GitLabPackage
+{
+    qint64 id = 0;
+    QString name;
+    QString version;
+    QDateTime created;
+    QString webPath; // "/group/project/-/packages/1"
+};
+
+// The builds of one version: the package of that version and its variants.
+struct GitLabPackageGroup
+{
+    QString version; // without the variant word
+    QList<GitLabPackage> packages;
+    QDateTime created; // newest package
+    bool prerelease = false;
+};
+
+Result<QList<GitLabPackage>> parseGitLabPackages(const QByteArray &json);
+// Groups packages that differ only by a variant word ("-harbour"), newest
+// first. A word like "beta" or "dev" is a pre-release marker, not a variant.
+QList<GitLabPackageGroup> groupGitLabPackages(const QList<GitLabPackage> &packages);
+// The files of one package as assets, downloaded from the registry
+// (apiBase = GitLabSource::apiBaseUrl()).
+Result<QList<Asset>> parseGitLabPackageFiles(const QByteArray &json, const QString &apiBase,
+                                             const GitLabPackage &package);
 
 // Parses a GitLab /releases (or, with fromTags, /repository/tags) response.
 // projectId is used for description uploads; standardUrl for the CI-artifact

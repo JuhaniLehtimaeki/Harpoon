@@ -1,0 +1,23 @@
+[
+ {
+  "name": "v0.6.0-beta.46",
+  "message": "fix reconnecting issue on new Signal Server",
+  "commit": {
+   "created_at": "2026-10-15T19:44:59.000+03:00"
+  }
+ },
+ {
+  "name": "v0.6.0-beta.45",
+  "message": "DME issue fixes, impersonation vulnerability fix, avatars in\nnotifications, and probably more!",
+  "commit": {
+   "created_at": "2026-10-12T07:57:46.000+00:00"
+  }
+ },
+ {
+  "name": "v0.6.0-beta.36",
+  "message": "Lot's of enhancements!",
+  "commit": {
+   "created_at": "2025-09-08T21:36:18.000+03:00"
+  }
+ }
+]

@@ -27,6 +27,7 @@ RpmFileName parseRpmFileName(const QString &fileName);
 struct BuildChoice
 {
     QString assetName;
+    QString key;         // the asset's URL: unique even when file names are the same
     QString label;       // what tells it apart ("openrepos"); empty for the plain build
     QString filter;      // for Keys::assetFilterRegEx
     bool invert = false; // for Keys::invertAssetFilter
@@ -36,6 +37,8 @@ struct BuildChoice
 // of one package, the builds to choose from, else nothing. The filters work
 // for later releases too: they use the words that tell the builds apart, not
 // version numbers, and keep the release's other packages where they can.
+// Builds with the same file name (GitLab's package registry keeps one folder
+// per version and variant) are told apart by the folder of the file.
 // packageName: set to the package that has several builds.
 QList<BuildChoice> buildChoices(const QList<Asset> &assets, QString *packageName = nullptr);
 

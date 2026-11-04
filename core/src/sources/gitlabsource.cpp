@@ -5,8 +5,13 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QHash>
 #include <QRegularExpression>
+#include <QSet>
 #include <QUrl>
+
+#include <algorithm>
+#include <memory>
 
 namespace Harpoon {
 
@@ -94,7 +99,7 @@ void GitLabSource::fetchReleases(const QString &standardUrl, const AppSettings &
     const bool trackOnly = settings.getBool(Keys::trackOnly);
     const QString name = displayName();
 
-    transport.get(request(api, standardUrl), [this, api, standardUrl, trackOnly, name, &transport,
+    transport.get(request(api, standardUrl), [this, api, standardUrl, trackOnly, name, &transport, settings,
                                               done](const HttpResponse &projectResponse) {
         FetchResult result;
         if (projectResponse.status != 200) {
@@ -113,7 +118,8 @@ void GitLabSource::fetchReleases(const QString &standardUrl, const AppSettings &
         // Track-only apps follow tags, as upstream (tags carry their release notes).
         const QString path = trackOnly ? QStringLiteral("/repository/tags") : QStringLiteral("/releases");
         transport.get(request(api + path + QStringLiteral("?per_page=100"), standardUrl),
-                      [standardUrl, projectId, trackOnly, name, done](const HttpResponse &response) {
+                      [this, api, standardUrl, settings, &transport, projectId, trackOnly, name,
+                       done](const HttpResponse &response) {
                           FetchResult releases;
                           if (response.status != 200) {
                               releases.error = httpErrorFor(response, name, QStringLiteral("Project not found"));
@@ -127,9 +133,247 @@ void GitLabSource::fetchReleases(const QString &standardUrl, const AppSettings &
                               releases.error = Error::make(Error::NoReleases,
                                                            trackOnly ? QStringLiteral("The project has no tags")
                                                                      : noReleasesMessage());
-                          done(releases);
+                          // Nothing to install in the releases: the package
+                          // registry may have it.
+                          bool anyRpm = false;
+                          for (const Release &r : releases.releases)
+                              for (const Asset &a : r.assets)
+                                  if (a.name.endsWith(QLatin1String(".rpm"), Qt::CaseInsensitive))
+                                      anyRpm = true;
+                          if (trackOnly || anyRpm || releases.error.kind == Error::Parse
+                              || releases.error.kind == Error::Network) {
+                              done(releases);
+                              return;
+                          }
+                          addPackageRegistry(api, standardUrl, settings, transport, releases, done);
                       });
     });
+}
+
+namespace {
+
+QString normalizedTag(const QString &tag)
+{
+    QString t = tag.trimmed().toLower();
+    if (t.size() > 1 && t.startsWith(QLatin1Char('v')) && t.at(1).isDigit())
+        t = t.mid(1);
+    return t;
+}
+
+bool isPrereleaseVersion(const QString &version)
+{
+    static const QRegularExpression marker(QStringLiteral("(^|[-.+~])(dev|snapshot|nightly)([-.+~0-9]|$)"),
+                                           QRegularExpression::CaseInsensitiveOption);
+    return marker.match(version).hasMatch();
+}
+
+QString encoded(const QString &segment)
+{
+    return QString::fromLatin1(QUrl::toPercentEncoding(segment));
+}
+
+} // namespace
+
+Result<QList<GitLabPackage>> parseGitLabPackages(const QByteArray &json)
+{
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(json, &err);
+    if (err.error != QJsonParseError::NoError || !doc.isArray())
+        return Result<QList<GitLabPackage>>::failure(
+            Error::make(Error::Parse, QStringLiteral("Unexpected package registry response")));
+    QList<GitLabPackage> out;
+    for (const QJsonValue &value : doc.array()) {
+        const QJsonObject o = value.toObject();
+        const QString status = o.value(QLatin1String("status")).toString(QStringLiteral("default"));
+        if (status != QLatin1String("default"))
+            continue; // being deleted, hidden, failed
+        GitLabPackage p;
+        p.id = static_cast<qint64>(o.value(QLatin1String("id")).toDouble(0));
+        p.name = o.value(QLatin1String("name")).toString();
+        p.version = o.value(QLatin1String("version")).toString();
+        p.created = parseIsoDate(o.value(QLatin1String("created_at")));
+        p.webPath = o.value(QLatin1String("_links")).toObject().value(QLatin1String("web_path")).toString();
+        if (p.id > 0 && !p.name.isEmpty() && !p.version.isEmpty())
+            out << p;
+    }
+    return Result<QList<GitLabPackage>>::success(out);
+}
+
+QList<GitLabPackageGroup> groupGitLabPackages(const QList<GitLabPackage> &packages)
+{
+    // Words that mark a pre-release, never a variant of the same release.
+    static const QSet<QString> notVariants{QStringLiteral("dev"),     QStringLiteral("snapshot"), QStringLiteral("nightly"),
+                                           QStringLiteral("alpha"),   QStringLiteral("beta"),     QStringLiteral("preview"),
+                                           QStringLiteral("pre"),     QStringLiteral("rc"),       QStringLiteral("final")};
+    static const QRegularExpression word(QStringLiteral("[-.]([A-Za-z]{3,})(?=[-.]|$)"));
+
+    QSet<QString> known; // name + "\n" + version
+    for (const GitLabPackage &p : packages)
+        known.insert(p.name + QLatin1Char('\n') + p.version);
+
+    QList<GitLabPackageGroup> groups;
+    for (const GitLabPackage &p : packages) {
+        // "0.6.0-beta.46-harbour" is "0.6.0-beta.46" with the word "harbour".
+        QString base = p.version;
+        auto it = word.globalMatch(p.version);
+        while (it.hasNext()) {
+            const auto m = it.next();
+            if (notVariants.contains(m.captured(1).toLower()))
+                continue;
+            const QString without = p.version.left(m.capturedStart(0)) + p.version.mid(m.capturedEnd(0));
+            if (known.contains(p.name + QLatin1Char('\n') + without)) {
+                base = without;
+                break;
+            }
+        }
+        GitLabPackageGroup *group = nullptr;
+        for (GitLabPackageGroup &g : groups)
+            if (g.version == base)
+                group = &g;
+        if (!group) {
+            groups << GitLabPackageGroup();
+            group = &groups.last();
+            group->version = base;
+            group->prerelease = isPrereleaseVersion(base);
+        }
+        group->packages << p;
+        if (!group->created.isValid() || p.created > group->created)
+            group->created = p.created;
+    }
+    std::stable_sort(groups.begin(), groups.end(),
+                     [](const GitLabPackageGroup &a, const GitLabPackageGroup &b) { return a.created > b.created; });
+    return groups;
+}
+
+Result<QList<Asset>> parseGitLabPackageFiles(const QByteArray &json, const QString &apiBase, const GitLabPackage &package)
+{
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(json, &err);
+    if (err.error != QJsonParseError::NoError || !doc.isArray())
+        return Result<QList<Asset>>::failure(Error::make(Error::Parse, QStringLiteral("Unexpected package files response")));
+    QList<Asset> assets;
+    for (const QJsonValue &value : doc.array()) {
+        const QJsonObject o = value.toObject();
+        Asset asset;
+        asset.name = o.value(QLatin1String("file_name")).toString();
+        if (asset.name.isEmpty())
+            continue;
+        asset.url = apiBase + QStringLiteral("/packages/generic/") + encoded(package.name) + QLatin1Char('/')
+                    + encoded(package.version) + QLatin1Char('/') + encoded(asset.name);
+        asset.size = static_cast<qint64>(o.value(QLatin1String("size")).toDouble(-1));
+        asset.sha256 = o.value(QLatin1String("file_sha256")).toString().toLower();
+        asset.updatedAt = parseIsoDate(o.value(QLatin1String("created_at")));
+        // The same file name can exist in several versions of a package: the
+        // URL tells them apart, so they are not merged by name.
+        assets << asset;
+    }
+    return Result<QList<Asset>>::success(assets);
+}
+
+void GitLabSource::addPackageRegistry(const QString &api, const QString &standardUrl, const AppSettings &settings,
+                                      HttpTransport &transport, FetchResult releases, Callback done)
+{
+    const bool includePrereleases = settings.getBool(Keys::includePrereleases);
+    transport.get(request(api + QStringLiteral("/packages?package_type=generic&per_page=100&order_by=created_at&sort=desc"),
+                          standardUrl),
+                  [this, api, standardUrl, includePrereleases, &transport, releases, done](const HttpResponse &response) {
+                      // No registry (disabled, or no access): what the releases said stands.
+                      const auto packages = response.status == 200 ? parseGitLabPackages(response.body)
+                                                                   : Result<QList<GitLabPackage>>::failure(Error());
+                      if (!packages.ok()) {
+                          done(releases);
+                          return;
+                      }
+                      // The newest few versions; pre-releases only for people who want them.
+                      QList<GitLabPackageGroup> groups;
+                      for (const GitLabPackageGroup &g : groupGitLabPackages(packages.value))
+                          if ((includePrereleases || !g.prerelease) && groups.size() < 5)
+                              groups << g;
+                      if (groups.isEmpty()) {
+                          done(releases);
+                          return;
+                      }
+
+                      // Everything the answer needs, filled in as requests return.
+                      struct State
+                      {
+                          FetchResult result;
+                          QList<QList<Asset>> assets; // per group
+                          QHash<QString, QJsonObject> tags; // normalised name -> tag
+                          int pending = 0;
+                      };
+                      auto state = std::make_shared<State>();
+                      state->result = releases;
+                      for (int i = 0; i < groups.size(); ++i)
+                          state->assets << QList<Asset>();
+                      state->pending = 1; // the tags
+                      for (const GitLabPackageGroup &g : groups)
+                          state->pending += g.packages.size();
+
+                      auto finish = [state, groups, standardUrl, done]() {
+                          if (--state->pending > 0)
+                              return;
+                          FetchResult out = state->result;
+                          const QString host = origin(standardUrl);
+                          for (int i = 0; i < groups.size(); ++i) {
+                              const GitLabPackageGroup &g = groups.at(i);
+                              if (state->assets.at(i).isEmpty())
+                                  continue;
+                              const QJsonObject tag = state->tags.value(normalizedTag(g.version));
+                              const QString tagName = tag.value(QLatin1String("name")).toString();
+                              // A release of that tag already (its source archive): the builds join it.
+                              Release *release = nullptr;
+                              for (Release &r : out.releases)
+                                  if (normalizedTag(r.tag) == normalizedTag(g.version))
+                                      release = &r;
+                              Release added;
+                              if (!release) {
+                                  added.tag = tagName.isEmpty() ? g.version : tagName;
+                                  added.date = g.created;
+                                  added.prerelease = g.prerelease;
+                                  added.changelog = tag.value(QLatin1String("message")).toString().trimmed();
+                                  added.pageUrl = tagName.isEmpty()
+                                                      ? host + g.packages.first().webPath
+                                                      : standardUrl + QStringLiteral("/-/tags/") + encoded(tagName);
+                                  release = &added;
+                              }
+                              for (const Asset &a : state->assets.at(i))
+                                  release->assets << a;
+                              if (release == &added)
+                                  out.releases << added;
+                          }
+                          out.error = Error(); // there are builds now
+                          if (out.releases.isEmpty())
+                              out.error = Error::make(Error::NoReleases, noReleasesMessage());
+                          done(out);
+                      };
+
+                      // Notes and tag names: optional.
+                      transport.get(request(api + QStringLiteral("/repository/tags?per_page=100"), standardUrl),
+                                    [state, finish](const HttpResponse &tagsResponse) {
+                                        if (tagsResponse.status == 200) {
+                                            const QJsonArray arr = QJsonDocument::fromJson(tagsResponse.body).array();
+                                            for (const QJsonValue &v : arr) {
+                                                const QJsonObject t = v.toObject();
+                                                state->tags.insert(normalizedTag(t.value(QLatin1String("name")).toString()), t);
+                                            }
+                                        }
+                                        finish();
+                                    });
+                      for (int i = 0; i < groups.size(); ++i)
+                          for (const GitLabPackage &package : groups.at(i).packages)
+                              transport.get(request(api + QStringLiteral("/packages/") + QString::number(package.id)
+                                                        + QStringLiteral("/package_files?per_page=100"),
+                                                    standardUrl),
+                                            [state, finish, i, api, package](const HttpResponse &filesResponse) {
+                                                if (filesResponse.status == 200) {
+                                                    const auto files = parseGitLabPackageFiles(filesResponse.body, api, package);
+                                                    if (files.ok())
+                                                        state->assets[i] << files.value;
+                                                }
+                                                finish();
+                                            });
+                  });
 }
 
 Result<QList<Release>> parseGitLabReleases(const QByteArray &json, const QString &standardUrl, qint64 projectId,

@@ -12,6 +12,10 @@ and stay deterministic.
 - `github/tags.json`: GitHub `/tags`.
 - `forgejo/releases.json`: Forgejo `/api/v1/repos/{o}/{r}/releases`. Assets have no
   API `url` and only `created_at`.
+- `gitlab/whisperfish-releases.json`, `gitlab/packages.json`, `gitlab/package-files-*.json`,
+  `gitlab/registry-tags.json`: Whisperfish on gitlab.com, trimmed real responses: releases
+  with only a source archive, and the generic package registry holding the RPMs, each
+  version twice (standard and `-harbour` build), plus a `dev` build.
 - `gitlab/project.json`, `gitlab/releases.json`, `gitlab/tags.json`: GitLab API v4
   project, `/releases` and `/repository/tags`. The releases cover an `upcoming_release`,
   `direct_asset_url` vs `url`, a CI job artifact link, a non-RPM link name, a markdown

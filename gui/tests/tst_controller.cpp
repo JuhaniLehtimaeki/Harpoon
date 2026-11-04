@@ -318,7 +318,7 @@ private slots:
         QVERIFY(!model->entry(id)->busy);
 
         // The choice becomes a filter, and the next check finds one build.
-        m_controller->chooseBuild(id, choices.first().toMap().value(QStringLiteral("assetName")).toString());
+        m_controller->chooseBuild(id, choices.first().toMap().value(QStringLiteral("key")).toString());
         QTRY_VERIFY(!m_controller->checking());
         const App &app = model->entry(id)->app;
         QVERIFY(app.settings.getBool(Keys::invertAssetFilter));

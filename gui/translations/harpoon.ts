@@ -1005,7 +1005,7 @@
     <name>Harpoon::HarpoonController</name>
     <message>
         <location filename="../src/harpooncontroller.cpp" line="321"/>
-        <location filename="../src/harpooncontroller.cpp" line="874"/>
+        <location filename="../src/harpooncontroller.cpp" line="883"/>
         <source>The app was changed in the background; try again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1026,7 +1026,7 @@
     </message>
     <message>
         <location filename="../src/harpooncontroller.cpp" line="519"/>
-        <location filename="../src/harpooncontroller.cpp" line="855"/>
+        <location filename="../src/harpooncontroller.cpp" line="864"/>
         <source>Checking</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1128,12 +1128,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="845"/>
+        <location filename="../src/harpooncontroller.cpp" line="854"/>
         <source>The app is busy; try again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/harpooncontroller.cpp" line="1007"/>
+        <location filename="../src/harpooncontroller.cpp" line="1018"/>
         <source>Cannot read %1: %2</source>
         <translation type="unfinished"></translation>
     </message>

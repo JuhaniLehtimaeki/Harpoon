@@ -404,7 +404,7 @@ Page {
 
                             width: parent.width
                             height: choiceColumn.height + 2 * Theme.paddingMedium
-                            onClicked: harpoon.chooseBuild(page.appId, modelData.assetName)
+                            onClicked: harpoon.chooseBuild(page.appId, modelData.key)
 
                             Column {
                                 id: choiceColumn

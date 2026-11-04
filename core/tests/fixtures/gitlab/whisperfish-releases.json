@@ -1,0 +1,40 @@
+[
+ {
+  "name": "Release v0.6.0-beta.36",
+  "tag_name": "v0.6.0-beta.36",
+  "description": "Created using the release-cli",
+  "released_at": "2025-09-08T19:42:11.826Z",
+  "upcoming_release": false,
+  "_links": {
+   "self": "https://gitlab.com/whisperfish/whisperfish/-/releases/v0.6.0-beta.36"
+  },
+  "assets": {
+   "links": [
+    {
+     "name": "whisperfish-0.6.0-beta.36.tar.gz",
+     "url": "https://gitlab.com/whisperfish/whisperfish/-/jobs/11282947292/artifacts/raw/whisperfish-0.6.0-beta.36.tar.gz",
+     "link_type": "other"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Release v0.6.0-beta.35",
+  "tag_name": "v0.6.0-beta.35",
+  "description": "Created using the release-cli",
+  "released_at": "2025-06-01T10:00:00.000Z",
+  "upcoming_release": false,
+  "_links": {
+   "self": "https://gitlab.com/whisperfish/whisperfish/-/releases/v0.6.0-beta.35"
+  },
+  "assets": {
+   "links": [
+    {
+     "name": "whisperfish-0.6.0-beta.35.tar.gz",
+     "url": "https://gitlab.com/whisperfish/whisperfish/-/jobs/10216899569/artifacts/raw/whisperfish-0.6.0-beta.35.tar.gz",
+     "link_type": "other"
+    }
+   ]
+  }
+ }
+]

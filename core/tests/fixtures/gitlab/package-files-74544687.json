@@ -1,0 +1,74 @@
+[
+ {
+  "id": 380717406,
+  "package_id": 74544687,
+  "created_at": "2026-10-30T16:11:50.013Z",
+  "file_name": "harbour-whisperfish-0.6.0.beta.46+HEAD.20261030155350.057dd01a-1.aarch64.rpm",
+  "size": 14381313,
+  "file_sha256": "3007910b351b44d2da5fb61005ee309c1aca985b3015586ca83bcbefa4601919"
+ },
+ {
+  "id": 380717454,
+  "package_id": 74544687,
+  "created_at": "2026-10-30T16:11:54.186Z",
+  "file_name": "harbour-whisperfish-debuginfo-0.6.0.beta.46+HEAD.20261030155350.057dd01a-1.aarch64.rpm",
+  "size": 39847393,
+  "file_sha256": "013e4b7e7a67603e899cd342619cce5d4f1d2477bf0e078a92bac2f734f2762f"
+ },
+ {
+  "id": 380717481,
+  "package_id": 74544687,
+  "created_at": "2026-10-30T16:11:56.215Z",
+  "file_name": "harbour-whisperfish-debugsource-0.6.0.beta.46+HEAD.20261030155350.057dd01a-1.aarch64.rpm",
+  "size": 7756613,
+  "file_sha256": "14553744ff357744aa7269f329de308117dd2686bb9631310a4b3e6164b5f115"
+ },
+ {
+  "id": 380718361,
+  "package_id": 74544687,
+  "created_at": "2026-10-30T16:13:14.653Z",
+  "file_name": "harbour-whisperfish-0.6.0.beta.46+HEAD.20261030155350.057dd01a-1.armv7hl.rpm",
+  "size": 12396777,
+  "file_sha256": "4e7f619df717a253d50d01345d20c7c6b5d80843ed7a71b28b20c375ad381ce6"
+ },
+ {
+  "id": 380718411,
+  "package_id": 74544687,
+  "created_at": "2026-10-30T16:13:18.665Z",
+  "file_name": "harbour-whisperfish-debuginfo-0.6.0.beta.46+HEAD.20261030155350.057dd01a-1.armv7hl.rpm",
+  "size": 38565525,
+  "file_sha256": "503a706bd7d9c978887993069325ed3a20f8c762d877b0f37c22705d06bf7598"
+ },
+ {
+  "id": 380718432,
+  "package_id": 74544687,
+  "created_at": "2026-10-30T16:13:20.482Z",
+  "file_name": "harbour-whisperfish-debugsource-0.6.0.beta.46+HEAD.20261030155350.057dd01a-1.armv7hl.rpm",
+  "size": 7525757,
+  "file_sha256": "27374b555df9affb3e7c0c4146bbb6cdaf068257b290b7683025870c38c1c091"
+ },
+ {
+  "id": 380733491,
+  "package_id": 74544687,
+  "created_at": "2026-10-30T16:34:00.065Z",
+  "file_name": "harbour-whisperfish-0.6.0.beta.46+HEAD.20261030155350.057dd01a-1.i486.rpm",
+  "size": 15232137,
+  "file_sha256": "a820cab278bb95a761dcbb1ae53d52f941327bd6cf43f6957f782ce413fd5365"
+ },
+ {
+  "id": 380733529,
+  "package_id": 74544687,
+  "created_at": "2026-10-30T16:34:04.757Z",
+  "file_name": "harbour-whisperfish-debuginfo-0.6.0.beta.46+HEAD.20261030155350.057dd01a-1.i486.rpm",
+  "size": 39120197,
+  "file_sha256": "fe1c88806a1619ddc1b19ec7c1afbf6a546ea74f465c656017b5136b011aea01"
+ },
+ {
+  "id": 380733542,
+  "package_id": 74544687,
+  "created_at": "2026-10-30T16:34:07.271Z",
+  "file_name": "harbour-whisperfish-debugsource-0.6.0.beta.46+HEAD.20261030155350.057dd01a-1.i486.rpm",
+  "size": 7532325,
+  "file_sha256": "af02869ff87be309d721ca6ef956a7b6c83dce42996a8b4bda54f69fe754132c"
+ }
+]

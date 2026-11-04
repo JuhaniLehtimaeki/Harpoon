@@ -813,13 +813,13 @@ void HarpoonController::setAppSetting(const QString &id, const QString &key, con
     storeAndShow(app);
 }
 
-void HarpoonController::chooseBuild(const QString &id, const QString &assetName)
+void HarpoonController::chooseBuild(const QString &id, const QString &key)
 {
     const AppListModel::Entry *e = m_model.entry(id);
     if (!e || e->busy)
         return;
     for (const BuildChoice &choice : buildChoices(e->app.latestAssets)) {
-        if (choice.assetName != assetName)
+        if (choice.key != key)
             continue;
         App app = recordToEdit(*e);
         QVariantMap values = app.settings.values();
@@ -927,7 +927,9 @@ QVariantMap HarpoonController::appDetails(const QString &id) const
     QString buildPackage;
     QVariantList builds;
     for (const BuildChoice &choice : buildChoices(a.latestAssets, &buildPackage))
-        builds << QVariantMap{{QStringLiteral("assetName"), choice.assetName}, {QStringLiteral("label"), choice.label}};
+        builds << QVariantMap{{QStringLiteral("assetName"), choice.assetName},
+                              {QStringLiteral("key"), choice.key},
+                              {QStringLiteral("label"), choice.label}};
     QString sourceName = a.sourceId;
     QString effectiveSourceId = a.sourceId;
     const auto match = m_registry.match(a.url, a.sourceId);

@@ -116,8 +116,9 @@ public:
     Q_INVOKABLE void setAppSetting(const QString &id, const QString &key, const QVariant &value);
     Q_INVOKABLE void setAppName(const QString &id, const QString &name);
     // For a release with several builds of the app (appDetails' buildChoices):
-    // keeps the chosen one through a package filter, then checks again.
-    Q_INVOKABLE void chooseBuild(const QString &id, const QString &assetName);
+    // keeps the chosen one (its "key", the asset's URL) through a package
+    // filter, then checks again.
+    Q_INVOKABLE void chooseBuild(const QString &id, const QString &key);
     // Points the app at another address (sourceId empty: by host) after a
     // check of it, keeping its settings and installed package. Emits
     // addressChangeFinished.

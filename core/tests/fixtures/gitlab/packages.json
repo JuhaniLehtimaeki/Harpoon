@@ -1,0 +1,68 @@
+[
+ {
+  "id": 74544687,
+  "name": "harbour-whisperfish",
+  "version": "0.6.0-dev.b6184.057dd01a",
+  "package_type": "generic",
+  "status": "default",
+  "created_at": "2026-10-30T16:11:49.959Z",
+  "_links": {
+   "web_path": "/whisperfish/whisperfish/-/packages/74544687"
+  }
+ },
+ {
+  "id": 74543719,
+  "name": "harbour-whisperfish",
+  "version": "0.6.0-dev-harbour.b6184.057dd01a",
+  "package_type": "generic",
+  "status": "default",
+  "created_at": "2026-10-30T16:07:56.934Z",
+  "_links": {
+   "web_path": "/whisperfish/whisperfish/-/packages/74543719"
+  }
+ },
+ {
+  "id": 72644449,
+  "name": "harbour-whisperfish",
+  "version": "0.6.0-beta.46",
+  "package_type": "generic",
+  "status": "default",
+  "created_at": "2026-10-15T17:21:29.855Z",
+  "_links": {
+   "web_path": "/whisperfish/whisperfish/-/packages/72644449"
+  }
+ },
+ {
+  "id": 72644210,
+  "name": "harbour-whisperfish",
+  "version": "0.6.0-beta.46-harbour",
+  "package_type": "generic",
+  "status": "default",
+  "created_at": "2026-10-15T17:19:51.094Z",
+  "_links": {
+   "web_path": "/whisperfish/whisperfish/-/packages/72644210"
+  }
+ },
+ {
+  "id": 72164507,
+  "name": "harbour-whisperfish",
+  "version": "0.6.0-beta.45",
+  "package_type": "generic",
+  "status": "default",
+  "created_at": "2026-10-12T08:35:16.275Z",
+  "_links": {
+   "web_path": "/whisperfish/whisperfish/-/packages/72164507"
+  }
+ },
+ {
+  "id": 72164039,
+  "name": "harbour-whisperfish",
+  "version": "0.6.0-beta.45-harbour",
+  "package_type": "generic",
+  "status": "default",
+  "created_at": "2026-10-12T08:32:08.513Z",
+  "_links": {
+   "web_path": "/whisperfish/whisperfish/-/packages/72164039"
+  }
+ }
+]
