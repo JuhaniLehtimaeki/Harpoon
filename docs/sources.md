@@ -82,7 +82,8 @@ file name becomes the asset name.
 | Assets | the tag page's `tagArtifacts` rows: the row title is the file name, the Download link (`{repo}/artifacts/{tid}`) is the URL |
 
 - Tangled's public bobbin API is not exposed outside its web app, so the Atom feed and the tag pages it links to are read instead, like SourceHut.
-- Only annotated tags reach the feed (a lightweight tag has no message to show).
+- Only annotated tags reach the feed (a lightweight tag has no message to show). Publishers
+  should release with an annotated tag (`git tag -a`) and attach the RPMs to it.
 - Feed links are matched by repository ("handle/repo", ignoring letter case and an `@` before
   the handle) and site, not by the address that was typed; entries of other repositories or
   sites, and non-tag links, are left out. Tags are sorted newest first (by `<updated>`)

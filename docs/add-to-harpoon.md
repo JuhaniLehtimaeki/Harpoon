@@ -18,6 +18,11 @@ https://github.com/owner/harbour-myapp
 This works for any repository whose type Harpoon can tell from the host: GitHub, Codeberg,
 GitLab.com, SourceHut, SourceForge and so on.
 
+On Tangled (`https://tangled.org/handle/repo`, with or without an `@` before the handle),
+Harpoon reads the repository's tags, so release with an **annotated** tag
+(`git tag -a v1.2.3 -m "Release notes"`) and attach the RPMs to it. Lightweight tags do not
+appear in Tangled's feed and are not found.
+
 ## 2. A `harpoon://add` link
 
 Use a link when Harpoon cannot guess the source from the URL. For example:
