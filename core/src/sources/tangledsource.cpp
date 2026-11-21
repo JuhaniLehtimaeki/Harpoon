@@ -76,8 +76,11 @@ QString messageFromContent(const QString &content)
     return split < 0 ? QString() : content.mid(split + 2).trimmed();
 }
 
-// The artifacts listed on a tag page, under the tagArtifacts marker: one row
-// per settingsRowTitle, whose download link follows the file name.
+// The artifacts listed on a tag page, under the tagArtifacts marker. Two row
+// shapes exist: a settings row whose title is the file name, with the Download
+// link beside it, and a single-line row that is itself the link
+// (data-testid="artifactDownload"), with the file name in its download or
+// title attribute or in its text.
 QList<Asset> artifactsOf(const QString &page, const QString &baseUrl)
 {
     QList<Asset> assets;
@@ -85,6 +88,8 @@ QList<Asset> artifactsOf(const QString &page, const QString &baseUrl)
     if (artifactsAt < 0)
         return assets;
     const QString section = page.mid(artifactsAt);
+    static const QRegularExpression linkPattern(QStringLiteral("href=\"([^\"]*\\/artifacts\\/[^\"?]*)\""));
+
     static const QRegularExpression rowPattern(
         QStringLiteral("data-testid=\"settingsRowTitle\"[^>]*>([^<]+)</span>"));
     QRegularExpressionMatch row = rowPattern.match(section);
@@ -92,7 +97,6 @@ QList<Asset> artifactsOf(const QString &page, const QString &baseUrl)
         const int rowStart = row.capturedStart();
         const QRegularExpressionMatch next = rowPattern.match(section, rowStart + row.capturedLength());
         const QString rowChunk = section.mid(rowStart, (next.hasMatch() ? next.capturedStart() : section.size()) - rowStart);
-        static const QRegularExpression linkPattern(QStringLiteral("href=\"([^\"]*\\/artifacts\\/[^\"?]*)\""));
         const QRegularExpressionMatch link = linkPattern.match(rowChunk);
         if (link.hasMatch()) {
             Asset asset;
@@ -102,6 +106,34 @@ QList<Asset> artifactsOf(const QString &page, const QString &baseUrl)
                 assets << asset;
         }
         row = next;
+    }
+
+    // Single-line rows: the row is the download link itself.
+    static const QRegularExpression anchorPattern(
+        QStringLiteral("<a\\b[^>]*data-testid=\"artifactDownload\"[^>]*>"));
+    QRegularExpressionMatch anchor = anchorPattern.match(section);
+    while (anchor.hasMatch()) {
+        const QString tag = anchor.captured(0);
+        const QRegularExpressionMatch link = linkPattern.match(tag);
+        if (link.hasMatch()) {
+            static const QRegularExpression nameAttrPattern(QStringLiteral("(?:download|title)=\"([^\"]*)\""));
+            const QRegularExpressionMatch nameAttr = nameAttrPattern.match(tag);
+            Asset asset;
+            asset.url = resolveUrl(baseUrl, decodeHtmlEntities(link.captured(1)));
+            if (nameAttr.hasMatch() && !nameAttr.captured(1).isEmpty())
+                asset.name = decodeHtmlEntities(nameAttr.captured(1));
+            else {
+                static const QRegularExpression textPattern(QStringLiteral("<span[^>]*>([^<]+)</span>"));
+                const QRegularExpressionMatch text = textPattern.match(section, anchor.capturedEnd());
+                if (text.hasMatch())
+                    asset.name = stripTags(text.captured(1));
+            }
+            const bool known = std::any_of(assets.begin(), assets.end(),
+                                           [&asset](const Asset &a) { return a.url == asset.url; });
+            if (!asset.name.isEmpty() && !asset.url.isEmpty() && !known)
+                assets << asset;
+        }
+        anchor = anchorPattern.match(section, anchor.capturedEnd());
     }
     return assets;
 }

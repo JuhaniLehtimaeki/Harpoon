@@ -94,6 +94,31 @@ private slots:
         QVERIFY(r.releases.at(2).assets.isEmpty());
     }
 
+    void singleLineArtifactRows()
+    {
+        // Tangled's web app now renders each artifact as a single-line download
+        // link (data-testid="artifactDownload"): the file name is in its
+        // download/title attribute, or in the link's text.
+        const QByteArray feed =
+            "<feed xmlns=\"http://www.w3.org/2005/Atom\">"
+            "<entry><title>t</title><id>https://tangled.org/me.example/harbour-foo/tags/v1.3.0</id>"
+            "<link href=\"https://tangled.org/me.example/harbour-foo/tags/v1.3.0\"/>"
+            "<updated>2026-05-01T08:00:00.000Z</updated><content>Tag v1.3.0 created by me:\\n\\nFoo 1.3.0</content></entry>"
+            "</feed>";
+        FakeTransport t;
+        t.respondJson(kRepo + "/feed.atom?include=tags", feed);
+        t.respondFixture(kRepo + "/tags/v1.3.0", "tangled/tag-v1.3.0.html");
+        TangledSource ts;
+        const FetchResult r = fetchFrom(ts, t, kRepo);
+        QVERIFY2(r.error.ok(), qPrintable(r.error.message));
+        QCOMPARE(r.releases.size(), 1);
+        QCOMPARE(r.releases.at(0).tag, QStringLiteral("v1.3.0"));
+        QCOMPARE(assetNames(r.releases.at(0)),
+                 (QStringList{"harbour-foo-1.3.0-1.aarch64.rpm", "harbour-foo-1.3.0-1.noarch.rpm"}));
+        QCOMPARE(r.releases.at(0).assets.at(0).url, kRepo + "/artifacts/3knew2abc3def4m");
+        QCOMPARE(r.releases.at(0).assets.at(1).url, kRepo + "/artifacts/3knew2abc3def4n");
+    }
+
     void entriesMatchWhateverTheLetterCaseOrAt()
     {
         // The address typed differs from the feed's links by case and by an "@"

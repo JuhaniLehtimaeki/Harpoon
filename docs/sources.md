@@ -79,7 +79,7 @@ file name becomes the asset name.
 | Requests | `GET {repo}/feed.atom?include=tags`, then each entry's tag page, at most 6 |
 | Tag / date | the entry's link to `{repo}/tags/{name}` / `<updated>` (milliseconds cut for Qt 5.6) |
 | Title / changelog | the entry content is `Tag {name} created by {author}:\n\n{message}`; the message's first line is the title, the rest is the changelog |
-| Assets | the tag page's `tagArtifacts` rows: the row title is the file name, the Download link (`{repo}/artifacts/{tid}`) is the URL |
+| Assets | the tag page's `tagArtifacts` rows, in either shape: a `settingsRowTitle` row whose title is the file name and whose Download link is the URL, or a single-line `artifactDownload` link row (file name in its `download`/`title` attribute or its text). The link (`{repo}/artifacts/{tid}`) is the URL |
 
 - Tangled's public bobbin API is not exposed outside its web app, so the Atom feed and the tag pages it links to are read instead, like SourceHut.
 - Only annotated tags reach the feed (a lightweight tag has no message to show). Publishers
@@ -88,7 +88,7 @@ file name becomes the asset name.
   the handle) and site, not by the address that was typed; entries of other repositories or
   sites, and non-tag links, are left out. Tags are sorted newest first (by `<updated>`)
   before the newest few are fetched, whatever order the feed lists them in.
-- An artifact link does not end in `.rpm`; the file name shown in its row is the asset name, and the link serves the file with a `Content-Disposition` carrying that name.
+- An artifact link does not end in `.rpm`; the file name shown in its row (row title, or the link's `download`/`title` attribute or text) is the asset name, and the link serves the file with a `Content-Disposition` carrying that name.
 - With `fallbackToOlderReleases` off, only the newest tag page is fetched.
 - A tag page that returns 404 gives a release with no assets; a network error or 5xx fails the check, as with SourceHut.
 
