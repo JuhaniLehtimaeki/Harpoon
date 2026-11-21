@@ -17,9 +17,11 @@ namespace Harpoon {
 //
 // The feed entry's content is "Tag {name} created by {author}:\\n\\n{message}";
 // the message part becomes the changelog. Artifacts are listed per tag on the
-// tag page under stable data-testid markers: the row title is the file name,
-// the Download link ({repo}/artifacts/{tid}) does not end in ".rpm" but serves
-// the file with a Content-Disposition carrying that name.
+// tag page under stable data-testid markers: a settings row whose title is the
+// file name with its Download link, or a single-line row that is itself the
+// link (data-testid="artifactDownload"), the file name in its download/title
+// attribute or its text. The link ({repo}/artifacts/{tid}) does not end in
+// ".rpm" but serves the file with a Content-Disposition carrying that name.
 //
 // The canonical URL is https://tangled.org/{handle}/{repo}; anything after
 // the repo (e.g. "/tags") is cut. Only annotated tags reach the feed, and at
